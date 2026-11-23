@@ -107,6 +107,30 @@ ok('workbook finish dates win when they span more days than the duration', funct
 });
 console.log(n + ' passed');
 
+ok('progress vs plan: planned, actual and late tasks', function () {
+  var q = L.sanitizeProject({ name: 'Q', startDate: '2027-01-04', boq: [
+    { id: 1, desc: 'a', qty: 10, rate: 100, done: 10 }, { id: 2, desc: 'b', qty: 10, rate: 100, done: 2 },
+    { id: 3, desc: 'c', qty: 10, rate: 100, done: 0 }, { id: 4, desc: 'd', qty: 10, rate: 200, done: 0 }],
+    boqLines: 2, sched: { tasks: { 1: { dur: 2 }, 2: { dur: 4 }, 3: { dur: 2 }, 4: { dur: 2 } } } }, 1);
+  var c = S.compute(q);   // a: 4-5 Jan, b: 6-9 Jan, c: 11-12 Jan, d: 13-14 Jan
+  var g = S.progress(q, c, '2027-01-07');
+  assert.strictEqual(g.by[1].status, 'done'); assert.strictEqual(g.by[1].planned, 1);
+  near(g.by[2].planned, 0.5, 0.001); near(g.by[2].actual, 0.2, 0.001); assert.strictEqual(g.by[2].status, 'late');
+  assert.strictEqual(g.by[3].status, 'upcoming'); assert.strictEqual(g.by[4].planned, 0);
+  assert.strictEqual(g.lateCount, 1); assert.strictEqual(g.late[0].row.id, 2);
+  near(g.plannedValue, 1000 + 500, 0.01); near(g.actualValue, 1000 + 200, 0.01); near(g.gapValue, -300, 0.01);
+  near(g.plannedPct, 1500 / 5000, 0.001);
+  var h = S.progress(q, c, '2027-01-15');   // everything should be finished
+  assert.strictEqual(h.by[3].status, 'late'); assert.ok(h.by[3].daysLate >= 3, 'days late ' + h.by[3].daysLate);
+  assert.strictEqual(h.lateCount, 3); assert.ok(h.afterEnd);
+  var e = S.progress(q, c, '2026-12-01');
+  assert.ok(e.beforeStart); assert.strictEqual(e.lateCount, 0); assert.strictEqual(e.by[1].status, 'done');
+  q.boq[1].done = 5;   // b exactly on plan at 50%
+  assert.strictEqual(S.progress(q, S.compute(q), '2027-01-07').by[2].status, 'ontrack');
+  q.boq[2].done = 3;   // c started early
+  assert.strictEqual(S.progress(q, S.compute(q), '2027-01-07').by[3].status, 'ahead');
+});
+
 /* Excel export: build the workbook and read it back with the app's own reader */
 var X = require('../web/xlsx.js'), XR = require('../web/xlsxread.js'), SE = require('../web/schedule-excel.js');
 var pending = 0;

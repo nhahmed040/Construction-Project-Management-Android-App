@@ -43,6 +43,13 @@
     sch_split_list: 'Cost split per task', sch_split_note: 'Material / labour / equipment %. Tap a task to change it. ✎ marks a changed split.',
     sch_preset: 'Preset', sch_preset_keep: 'Keep my percentages', sch_preset_general: 'General work (62 / 15)', sch_preset_earth: 'Earth work (3 / 12)',
     sch_preset_back: 'Backfill and compaction (40 / 20)', sch_preset_default: 'Use the default split', sch_split_pool: 'Material + labour can use up to {pool}% (the rest is indirect cost).',
+    sch_progress: 'Progress vs plan', sch_as_of: 'As of', sch_today: 'today', sch_this_date: 'This date', sch_use_today: 'Use', sch_change_date: 'Change date',
+    sch_before_start: 'The project has not started on this date.', sch_planned_pct: 'Planned progress', sch_actual_pct: 'Actual progress',
+    sch_planned_value: 'Planned value to date', sch_actual_value: 'Actual value to date', sch_ahead_by: 'Ahead of plan by', sch_behind_by: 'Behind plan by',
+    sch_ratio: 'Progress ratio (actual ÷ planned)', sch_late_tasks: 'Late tasks', sch_done_tasks: 'Finished tasks', sch_late_list: 'Late tasks (biggest gap first)',
+    sch_planned: 'Planned', sch_actual: 'Actual', sch_days_late: 'working days overdue', sch_more_late: '{n} more late tasks',
+    sch_update_progress: 'Update progress', sch_progress_note: 'Planned progress counts the working days passed. A task is late when it is overdue or more than {n}% behind. Actual progress is the quantity done in the BoQ.',
+    sch_legend_plan: 'Planned', sch_legend_late: 'Late',
     sch_zoom: 'Zoom', sch_task: 'Task', sch_legend_group: 'Part', sch_legend_section: 'Section', sch_legend_task: 'Task', sch_legend_done: 'Done',
     sch_gantt_note: 'Weeks start on Monday. Tap a task to change its duration or start. The red line is today.'
   };

@@ -9,7 +9,7 @@ It started as a copy of the [CashBook](https://github.com/nhahmed040/CashBook---
 | Tab | What it does |
 | --- | --- |
 | **Schedule** | Tasks come from the BoQ. Each task has a duration (working days) and starts after the previous task, with it, or on a fixed date. Sunday (or Sat+Sun) is a rest day. **Auto-plan** spreads the project days by task value. |
-| **Gantt** | Weekly/daily bar chart with parts, sections, tasks, progress, rest-day stripes, today line and zoom. Tap a bar to edit the task. |
+| **Gantt** | Bar chart with parts, sections and tasks, planned vs actual progress strips, late tasks outlined in red, rest-day stripes, an as-of line and zoom. A *Progress vs plan* panel shows planned and actual progress, value ahead or behind, and the late tasks. Tap a bar to edit the task. |
 | **Manpower** | Permanent and temporary types, people needed per task, peak people on site, man-days, a month grid and a daily histogram. |
 | **Equipment** | Rented/owned machines per task, machine-days and a month grid. |
 | **Cash flow** | Material / labour / equipment split per task, miscellaneous, overhead, profit, withholding tax and VAT; advance + interim + final payment schedule; planned value by month. |

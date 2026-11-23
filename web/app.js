@@ -1270,6 +1270,7 @@
       t: t, el: el, btn: btn, kv: kv, panel: panel, money: money, fmtDate: fmtDate, toast: toast, openForm: openForm, save: save,
       cal: cal, lang: function () { return state.settings.lang; }, saveWorkbook: saveWorkbook, safeName: safeName,
       rerender: function () { renderAll(); },
+      goSection: function (sec) { ui.section = sec; renderProjects(); window.scrollTo(0, 0); },
       addProject: function (np) { state.projects.push(np); ui.projectId = np.id; ui.section = 'schedule'; showView('projects'); save(); renderAll(); window.scrollTo(0, 0); }
     };
   }

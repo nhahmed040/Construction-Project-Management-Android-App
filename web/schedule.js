@@ -240,6 +240,52 @@
     });
   }
 
+  /* ---------- progress against the plan ----------
+     Planned progress of a task on a day = share of its working days that have passed (0 before the start, 1 after the finish).
+     Actual progress = BoQ quantity done / quantity. A task is "late" when it should be finished and is not, or when it is
+     more than TOLERANCE behind the plan. */
+  var TOLERANCE = 0.10;
+  function progress(p, sc, asOfIso) {
+    sc = sc || compute(p);
+    var asOf = toDays(asOfIso || L.todayStr()), by = {}, plannedV = 0, actualV = 0, total = 0, late = [], done = 0, started = 0;
+    sc.rows.forEach(function (r) {
+      if (r.level !== 2 || !(r.amount > 0)) return;
+      var planned = 0, actual = r.qty > 0 ? Math.min(1, r.done / r.qty) : 0, status;
+      if (r.sd != null) planned = asOf >= r.fd ? 1 : asOf < r.sd ? 0 : workCount(r.sd, asOf, sc.off) / workCount(r.sd, r.fd, sc.off);
+      if (actual >= 0.999) status = 'done';
+      else if (r.sd == null) status = actual > 0 ? 'ontrack' : 'unplanned';
+      else if (asOf > r.fd) status = 'late';
+      else if (planned - actual > TOLERANCE) status = 'late';
+      else if (asOf < r.sd) status = actual > 0 ? 'ahead' : 'upcoming';
+      else status = actual > planned + 1e-9 ? 'ahead' : 'ontrack';
+      var info = { planned: planned, actual: actual, status: status, daysLate: status === 'late' && r.fd != null && asOf > r.fd ? workCount(r.fd + 1, asOf, sc.off) : 0 };
+      by[r.id] = info;
+      total += r.amount; plannedV += r.amount * planned; actualV += r.amount * actual;
+      if (status === 'done') done += 1;
+      if (actual > 0) started += 1;
+      if (status === 'late') late.push({ row: r, info: info, gap: r.amount * (planned - actual) });
+    });
+    sc.rows.forEach(function (h, k) {   // headings: value-weighted planned / actual of what is under them
+      if (h.level === 2) return;
+      var amt = 0, pv = 0, av = 0, lateN = 0;
+      for (var j = k + 1; j < sc.rows.length && sc.rows[j].level > h.level; j++) {
+        var x = sc.rows[j], i = by[x.id];
+        if (!i) continue;
+        amt += x.amount; pv += x.amount * i.planned; av += x.amount * i.actual;
+        if (i.status === 'late') lateN += 1;
+      }
+      by[h.id] = { planned: amt > 0 ? pv / amt : 0, actual: amt > 0 ? av / amt : 0, status: lateN ? 'late' : 'ontrack', late: lateN };
+    });
+    late.sort(function (a, b) { return b.gap - a.gap; });
+    var pPct = total > 0 ? plannedV / total : 0, aPct = total > 0 ? actualV / total : 0;
+    return {
+      asOf: fromDays(asOf), by: by, total: total, plannedValue: plannedV, actualValue: actualV, plannedPct: pPct, actualPct: aPct,
+      gapValue: actualV - plannedV, ratio: plannedV > 0 ? actualV / plannedV : null,
+      late: late, lateCount: late.length, doneCount: done, startedCount: started,
+      beforeStart: sc.sd != null && asOf < sc.sd, afterEnd: sc.fd != null && asOf > sc.fd
+    };
+  }
+
   /* ---------- import from the schedule workbook ---------- */
   function text(v) { return v == null ? '' : String(v).replace(/\s+/g, ' ').trim(); }
   function lc(v) { return text(v).toLowerCase(); }
@@ -479,7 +525,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };
