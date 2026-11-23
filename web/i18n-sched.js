@@ -1,0 +1,51 @@
+/* Text for the construction schedule screens. Merged into window.CB_I18N.
+   English only for now: Afaan Oromoo and Amharic fall back to English until they are translated. */
+(function () {
+  var en = {
+    sec_schedule: 'Schedule', sec_gantt: 'Gantt', sec_manpower: 'Manpower', sec_equipment: 'Equipment', sec_cashflow: 'Cash flow',
+    sch_import: 'Import schedule (Excel)', sch_import_new: 'New project from schedule Excel', sch_export: 'Export schedule (Excel)',
+    sch_import_ask: 'Import "{name}": {tasks} tasks, {roles} manpower types and {equip} equipment types?',
+    sch_import_replace: 'The current BoQ, tasks, manpower and equipment of this project will be replaced.',
+    sch_import_certs: 'This project already has payment certificates. Import into a new project instead (Projects → New project from schedule Excel).',
+    sch_import_none: 'No schedule found in this file. It needs a Task Name and Duration header row.',
+    sch_imported: 'Schedule imported', sch_stretched: '{n} tasks use the workbook finish date',
+    sch_no_tasks: 'No tasks yet. Import your schedule workbook or add BoQ items.',
+    sch_summary: 'Project schedule', sch_period: 'Period', sch_workdays: 'Working days', sch_caldays: 'Calendar days', sch_tasks: 'Tasks', sch_value: 'Value of tasks',
+    sch_not_planned: 'No task has a duration yet. Tap a task to set it, or use Auto-plan.',
+    sch_rest: 'Rest days', sch_rest_sun: 'Sunday', sch_rest_sat_sun: 'Saturday and Sunday', sch_rest_none: 'None (7 days a week)',
+    sch_auto: 'Auto-plan', sch_auto_ask: 'Spread the project days over all priced tasks by value? Existing durations and start dates are replaced.',
+    sch_auto_none: 'There are no priced tasks to plan.', sch_auto_done: '{n} tasks planned',
+    sch_settings: 'Schedule settings', sch_start: 'Project start date', sch_start_note: 'Tasks follow each other in the order of the BoQ. Rest days are skipped.',
+    sch_set_duration: 'Tap to set the duration', sch_duration: 'Duration (working days)', sch_starts: 'Starts', sch_after_prev: 'After the previous task',
+    sch_with_prev: 'Together with the previous task', sch_fixed: 'On a fixed date', sch_now: 'Now:',
+    sch_roles: 'Manpower types', sch_machines: 'Equipment types', sch_peak: 'Peak people on site', sch_manday_total: 'Total man-days', sch_machday_total: 'Total machine-days',
+    sch_no_roles: 'No manpower types yet.', sch_no_machines: 'No equipment yet.', sch_permanent: 'Permanent', sch_temporary: 'Temporary',
+    sch_own: 'Owned', sch_rental: 'Rented', sch_mandays: 'man-days', sch_machdays: 'machine-days',
+    sch_add_role: 'Add manpower type', sch_edit_role: 'Edit manpower type', sch_add_machine: 'Add equipment', sch_edit_machine: 'Edit equipment',
+    sch_add_standard: 'Add the standard list', sch_role: 'Manpower type', sch_machine: 'Equipment', sch_emp_type: 'Type of employment', sch_person: 'Assigned person',
+    sch_required_no: 'Required number', sch_source: 'Source',
+    sch_by_month_mp: 'Manpower by month (man-days)', sch_by_month_eq: 'Equipment by month (machine-days)',
+    sch_grid_note_mp: 'Permanent staff count every working day of the project. Temporary people count on the days of the tasks they are assigned to.',
+    sch_grid_note_eq: 'Counted on the working days of the tasks that use the equipment.',
+    sch_daily_head: 'People on site each day', sch_crew: 'Crew per task', sch_machines_per_task: 'Equipment per task',
+    sch_tap_assign: 'Tap a task to set how many are needed.', sch_none_assigned: 'Nobody assigned',
+    sch_confirm_delete: 'Delete "{name}"? It is removed from every task.',
+    sch_cf_settings: 'Cost split', sch_misc: 'Miscellaneous', sch_overhead: 'Overhead', sch_profit: 'Profit', sch_wht: 'Withholding tax',
+    sch_material: 'Material', sch_labour: 'Labour', sch_equip: 'Equipment and tools', sch_default_split: 'Default split',
+    sch_adv: 'Advance payment', sch_interim: 'Interim payments', sch_edit: 'Edit',
+    sch_cf_note: 'Equipment and tools is what is left after material, labour and the indirect costs. Changing the number of interim payments resets their dates.',
+    sch_split_over: 'The percentages add up to more than 100%.',
+    sch_cost_summary: 'Cost summary', sch_direct: 'Direct cost', sch_indirect: 'Indirect cost', sch_total_excl: 'Total (excl. VAT)', sch_total_incl: 'Total with VAT',
+    sch_payments: 'Payment schedule', sch_pay_adv: 'Advance payment', sch_pay_final: 'Final payment', sch_cum: 'Cumulative',
+    sch_cutoffs: 'Payment dates', sch_cutoffs_auto: 'Reset to automatic', sch_cutoffs_none: 'There are no interim payments. Set their number in the cost split first.',
+    sch_cutoff: 'Payment date', sch_cutoff_note: 'Each interim payment covers the work planned up to this date, less the advance share. The final payment is what is left.',
+    sch_monthly: 'Planned value by month', sch_monthly_note: 'Each task earns its value evenly over its working days.',
+    sch_split_list: 'Cost split per task', sch_split_note: 'Material / labour / equipment %. Tap a task to change it. ✎ marks a changed split.',
+    sch_preset: 'Preset', sch_preset_keep: 'Keep my percentages', sch_preset_general: 'General work (62 / 15)', sch_preset_earth: 'Earth work (3 / 12)',
+    sch_preset_back: 'Backfill and compaction (40 / 20)', sch_preset_default: 'Use the default split', sch_split_pool: 'Material + labour can use up to {pool}% (the rest is indirect cost).',
+    sch_zoom: 'Zoom', sch_task: 'Task', sch_legend_group: 'Part', sch_legend_section: 'Section', sch_legend_task: 'Task', sch_legend_done: 'Done',
+    sch_gantt_note: 'Weeks start on Monday. Tap a task to change its duration or start. The red line is today.'
+  };
+  var d = window.CB_I18N.en || (window.CB_I18N.en = {});
+  Object.keys(en).forEach(function (k) { d[k] = en[k]; });
+})();

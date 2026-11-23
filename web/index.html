@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Construction Project Management</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- PIN lock -->
+  <div id="lock" class="overlay lock">
+    <form id="lockForm" class="modal" autocomplete="off">
+      <h2 id="lockTitle" data-i18n="enter_pin">Enter PIN</h2>
+      <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" aria-label="PIN">
+      <p id="lockMsg" class="err" role="alert"></p>
+      <button type="submit" class="primary" data-i18n="unlock">Unlock</button>
+    </form>
+  </div>
+
+  <header class="top">
+    <h1>Construction PM</h1>
+    <div class="bookbar" hidden>
+      <button type="button" id="searchBtn" class="icon" aria-label="Search" title="Search">🔍</button>
+      <button type="button" id="syncDot" class="sync" aria-label="Sync" hidden></button>
+      <select id="bizSelect" aria-label="Business" hidden></select>
+      <select id="bookSelect" aria-label="Book"></select>
+      <button type="button" id="bookBtn" class="icon" data-i18n-aria="books" aria-label="Books">⋮</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ENTRIES -->
+    <section id="view-entries" class="view">
+      <div id="booksHome">
+        <button type="button" id="remindBanner" class="remind" hidden></button>
+        <div id="backupBanner" class="bkbanner" hidden></div>
+        <div class="bizbar">
+          <button type="button" id="bizBar" class="bizcard">
+            <span class="bizicon" aria-hidden="true">🏢</span>
+            <span class="biztext"><b id="bizName"></b><small data-i18n="tap_switch_biz">Tap to switch business</small></span>
+            <span class="chev" aria-hidden="true">⌄</span>
+          </button>
+          <button type="button" id="staffBtn" class="icon staffbtn" data-i18n-aria="staff" aria-label="Staff">👥</button>
+        </div>
+        <div class="bookshead">
+          <h2 data-i18n="your_books">Your Books</h2>
+          <select id="bookSort" class="sortsel" aria-label="Sort"></select>
+          <button type="button" id="bookSearchBtn" class="icon" aria-label="Search">🔍</button>
+        </div>
+        <input type="search" id="bookSearch" data-i18n-ph="search_books" placeholder="Search books" hidden>
+        <button type="button" id="addBookCard" class="addcard">
+          <span class="addtext"><b data-i18n="add_new_book">Add New Book</b><small data-i18n="add_new_book_sub">Click to quickly add books</small></span>
+          <span class="plus" aria-hidden="true">+</span>
+        </button>
+        <ul id="bookList" class="booklist"></ul>
+        <p id="noBooks" class="empty" data-i18n="no_books_found" hidden>No books found.</p>
+      </div>
+
+      <div id="bookScreen" hidden>
+      <div class="booktitle">
+        <button type="button" id="backBooks" class="icon" data-i18n-aria="back" aria-label="Back">←</button>
+        <div class="btext"><b id="bookTitle"></b><small id="bookSub"></small></div>
+      </div>
+      <div class="summary">
+        <div class="card balance"><span class="label" data-i18n="balance">Net balance</span><span class="value" id="balance"></span></div>
+        <div class="card in"><span class="label" data-i18n="cash_in">Cash in</span><span class="value" id="totalIn"></span></div>
+        <div class="card out"><span class="label" data-i18n="cash_out">Cash out</span><span class="value" id="totalOut"></span></div>
+      </div>
+
+      <div class="panel">
+        <input type="search" id="q" data-i18n-ph="search" placeholder="Search category or remark">
+        <div class="row">
+          <select id="typeFilter" aria-label="Type">
+            <option value="all" data-i18n="all">All</option>
+            <option value="in" data-i18n="cash_in">Cash in</option>
+            <option value="out" data-i18n="cash_out">Cash out</option>
+          </select>
+          <button type="button" id="clearFilters" data-i18n="clear_filters">Clear filters</button>
+        </div>
+        <div class="row">
+          <label class="field"><span data-i18n="from">From</span><input type="date" id="fromDate"></label>
+          <label class="field"><span data-i18n="to">To</span><input type="date" id="toDate"></label>
+        </div>
+        <details id="moreFilters" class="more">
+          <summary data-i18n="more_filters">More filters</summary>
+          <div class="row">
+            <select id="contactFilter" aria-label="Contact"></select>
+            <select id="modeFilter" aria-label="Payment mode"></select>
+          </div>
+          <div class="row">
+            <select id="byFilter" aria-label="Member"></select>
+            <select id="catFilter" aria-label="Category"></select>
+          </div>
+        </details>
+        <p id="filterTotals" class="muted small" hidden></p>
+      </div>
+
+      <ul id="list" class="list"></ul>
+      <p id="empty" class="empty" data-i18n="no_entries">No entries yet. Tap + to add one.</p>
+      </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="view-projects" class="view" hidden>
+      <div id="remindBox"></div>
+      <div id="projList"></div>
+      <div id="projDetail" hidden></div>
+    </section>
+
+    <!-- REPORTS -->
+    <section id="view-reports" class="view" hidden>
+      <div class="monthnav">
+        <button type="button" id="prevMonth" class="icon" aria-label="Previous">‹</button>
+        <strong id="monthLabel"></strong>
+        <button type="button" id="nextMonth" class="icon" aria-label="Next">›</button>
+      </div>
+      <div class="summary">
+        <div class="card balance"><span class="label" data-i18n="net">Net</span><span class="value" id="mNet"></span></div>
+        <div class="card in"><span class="label" data-i18n="cash_in">Cash in</span><span class="value" id="mIn"></span></div>
+        <div class="card out"><span class="label" data-i18n="cash_out">Cash out</span><span class="value" id="mOut"></span></div>
+      </div>
+      <div class="panel"><h2 data-i18n="by_cat_out">Cash out by category</h2><div id="catOut"></div></div>
+      <div class="panel"><h2 data-i18n="by_cat_in">Cash in by category</h2><div id="catIn"></div></div>
+      <div class="panel">
+        <h2 data-i18n="last6">Last 6 months</h2>
+        <div id="chart" class="chart"></div>
+        <p class="legend small"><span class="dot in"></span><span data-i18n="cash_in">Cash in</span> &nbsp; <span class="dot out"></span><span data-i18n="cash_out">Cash out</span></p>
+      </div>
+
+      <div class="panel" id="exportPanel">
+        <h2 data-i18n="export_report">Export report</h2>
+        <div class="row">
+          <label class="field"><span data-i18n="from">From</span><input type="date" id="rFrom"></label>
+          <label class="field"><span data-i18n="to">To</span><input type="date" id="rTo"></label>
+        </div>
+        <label class="field"><span data-i18n="books">Books</span><select id="rScope"></select></label>
+        <div class="row">
+          <button type="button" id="rXlsx" class="primary" data-i18n="export_excel">Excel</button>
+          <button type="button" id="rPdf" data-i18n="export_pdf">PDF / print</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view" hidden>
+      <div class="panel" id="cloudPanel"></div>
+
+      <div class="panel">
+        <label class="field"><span data-i18n="language">Language</span>
+          <select id="langSel">
+            <option value="en">English</option>
+            <option value="om">Afaan Oromoo</option>
+            <option value="am">አማርኛ</option>
+          </select>
+        </label>
+        <label class="field"><span data-i18n="currency">Currency</span><select id="curSel"></select></label>
+        <label class="field"><span data-i18n="calendar">Calendar</span>
+          <select id="calSel">
+            <option value="gregorian" data-i18n="cal_gregorian">Gregorian</option>
+            <option value="ethiopian" data-i18n="cal_ethiopian">Ethiopian (E.C.)</option>
+          </select>
+        </label>
+        <p class="muted small" data-i18n="cal_note">Dates are stored in the Gregorian calendar.</p>
+        <label class="field"><span data-i18n="theme">Theme</span>
+          <select id="themeSel">
+            <option value="system" data-i18n="theme_system">System</option>
+            <option value="light" data-i18n="theme_light">Light</option>
+            <option value="dark" data-i18n="theme_dark">Dark</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="panel">
+        <h2 data-i18n="security">Security</h2>
+        <p class="muted small"><span data-i18n="pin_lock">PIN lock</span>: <strong id="pinStatus"></strong></p>
+        <div class="row">
+          <button type="button" id="setPinBtn"></button>
+          <button type="button" id="removePinBtn" class="danger" data-i18n="remove_pin">Remove PIN</button>
+        </div>
+        <p class="muted small" data-i18n="pin_note">The PIN is a simple lock for casual privacy.</p>
+      </div>
+
+      <div class="panel" id="bizPanel"></div>
+
+      <button type="button" id="aboutBtn" class="block"><span aria-hidden="true">ℹ️</span> <span data-i18n="about">About</span></button>
+
+      <div class="panel" id="notifPanel" hidden>
+        <h2>🔔 <span data-i18n="nt_title">Phone notifications</span></h2>
+        <p class="muted small" id="notifNote"></p>
+        <label class="check"><input type="checkbox" id="notifOn"> <span data-i18n="nt_on">Remind me on my phone</span></label>
+        <button type="button" id="notifTest" class="block" data-i18n="nt_test">Send a test notification</button>
+        <button type="button" id="remReset" class="block" data-i18n="rem_show_hidden">Show hidden reminders again</button>
+      </div>
+
+      <div class="panel">
+        <h2 data-i18n="data">Data</h2>
+        <p id="backupState" class="muted small"></p>
+        <button type="button" id="backupBtn" class="block primary" data-i18n="backup">Backup all data</button>
+        <button type="button" id="restoreBtn" class="block" data-i18n="restore">Restore from file</button>
+        <button type="button" id="prerestoreBtn" class="block" data-i18n="prerestore" hidden>Undo last restore</button>
+        <button type="button" id="trashBtn" class="block">Recently deleted</button>
+        <input type="file" id="boqFile" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain" hidden>
+        <input type="file" id="restoreFile" accept=".json,.csv,application/json,text/csv,text/plain" hidden>
+        <button type="button" id="exportBtn" class="block" data-i18n="export_csv">Export this book (CSV)</button>
+        <button type="button" id="clearBtn" class="block danger" data-i18n="clear_book">Clear this book</button>
+        <p class="muted small" data-i18n="about_note">Data stays on this device. Back it up regularly.</p>
+        <p class="muted small" data-i18n="photos_note">Photos are stored on this device and are not inside the normal backup. Back them up here.</p>
+      </div>
+    </section>
+  </main>
+
+  <button type="button" id="fab" class="fab" aria-label="Add entry">+</button>
+
+  <nav class="tabs">
+    <button type="button" data-view="projects" class="active"><span>🏗️</span><b data-i18n="projects">Projects</b></button>
+    <button type="button" data-view="settings"><span>⚙️</span><b data-i18n="settings">Settings</b></button>
+  </nav>
+
+  <!-- Entry add / edit -->
+  <div id="entryModal" class="overlay">
+    <form id="entryForm" class="modal" autocomplete="off">
+      <h2 id="entryTitle"></h2>
+      <div class="toggle" role="radiogroup">
+        <label><input type="radio" name="type" value="in" checked><span data-i18n="cash_in">Cash in</span></label>
+        <label><input type="radio" name="type" value="out"><span data-i18n="cash_out">Cash out</span></label>
+      </div>
+      <div class="amtrow">
+        <input type="number" id="amount" data-i18n-ph="amount" placeholder="Amount" min="0.01" step="0.01" inputmode="decimal" required>
+        <button type="button" id="calcBtn" class="calcbtn" aria-label="Calculator" title="Calculator">🧮</button>
+      </div>
+      <input type="date" id="date" required>
+      <input type="text" id="category" list="catList" data-i18n-ph="category" placeholder="Category" maxlength="40">
+      <datalist id="catList"></datalist>
+      <div id="catChips" class="chips"></div>
+      <select id="contactSel" aria-label="Contact"></select>
+      <a id="contactCall" class="calllink" hidden></a>
+      <div class="row">
+        <select id="modeSel" aria-label="Payment mode"></select>
+        <input type="text" id="by" list="byList" data-i18n-ph="member" placeholder="Member" maxlength="40">
+        <datalist id="byList"></datalist>
+      </div>
+      <input type="text" id="note" data-i18n-ph="remark" placeholder="Remark (optional)" maxlength="80">
+      <div id="entryPhotos"></div>
+      <div id="entryProject" class="stack" hidden>
+        <label class="field"><span data-i18n="cost_code">Cost code</span><select id="codeSel"></select></label>
+        <label class="field" id="secField" hidden><span data-i18n="boq_section">BoQ section</span><select id="secSel"></select></label>
+        <input type="text" id="party" list="partyList" data-i18n-ph="payee" placeholder="Payee / supplier" maxlength="60">
+        <datalist id="partyList"></datalist>
+        <label class="field"><span id="linkLabel"></span><select id="linkSel"></select></label>
+      </div>
+      <div class="row">
+        <button type="button" id="cancelEntry" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="primary" data-i18n="save">Save</button>
+      </div>
+      <button type="button" id="deleteEntry" class="danger block" data-i18n="delete">Delete</button>
+    </form>
+  </div>
+
+  <!-- Books -->
+  <div id="bookModal" class="overlay">
+    <div class="modal">
+      <h2 data-i18n="books">Books</h2>
+      <input type="text" id="bookName" data-i18n-ph="book_name" placeholder="Book name" maxlength="40">
+      <label class="field"><span data-i18n="project">Project</span><select id="bookProject"></select></label>
+      <label class="field" id="bookBizField"><span data-i18n="business">Business</span><select id="bookBiz"></select></label>
+      <button type="button" id="newBook" class="primary block" data-i18n="new_book">New book</button>
+      <button type="button" id="renameBook" class="block" data-i18n="rename_book">Rename</button>
+      <button type="button" id="deleteBook" class="block danger" data-i18n="delete_book">Delete book</button>
+      <button type="button" id="closeBook" class="block" data-i18n="close">Close</button>
+    </div>
+  </div>
+
+  <!-- About -->
+  <div id="aboutModal" class="overlay">
+    <div class="modal about">
+      <div class="aboutlogo">📒</div>
+      <h2>CashBook – Balance &amp; Expense</h2>
+      <p class="muted small" data-i18n="about_desc">Cash books, projects, bills of quantities and payment certificates for contractors.</p>
+      <dl class="aboutlist">
+        <div><dt data-i18n="app_version">Version</dt><dd id="aboutVersion"></dd></div>
+        <div><dt data-i18n="created_by">Created by</dt><dd>Nuh Ahmed</dd></div>
+        <div><dt data-i18n="email">Email</dt><dd><a href="mailto:nhahmed040@gmail.com">nhahmed040@gmail.com</a></dd></div>
+        <div><dt data-i18n="phone">Phone</dt><dd><a href="tel:+251912118081">+251912118081</a></dd></div>
+      </dl>
+      <details class="aboutsec" open>
+        <summary data-i18n="about_new_title">What’s new</summary>
+        <ul>
+          <li data-i18n="about_new_9">Share a whole project: view only or can edit</li>
+          <li data-i18n="about_new_8">One backup file with data and photos, a 7-day backup reminder, and Recently deleted (30 days, with Undo)</li>
+          <li data-i18n="about_new_1">Summary lines and group titles in the BoQ build the Summary sheet</li>
+          <li data-i18n="about_new_2">Variation Order per certificate with its own Excel sheet</li>
+          <li data-i18n="about_new_3">Due from client counts tax once receipts are entered</li>
+          <li data-i18n="about_new_4">Contractor name from project details on every sheet and printout</li>
+          <li data-i18n="about_new_5">Confirmation before anything that cannot be undone</li>
+        </ul>
+      </details>
+      <details class="aboutsec">
+        <summary data-i18n="about_help_title">How to</summary>
+        <ul>
+          <li data-i18n="about_help_1">Certificate: Projects → Client → ➕. Work before VAT + VAT − retention − advance repayment − penalty = net pay. Withholding and VAT withheld come off after it.</li>
+          <li data-i18n="about_help_2">Variation orders: when executed BoQ quantity goes over the contract quantity, the excess is shown as Variation order 1, 2, … on the certificate. For extra work not in the BoQ tap “Extra items”.</li>
+          <li data-i18n="about_help_3">BoQ: the ⋯ on a row inserts items or summary rows above or below, and moves rows. A summary row adds up the rows above it back to the previous one.</li>
+          <li data-i18n="about_help_4">Share a book: Entries → ⋮ on a book → Share with people. Sign in under Settings → Online sync first.</li>
+          <li data-i18n="about_help_5">Excel and PDF: certificate and Summary BOQ buttons are in Projects; the report export is in Reports.</li>
+        </ul>
+      </details>
+      <p class="muted small" data-i18n="about_privacy">Your data stays on this phone. It goes online only if you sign in to Online sync.</p>
+      <button type="button" id="aboutBackup" class="block" data-i18n="backup">Backup all data</button>
+      <button type="button" id="closeAbout" class="primary block" data-i18n="close">Close</button>
+    </div>
+  </div>
+
+  <!-- PIN setup -->
+  <div id="pinModal" class="overlay">
+    <form id="pinForm" class="modal" autocomplete="off">
+      <h2 data-i18n="pin_lock">PIN lock</h2>
+      <input type="password" id="pin1" inputmode="numeric" pattern="[0-9]*" maxlength="8" data-i18n-ph="new_pin" placeholder="New PIN (4–8 digits)">
+      <input type="password" id="pin2" inputmode="numeric" pattern="[0-9]*" maxlength="8" data-i18n-ph="confirm_pin" placeholder="Confirm PIN">
+      <p id="pinErr" class="err" role="alert"></p>
+      <div class="row">
+        <button type="button" id="cancelPin" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="primary" data-i18n="save">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Generic form (projects, bills, certificates, workers, payments) -->
+  <div id="formModal" class="overlay">
+    <form id="formForm" class="modal" autocomplete="off">
+      <h2 id="formTitle"></h2>
+      <div id="formBody" class="stack"></div>
+      <p id="formErr" class="err" role="alert"></p>
+      <div class="row">
+        <button type="button" id="formCancel" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="primary" id="formSubmit" data-i18n="save">Save</button>
+      </div>
+      <button type="button" id="formDelete" class="danger block" data-i18n="delete">Delete</button>
+    </form>
+  </div>
+
+  <!-- Photo viewer -->
+  <div id="photoView" class="overlay viewer">
+    <div class="viewbox">
+      <img id="photoImg" alt="">
+      <p id="photoMeta" class="muted small"></p>
+      <div class="row">
+        <button type="button" id="photoRemove" class="danger" data-i18n="remove_photo">Remove photo</button>
+        <button type="button" id="photoClose" class="primary" data-i18n="close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="logic.js"></script>
+  <script src="i18n.js"></script>
+  <script src="i18n-projects.js"></script>
+  <script src="i18n-more.js"></script>
+  <script src="i18n-contacts.js"></script>
+  <script src="i18n-om.js"></script>
+  <script src="i18n-sched.js"></script>
+  <script src="i18n-am.js"></script>
+  <script src="print.js"></script>
+  <script src="xlsx.js"></script>
+  <script src="xlsxread.js"></script>
+  <script src="excel.js"></script>
+  <script src="schedule.js"></script>
+  <script src="schedule-excel.js"></script>
+  <script src="schedule-ui.js"></script>
+  <script src="photos.js"></script>
+  <script src="calendar.js"></script>
+  <script src="sync.js"></script>
+  <script src="cloud-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
