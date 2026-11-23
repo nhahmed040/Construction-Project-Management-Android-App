@@ -1276,18 +1276,37 @@
     };
   }
 
+  var GROUPS = [
+    { id: 'overview', secs: ['overview'] },
+    { id: 'pm', secs: ['schedule', 'gantt', 'manpower', 'equipment', 'cashflow'] },
+    { id: 'admin', secs: ['boq', 'budget', 'bills', 'client', 'labour', 'diary'] }
+  ];
+  function groupOf(sec) {
+    for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i].secs.indexOf(sec) >= 0) return GROUPS[i];
+    return GROUPS[0];
+  }
+
   function renderProjectDetail(root) {
     var p = currentProject();
     root.textContent = '';
     root.appendChild(btn(t('back'), 'backlink', function () { ui.projectId = ''; renderProjects(); }));
     root.appendChild(el('h2', null, (window.__projIcon ? window.__projIcon(p) : '') + p.name));
-    var seg = el('div', 'seg');
-    SECTIONS.forEach(function (sec) {
-      var label = sec === 'books' ? t('books_sec') : SCHED_SECTIONS.indexOf(sec) >= 0 ? t('sec_' + sec) : t(sec);
-      var b = btn(label, ui.section === sec ? 'active' : '', function () { ui.section = sec; renderProjects(); });
-      seg.appendChild(b);
+    var grp = groupOf(ui.section);
+    var gseg = el('div', 'seg grpseg');
+    GROUPS.forEach(function (g) {
+      gseg.appendChild(btn(t('grp_' + g.id), g.id === grp.id ? 'active' : '', function () {
+        ui.section = g.id === grp.id ? ui.section : g.secs[0]; renderProjects(); window.scrollTo(0, 0);
+      }));
     });
-    root.appendChild(seg);
+    root.appendChild(gseg);
+    if (grp.secs.length > 1) {
+      var seg = el('div', 'seg subseg');
+      grp.secs.forEach(function (sec) {
+        var label = SCHED_SECTIONS.indexOf(sec) >= 0 ? t('sec_' + sec) : t(sec);
+        seg.appendChild(btn(label, ui.section === sec ? 'active' : '', function () { ui.section = sec; renderProjects(); }));
+      });
+      root.appendChild(seg);
+    }
     var body = el('div', 'stack');
     root.appendChild(body);
     if (SCHED_SECTIONS.indexOf(ui.section) >= 0) { window.CBSchedUI.render(ui.section, body, p, schedHelpers()); return; }
@@ -1315,6 +1334,7 @@
   /* --- overview --- */
   function secOverview(body, p) {
     var s = L.projectSummary(state, p.id);
+    body.appendChild(btn('📥 ' + t('new_from_boq'), 'primary', newProjectFromBoq));
     if (s.budgetTotal > 0 && s.costTotal > s.budgetTotal) {
       body.appendChild(el('div', 'warn', t('over_budget', { n: money(L.round2(s.costTotal - s.budgetTotal)) })));
     }

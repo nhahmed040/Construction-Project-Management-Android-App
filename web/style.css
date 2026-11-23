@@ -683,3 +683,7 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .gt-bar.late { box-shadow: 0 0 0 2px var(--out); }
 .gt-label.late { color: var(--out); font-weight: 700; }
 .glegend .gb-plan { background: #ffd37a; } .glegend .gb-late { background: var(--out); }
+
+.grpseg { margin-bottom: 6px; }
+.grpseg button { flex: 1; font-weight: 700; }
+.subseg { margin-bottom: 10px; }
