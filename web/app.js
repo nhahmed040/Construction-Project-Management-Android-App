@@ -1277,9 +1277,9 @@
   }
 
   var GROUPS = [
-    { id: 'overview', secs: ['overview'] },
-    { id: 'pm', secs: ['schedule', 'gantt', 'manpower', 'equipment', 'cashflow'] },
-    { id: 'admin', secs: ['boq', 'budget', 'bills', 'client', 'labour', 'diary'] }
+    { id: 'overview', icon: '📊', secs: ['overview'] },
+    { id: 'admin', icon: '🗂️', secs: ['boq', 'budget', 'bills', 'client', 'labour', 'diary'] },
+    { id: 'pm', icon: '🗓️', secs: ['schedule', 'gantt', 'manpower', 'equipment', 'cashflow'] }
   ];
   function groupOf(sec) {
     for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i].secs.indexOf(sec) >= 0) return GROUPS[i];
@@ -1292,11 +1292,14 @@
     root.appendChild(btn(t('back'), 'backlink', function () { ui.projectId = ''; renderProjects(); }));
     root.appendChild(el('h2', null, (window.__projIcon ? window.__projIcon(p) : '') + p.name));
     var grp = groupOf(ui.section);
-    var gseg = el('div', 'seg grpseg');
+    var gseg = el('div', 'grpseg');
     GROUPS.forEach(function (g) {
-      gseg.appendChild(btn(t('grp_' + g.id), g.id === grp.id ? 'active' : '', function () {
+      var gb = btn('', g.id === grp.id ? 'active' : '', function () {
         ui.section = g.id === grp.id ? ui.section : g.secs[0]; renderProjects(); window.scrollTo(0, 0);
-      }));
+      });
+      gb.appendChild(el('span', null, g.icon));
+      gb.appendChild(el('b', null, t('grp_' + g.id)));
+      gseg.appendChild(gb);
     });
     root.appendChild(gseg);
     if (grp.secs.length > 1) {
@@ -3296,6 +3299,9 @@
   };
 
   var APP_VERSION = '2.25.2', APP_BUILD = 52;
+  $('topAbout').addEventListener('click', function () { $('aboutBtn').click(); });
+  $('topSettings').addEventListener('click', function () { buzz(); showView(ui.view === 'settings' ? 'projects' : 'settings'); if (ui.view === 'projects') renderProjects(); });
+  $('settingsBack').addEventListener('click', function () { showView('projects'); renderProjects(); });
   $('aboutBtn').addEventListener('click', function () { $('aboutVersion').textContent = APP_VERSION + ' (build ' + APP_BUILD + ')'; openModal('aboutModal'); });
   $('aboutBackup').addEventListener('click', function () { closeModal('aboutModal'); var b = $('backupBtn'); b.scrollIntoView({ block: 'center' }); b.click(); });
   $('closeAbout').addEventListener('click', function () { closeModal('aboutModal'); });
