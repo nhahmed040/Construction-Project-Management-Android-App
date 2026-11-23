@@ -131,6 +131,51 @@ ok('progress vs plan: planned, actual and late tasks', function () {
   assert.strictEqual(S.progress(q, S.compute(q), '2027-01-07').by[3].status, 'ahead');
 });
 
+/* generate the whole schedule from a BoQ that has no schedule data at all */
+function boqOnly(extra) {
+  var rows = [['trench excavation for curb concrete depth 30cm', 'M³', 96, 550], ['backfill and compact selected material', 'M³', 82, 1370], ['Cartaway Removal of trench excavated soil', 'M³', 96, 346.56],
+    ['30*15cm terrazzo pavement for walk way', 'M²', 1073, 1596.96], ['Reinforced concrete C-25 filled into formwork and vibrated around reinforcement bars', 'M³', 80, 18523.93],
+    ['dia 8mm deformed bar for curb concrete beam', 'KG', 1291.1, 342.91], ['Apply two coats of cement mortar plastering 1:3 to all internal HCB walls', 'M²', 85.6, 584.88],
+    ['1/2mm metal water pipe installation with elbow', 'M', 148, 600], ['Turkish toilet seat with elbow and gate valve', 'Nº', 1, 6400], ['something unusual here', 'M²', 10, 100]];
+  return L.sanitizeProject(Object.assign({ name: 'B', startDate: '2026-12-01', boqLines: 2, boq: rows.map(function (r, i) { return { id: i + 1, desc: r[0], unit: r[1], qty: r[2], rate: r[3] }; }) }, extra || {}), 1);
+}
+ok('generate: durations, crews, equipment and splits from the BoQ', function () {
+  var q = boqOnly(), r = S.generate(q, {});
+  assert.strictEqual(r.tasks, 10); assert.strictEqual(r.matched, 9); assert.strictEqual(r.general, 1);
+  var d = function (id) { return q.sched.tasks[String(id)]; };
+  assert.deepStrictEqual([d(1).dur, d(2).dur, d(3).dur, d(4).dur, d(5).dur, d(6).dur], [1, 3, 1, 25, 8, 5]);
+  assert.strictEqual(d(5).tpl, 'concrete', 'concrete mentioning formwork stays concrete');
+  assert.strictEqual(d(7).tpl, 'plaster'); assert.strictEqual(d(8).tpl, 'plumb'); assert.strictEqual(d(9).tpl, 'plumb'); assert.strictEqual(d(10).tpl, 'general');
+  assert.deepStrictEqual(d(1).split, [3, 12]); assert.deepStrictEqual(d(2).split, [40, 20]); assert.strictEqual(d(4).split, undefined);
+  var role = function (n) { return q.sched.roles.filter(function (x) { return x.name === n; })[0]; };
+  assert.strictEqual(d(1).mp[String(role('Daily Labour').id)], 6); assert.strictEqual(d(4).mp[String(role('Tiler').id)], 5);
+  assert.strictEqual(role('Project Manager').type, 'permanent');
+  var eq = q.sched.equip.map(function (e) { return e.name; });
+  assert.ok(eq.indexOf('Backhoe Loader') >= 0 && eq.indexOf('Concrete Mixer') >= 0 && eq.indexOf('Plate Compactor') >= 0);
+  var c = S.compute(q); assert.ok(c.count === 10 && c.start === '2026-12-01');
+  var mp = S.manpower(q, c); assert.ok(mp.totalDays > 100 && mp.peak >= 20);
+  assert.ok(Math.abs(S.cashflow(q).totals.amount - q.boq.reduce(function (s, i) { return s + i.qty * i.rate; }, 0)) < 0.01);
+  q = L.sanitizeProject(q, 1); assert.strictEqual(q.sched.tasks['1'].tpl, 'excav', 'template survives save and load');
+});
+ok('generate: only tasks without a duration, keeping manual edits', function () {
+  var q = boqOnly({ sched: { tasks: { 4: { dur: 10, mp: {}, eq: {} } } } }), r = S.generate(q, { only: 'empty' });
+  assert.strictEqual(r.tasks, 9); assert.strictEqual(q.sched.tasks['4'].dur, 10);
+  assert.strictEqual(S.generate(q, { only: 'empty' }).tasks, 0);
+  assert.strictEqual(S.generate(q, { only: 'all' }).tasks, 10); assert.strictEqual(q.sched.tasks['4'].dur, 25);
+});
+ok('generate: bigger crews when a finish date is given', function () {
+  var q = boqOnly(), base = S.generate(q, {}), len = S.compute(q).workDays;
+  var f = S.generate(boqOnly(), { end: '2027-01-10' });
+  var q2 = boqOnly(); var f2 = S.generate(q2, { end: '2027-01-12' });
+  assert.ok(len > 40); assert.ok(f2.mult > 1, 'mult ' + f2.mult); assert.strictEqual(f2.fits, true);
+  assert.ok(f2.finish <= '2027-01-12', f2.finish);
+  var role = q2.sched.roles.filter(function (x) { return x.name === 'Daily Labour'; })[0];
+  assert.strictEqual(q2.sched.tasks['1'].mp[String(role.id)], 6 * f2.mult);
+  var perm = q2.sched.roles.filter(function (x) { return x.name === 'Project Manager'; })[0];
+  assert.ok(q2.sched.tasks['1'].mp[String(perm.id)] === undefined || q2.sched.tasks['1'].mp[String(perm.id)] === 1);
+  assert.strictEqual(S.generate(boqOnly(), { end: '2026-12-02' }).fits, false);
+});
+
 /* Excel export: build the workbook and read it back with the app's own reader */
 var X = require('../web/xlsx.js'), XR = require('../web/xlsxread.js'), SE = require('../web/schedule-excel.js');
 var pending = 0;

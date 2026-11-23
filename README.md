@@ -8,15 +8,15 @@ It started as a copy of the [CashBook](https://github.com/nhahmed040/CashBook---
 
 | Tab | What it does |
 | --- | --- |
-| **Schedule** | Tasks come from the BoQ. Each task has a duration (working days) and starts after the previous task, with it, or on a fixed date. Sunday (or Sat+Sun) is a rest day. **Auto-plan** spreads the project days by task value. |
+| **Schedule** | **The schedule is generated from the BoQ.** Import or add the BoQ, then tap *Generate schedule from BoQ*: each item is matched to a type of work (excavation, concrete, plastering, tiling ...) and gets a duration (quantity ÷ standard crew output per day), a crew, equipment and a material/labour split. Give a *finish by* date and the crews are scaled up until the plan fits. Tasks follow each other in BoQ order, Sunday (or Sat+Sun) is a rest day, and everything can be changed by tapping a task. |
 | **Gantt** | Bar chart with parts, sections and tasks, planned vs actual progress strips, late tasks outlined in red, rest-day stripes, an as-of line and zoom. A *Progress vs plan* panel shows planned and actual progress, value ahead or behind, and the late tasks. Tap a bar to edit the task. |
 | **Manpower** | Permanent and temporary types, people needed per task, peak people on site, man-days, a month grid and a daily histogram. |
 | **Equipment** | Rented/owned machines per task, machine-days and a month grid. |
 | **Cash flow** | Material / labour / equipment split per task, miscellaneous, overhead, profit, withholding tax and VAT; advance + interim + final payment schedule; planned value by month. |
 
-**Import:** *Projects → New project from schedule Excel* (or *Schedule → Import schedule*) reads a workbook with the contractor's layout (task sheet with `Task Name`/`Duration`/`Start`/`Finish` and a column per manpower type, an Equipment sheet, a Cash Flow sheet). **Export** writes Schedule, Man Power, Man Power Schedule, Equipment, Equipment Schedule, Cash Flow, Cash Flow Summary and Gantt sheets.
+**Optional import:** if you already have a schedule workbook, *Projects → New project from schedule Excel* (or *Schedule → Import schedule*) reads it with the contractor's layout (task sheet with `Task Name`/`Duration`/`Start`/`Finish` and a column per manpower type, an Equipment sheet, a Cash Flow sheet). **Export** writes Schedule, Man Power, Man Power Schedule, Equipment, Equipment Schedule, Cash Flow, Cash Flow Summary and Gantt sheets.
 
-Working-day dates are checked against the Badesa Corridor workbook (see `tests/`).
+The work types and their outputs (`TEMPLATES` in `web/schedule.js`) were calibrated on the Badesa Corridor workbook: generating from its BoQ alone gives the same durations for most items (1, 3, 1, 5, 2, 25, 5, 8 days ...). They are starting values, so check them against your own productivity. Dates are tested in `tests/`.
 
 ## Everything else (from CashBook)
 

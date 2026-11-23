@@ -378,6 +378,7 @@
   function sanitizeSchedTask(t) {
     t = t && typeof t === 'object' ? t : {};
     var out = { dur: Math.min(num3(t.dur, 0), 9999), start: isDate(t.start) ? t.start : '', par: !!t.par, mp: sanitizeCounts(t.mp), eq: sanitizeCounts(t.eq) };
+    if (/^[a-z]{2,12}$/.test(String(t.tpl || ''))) out.tpl = t.tpl;
     if (Array.isArray(t.split) && t.split.length >= 2) {
       var m = Math.min(num(t.split[0], 0, 100), 100), l = Math.min(num(t.split[1], 0, 100), 100);
       out.split = [m, l];

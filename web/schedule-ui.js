@@ -7,16 +7,7 @@
   var gantt = { gw: 16, asOf: '' };
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  var STD_ROLES = [
-    ['Project Manager', 'permanent'], ['Store Keeper', 'permanent'], ['Surveyor', 'permanent'], ['Foreman', 'permanent'], ['Accountant', 'permanent'], ['Cashier', 'permanent'],
-    ['Daily Labour', 'temporary'], ['Mason', 'temporary'], ['Carpenter', 'temporary'], ['Helper', 'temporary'], ['Plasterer', 'temporary'], ['Bar Bender', 'temporary'], ['Tiler', 'temporary'],
-    ['Chiseler', 'temporary'], ['Welder', 'temporary'], ['Painter', 'temporary'], ['Glazier', 'temporary'], ['Electrician', 'temporary'], ['Plumber', 'temporary'],
-    ['Mixer Operator', 'temporary'], ['Vibrator Operator', 'temporary'], ['Compactor Operator', 'temporary'], ['Truck Driver', 'temporary'], ['Backhoe Loader Operator', 'temporary'], ['Pick Up Driver', 'temporary']
-  ];
-  var STD_EQUIP = [
-    ['Concrete Mixer', 'Rental'], ['Vibrator', 'Rental'], ['Plate Compactor', 'Rental'], ['Pick Up Vehicle', 'Rental'], ['Dump Truck', 'Rental'], ['Backhoe Loader', 'Rental'],
-    ['Generator', 'Rental'], ['Welding Machine', 'Rental'], ['Grinder', 'Rental'], ['Driller', 'Rental'], ['Water Tanker', 'Own'], ['Other Tools', 'Own']
-  ];
+  var STD_ROLES = S.STD_ROLES, STD_EQUIP = S.STD_EQUIP;
 
   function ctx(p, A) {
     var C = A.cal();
@@ -38,7 +29,8 @@
     if (c.p.boq.length) return false;
     body.appendChild(c.el('p', 'empty', c.t('sch_no_tasks')));
     var row = c.el('div', 'btnrow');
-    row.appendChild(c.btn(c.t('sch_import'), 'primary', function () { pickImport(c, false); }));
+    row.appendChild(c.btn(c.t('sch_go_boq'), 'primary', function () { c.A.goSection('boq'); }));
+    row.appendChild(c.btn(c.t('sch_import'), '', function () { pickImport(c, false); }));
     body.appendChild(row);
     return true;
   }
@@ -170,18 +162,20 @@
       pn.appendChild(c.kv(t('sch_tasks'), String(sc.count)));
       pn.appendChild(c.kv(t('sch_value'), A.money(L.round2(sc.total))));
       pn.appendChild(c.kv(t('physical_pct'), (Math.round(sc.pct * 10) / 10) + '%'));
-    } else pn.appendChild(c.el('p', 'muted small', t('sch_not_planned')));
+      if (p.endDate) {
+        pn.appendChild(c.kv(t('sch_target'), A.fmtDate(p.endDate)));
+        if (sc.fd > S.toDays(p.endDate)) pn.appendChild(c.el('div', 'warn', t('sch_over_target', { n: sc.fd - S.toDays(p.endDate) })));
+      }
+    } else {
+      pn.appendChild(c.el('p', 'muted small', t('sch_not_planned')));
+      if (!p.boq.length) pn.appendChild(c.el('p', 'muted small', t('sch_from_boq_hint')));
+    }
     var off = p.sched.off.length === 0 ? t('sch_rest_none') : p.sched.off.length === 1 ? t('sch_rest_sun') : t('sch_rest_sat_sun');
     pn.appendChild(c.kv(t('sch_rest'), off));
     var row = c.el('div', 'btnrow');
-    row.appendChild(c.btn(t('sch_import'), '', function () { pickImport(c, false); }));
-    row.appendChild(c.btn(t('sch_auto'), '', function () {
-      if (!window.confirm(t('sch_auto_ask'))) return;
-      var n = S.autoDurations(p);
-      if (!n) { A.toast(t('sch_auto_none')); return; }
-      A.save(); A.rerender(); A.toast(t('sch_auto_done', { n: n }));
-    }));
+    if (p.boq.length) row.appendChild(c.btn(t('sch_generate'), 'primary', function () { openGenerate(c); }));
     row.appendChild(c.btn(t('sch_settings'), '', function () { editSettings(c); }));
+    row.appendChild(c.btn(t('sch_import'), '', function () { pickImport(c, false); }));
     if (p.boq.length) row.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
     pn.appendChild(row);
     body.appendChild(pn);
@@ -215,6 +209,37 @@
     body.appendChild(list);
   }
 
+  function openGenerate(c) {
+    var p = c.p, t = c.t, A = c.A;
+    var planned = p.boq.filter(function (i) { return L.isItemRow(i) && !L.isHeading(i) && p.sched.tasks[String(i.id)] && p.sched.tasks[String(i.id)].dur > 0; }).length;
+    var fields = [
+      { type: 'note', text: t('sch_gen_intro') },
+      { key: 'only', label: t('sch_gen_scope'), type: 'select', value: planned ? 'empty' : 'all',
+        options: [{ value: 'all', label: t('sch_gen_all') }, { value: 'empty', label: t('sch_gen_empty') }] },
+      { key: 'end', label: t('sch_gen_end'), type: 'date', value: p.endDate },
+      { type: 'note', text: t('sch_gen_note') }
+    ];
+    if (!p.startDate && !p.sched.start) fields.splice(2, 0, { key: 'start', label: t('sch_start'), type: 'date', value: L.todayStr() });
+    A.openForm({
+      title: t('sch_generate'),
+      submitLabel: t('sch_generate'),
+      fields: fields,
+      onSubmit: function (v) {
+        if (v.start && L.isDate(v.start)) p.sched.start = v.start;
+        var r = S.generate(p, { only: v.only, end: L.isDate(v.end) ? v.end : '' });
+        if (!r.tasks) { A.toast(r.kept ? t('sch_gen_nothing') : t('sch_auto_none')); return null; }
+        if (L.isDate(v.end) && !p.endDate) p.endDate = v.end;
+        A.save(); A.rerender();
+        var msg = t('sch_gen_done', { n: r.tasks, m: r.matched });
+        if (r.general) msg += ' ' + t('sch_gen_general', { n: r.general });
+        if (r.mult > 1) msg += ' ' + t('sch_gen_crews', { n: r.mult });
+        if (r.fits === false) msg += ' ' + t('sch_gen_nofit');
+        window.setTimeout(function () { A.toast(msg); }, 50);
+        return null;
+      }
+    });
+  }
+
   function editSettings(c) {
     var p = c.p, t = c.t, s = p.sched;
     c.A.openForm({
@@ -234,6 +259,13 @@
     });
   }
 
+  function basisText(c, r, task) {
+    var tpl = task && task.tpl ? S.templateById(task.tpl) : null;
+    if (!tpl) return '';
+    var per = S.outputOf(tpl, r.unit);
+    return ' · ' + c.t('sch_basis') + ': ' + tpl.label + (tpl.per ? ' (' + S.fmtNum(per) + ' ' + (r.unit || '') + ' ' + c.t('sch_per_day') + ')' : '');
+  }
+
   function editTask(c, r) {
     var p = c.p, t = c.t, id = String(r.id);
     var task = p.sched.tasks[id] || (p.sched.tasks[id] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
@@ -245,7 +277,7 @@
         { key: 'mode', label: t('sch_starts'), type: 'select', value: mode,
           options: [{ value: 'after', label: t('sch_after_prev') }, { value: 'with', label: t('sch_with_prev') }, { value: 'fixed', label: t('sch_fixed') }] },
         { key: 'start', label: t('sch_start'), type: 'date', value: task.start, showFor: { key: 'mode', values: ['fixed'] } },
-        { type: 'note', text: r.sd != null ? t('sch_now') + ' ' + c.A.fmtDate(r.start) + ' → ' + c.A.fmtDate(r.finish) : t('sch_set_duration') }
+        { type: 'note', text: (r.sd != null ? t('sch_now') + ' ' + c.A.fmtDate(r.start) + ' → ' + c.A.fmtDate(r.finish) : t('sch_set_duration')) + basisText(c, r, task) }
       ],
       onSubmit: function (v) {
         if (v.mode === 'fixed' && !L.isDate(v.start)) return t('required');
