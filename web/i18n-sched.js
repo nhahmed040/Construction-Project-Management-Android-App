@@ -2,6 +2,12 @@
    English only for now: Afaan Oromoo and Amharic fall back to English until they are translated. */
 (function () {
   var en = {
+    about_desc_c: 'Schedule, Gantt chart, manpower, equipment, cash flow and payment certificates for contractors, built from the bill of quantities.',
+    about_new_c1: 'Schedule generated from the BoQ: durations, crews and equipment for every item', about_new_c2: 'Gantt chart with planned and actual progress and late tasks',
+    about_new_c3: 'Manpower and equipment by task and by month, with peak numbers', about_new_c4: 'Cash flow: material, labour, equipment, overhead, profit, tax and the payment schedule',
+    about_new_c5: 'Excel export of the whole schedule, and import of a ready schedule',
+    about_help_c1: 'Schedule: Projects → New project from BoQ (Excel) → Schedule → Generate schedule from BoQ. Tap any task to change its duration, crew or cost split.',
+    about_help_c2: 'Progress: record quantities done in the BoQ tab. The Gantt and Schedule tabs compare them with the plan and mark late tasks.',
     sec_schedule: 'Schedule', sec_gantt: 'Gantt', sec_manpower: 'Manpower', sec_equipment: 'Equipment', sec_cashflow: 'Cash flow',
     sch_import: 'Import a ready schedule (Excel, optional)', new_from_boq: 'New project from BoQ (Excel)', sch_import_new: 'New project from schedule Excel', sch_export: 'Export schedule (Excel)',
     sch_import_ask: 'Import "{name}": {tasks} tasks, {roles} manpower types and {equip} equipment types?',

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <rect width="108" height="108" fill="#1F3C88"/>
+  <g transform="translate(54 54) scale(1.12) translate(-52 -53.5)">
+  <!-- tower crane -->
+  <rect x="34" y="24" width="6" height="60" fill="#FFFFFF"/>
+  <rect x="24" y="24" width="56" height="6" fill="#F5B400"/>
+  <rect x="24" y="30" width="9" height="8" fill="#F5B400"/>
+  <rect x="70" y="30" width="2" height="16" fill="#FFFFFF"/>
+  <rect x="66" y="46" width="10" height="6" rx="1" fill="#F5B400"/>
+  <!-- gantt bars -->
+  <rect x="46" y="60" width="18" height="5" rx="2.5" fill="#FFFFFF"/>
+  <rect x="54" y="69" width="20" height="5" rx="2.5" fill="#2FBF71"/>
+  <rect x="62" y="78" width="18" height="5" rx="2.5" fill="#FFFFFF"/>
+  </g>
+</svg>
