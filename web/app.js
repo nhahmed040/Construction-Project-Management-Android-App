@@ -870,7 +870,8 @@
 
     list.textContent = '';
     var topRow = el('div', 'btnrow');
-    topRow.appendChild(btn('📥 ' + t('sch_import_new'), 'primary', function () { window.CBSchedUI.importNew(schedHelpers()); }));
+    topRow.appendChild(btn('＋ ' + t('new_project'), 'primary', newProject));
+    topRow.appendChild(btn('📥 ' + t('new_from_boq'), '', newProjectFromBoq));
     if (state.projects.length) topRow.appendChild(btn('💰 ' + t('forecast'), '', openForecast));
     list.appendChild(topRow);
     if (!state.projects.length) { list.appendChild(el('p', 'empty', t('no_projects'))); return; }
@@ -1410,6 +1411,7 @@
 
   /* --- bill of quantities --- */
   var boqTarget = null;
+  var boqNew = null;   // a project that is only added once its BoQ import is confirmed
 
   function secBoq(body, p) {
     var s = L.boqSummary(p);
@@ -1440,7 +1442,7 @@
       if (!window.confirm(t('make_lines_ask'))) return;
       p.boq = L.migrateBoq(p.boq); save(); renderAll();
     }));
-    row.appendChild(btn(t('import_boq'), '', function () { boqTarget = p; $('boqFile').click(); }));
+    row.appendChild(btn(t('import_boq'), '', function () { boqNew = null; boqTarget = p; $('boqFile').click(); }));
     if (p.boq.length) row.appendChild(btn(t('export_boq'), '', function () {
       saveFile('cashbook-boq-' + safeName(p.name) + '-' + L.todayStr() + '.csv', 'text/csv', L.boqCsv(p));
     }));
@@ -1598,7 +1600,7 @@
   }
 
   /* Excel BoQ import: pick the sheet, check the detected row types, then replace or add */
-  function boqImportPreview(p, sheets) {
+  function boqImportPreview(p, sheets, onCancel) {
     var ov = el('div', 'overlay open sheetov'), m = el('div', 'modal importmodal');
     var cur = 0, mode = p.boq.length ? 'replace' : 'add', withDone = true;
     function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
@@ -1657,11 +1659,31 @@
         save(); renderAll(); close();
         toast(t('import_done', { n: next.length }), { label: t('undo'), run: function () { p.boq = before; save(); renderAll(); } });
       }));
-      m.appendChild(btn(t('cancel'), 'block', close));
+      m.appendChild(btn(t('cancel'), 'block', function () { close(); if (onCancel) onCancel(); }));
     }
     draw();
     ov.appendChild(m);
     document.body.appendChild(ov);
+  }
+
+  /* New project from a BoQ file: the project is created from the file name and only kept when the import goes through */
+  function newProjectFromBoq() {
+    var np = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50 }, state.projects.length + 1);
+    boqNew = np; boqTarget = np;
+    $('boqFile').click();
+  }
+  function adoptNew(p, file) {
+    if (boqNew !== p) return null;
+    boqNew = null;
+    p.name = (file.name || '').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80) || t('project');
+    state.projects.push(p);
+    ui.projectId = p.id; ui.section = 'schedule';
+    showView('projects'); save(); renderAll(); window.scrollTo(0, 0);
+    return function () {   // cancelled: do not keep an empty project
+      if (p.boq.length) return;
+      state.projects = state.projects.filter(function (x) { return x !== p; });
+      ui.projectId = null; save(); renderAll();
+    };
   }
 
   $('boqFile').addEventListener('change', function () {
@@ -1678,8 +1700,8 @@
           var found = [];
           all.forEach(function (sh) { var res = L.boqFromRows(sh.rows); if (res && res.items.length) found.push({ name: sh.name + ' (' + res.items.length + ')', res: res, key: sh.name }); });
           found.sort(function (a, b) { return (/boq|bill|quantit/i.test(b.key) ? 1 : 0) - (/boq|bill|quantit/i.test(a.key) ? 1 : 0); });
-          if (!found.length) { toast(t('import_no_boq')); return; }
-          boqImportPreview(p, found);
+          if (!found.length) { boqNew = null; toast(t('import_no_boq')); return; }
+          boqImportPreview(p, found, adoptNew(p, file));
         }).catch(function () { toast(t('restore_fail')); });
       };
       reader.readAsArrayBuffer(file);
@@ -1688,8 +1710,9 @@
     reader.onload = function () {
       input.value = '';
       var res = L.boqFromCsv(String(reader.result || ''));
-      if (!res.items.length) { toast(t('restore_fail')); return; }
-      if (!window.confirm(t('boq_import_confirm', { n: res.items.length }))) return;
+      if (!res.items.length) { boqNew = null; toast(t('restore_fail')); return; }
+      if (!window.confirm(t('boq_import_confirm', { n: res.items.length }))) { boqNew = null; return; }
+      adoptNew(p, file);
       res.items.forEach(function (i) { i.id = L.newId(); p.boq.push(i); });
       p.boq = p.boq.slice(0, 3000);
       save(); renderAll();

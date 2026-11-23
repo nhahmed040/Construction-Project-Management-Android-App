@@ -3,10 +3,10 @@
 (function () {
   var en = {
     sec_schedule: 'Schedule', sec_gantt: 'Gantt', sec_manpower: 'Manpower', sec_equipment: 'Equipment', sec_cashflow: 'Cash flow',
-    sch_import: 'Import schedule (Excel)', sch_import_new: 'New project from schedule Excel', sch_export: 'Export schedule (Excel)',
+    sch_import: 'Import a ready schedule (Excel, optional)', new_from_boq: 'New project from BoQ (Excel)', sch_import_new: 'New project from schedule Excel', sch_export: 'Export schedule (Excel)',
     sch_import_ask: 'Import "{name}": {tasks} tasks, {roles} manpower types and {equip} equipment types?',
     sch_import_replace: 'The current BoQ, tasks, manpower and equipment of this project will be replaced.',
-    sch_import_certs: 'This project already has payment certificates. Import into a new project instead (Projects → New project from schedule Excel).',
+    sch_import_certs: 'This project already has payment certificates, so its BoQ cannot be replaced by a schedule file. Start a new project from the BoQ instead.',
     sch_import_none: 'No schedule found in this file. It needs a Task Name and Duration header row.',
     sch_imported: 'Schedule imported', sch_stretched: '{n} tasks use the workbook finish date',
     sch_no_tasks: 'No tasks yet. The schedule is created from your BoQ: import or add the BoQ items first, then tap Generate schedule.',

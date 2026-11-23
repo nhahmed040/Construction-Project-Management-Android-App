@@ -14,7 +14,7 @@ It started as a copy of the [CashBook](https://github.com/nhahmed040/CashBook---
 | **Equipment** | Rented/owned machines per task, machine-days and a month grid. |
 | **Cash flow** | Material / labour / equipment split per task, miscellaneous, overhead, profit, withholding tax and VAT; advance + interim + final payment schedule; planned value by month. |
 
-**Optional import:** if you already have a schedule workbook, *Projects → New project from schedule Excel* (or *Schedule → Import schedule*) reads it with the contractor's layout (task sheet with `Task Name`/`Duration`/`Start`/`Finish` and a column per manpower type, an Equipment sheet, a Cash Flow sheet). **Export** writes Schedule, Man Power, Man Power Schedule, Equipment, Equipment Schedule, Cash Flow, Cash Flow Summary and Gantt sheets.
+**Start a project:** *Projects → New project*, or *New project from BoQ (Excel)* which reads your BoQ file, names the project after it and opens the Schedule tab. **Optional import:** if you already have a ready schedule workbook, *Schedule → Import a ready schedule* reads it with the contractor's layout (task sheet with `Task Name`/`Duration`/`Start`/`Finish` and a column per manpower type, an Equipment sheet, a Cash Flow sheet). **Export** writes Schedule, Man Power, Man Power Schedule, Equipment, Equipment Schedule, Cash Flow, Cash Flow Summary and Gantt sheets.
 
 The work types and their outputs (`TEMPLATES` in `web/schedule.js`) were calibrated on the Badesa Corridor workbook: generating from its BoQ alone gives the same durations for most items (1, 3, 1, 5, 2, 25, 5, 8 days ...). They are starting values, so check them against your own productivity. Dates are tested in `tests/`.
 
