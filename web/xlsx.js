@@ -164,6 +164,15 @@
       '<pageSetup paperSize="9" orientation="' + (sh.landscape ? 'landscape' : 'portrait') + '" fitToWidth="1" fitToHeight="0"/></worksheet>';
   }
 
+  /* repeat the header rows on every printed page: sheet.printTitles = [firstRow, lastRow] */
+  function definedNames(sheets) {
+    var out = sheets.map(function (s, i) {
+      if (!s.printTitles) return '';
+      return '<definedName name="_xlnm.Print_Titles" localSheetId="' + i + '">\'' + esc(s.name.slice(0, 31).replace(/'/g, "''")) + '\'!$' + s.printTitles[0] + ':$' + s.printTitles[1] + '</definedName>';
+    }).join('');
+    return out ? '<definedNames>' + out + '</definedNames>' : '';
+  }
+
   function build(wb) {
     var styles = new Styles();
     var sheets = wb.sheets;
@@ -175,7 +184,7 @@
       { name: '_rels/.rels', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
       { name: 'xl/workbook.xml', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
         sheets.map(function (s, i) { return '<sheet name="' + esc(s.name.slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') +
-        '</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>' },
+        '</sheets>' + definedNames(sheets) + '<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>' },
       { name: 'xl/_rels/workbook.xml.rels', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         sheets.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
         '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },

@@ -326,6 +326,24 @@ ok('generate: bigger crews when a finish date is given', function () {
 /* Excel export: build the workbook and read it back with the app's own reader */
 var X = require('../web/xlsx.js'), XR = require('../web/xlsxread.js'), SE = require('../web/schedule-excel.js');
 var pending = 0;
+
+ok('excel: equal row heights, long text wrapped and kept whole, header rows repeat', function () {
+  var q = L.sanitizeProject({ name: 'Q', startDate: '2027-01-04', boqLines: 2, boq: [
+    { id: 1, desc: 'Bulk excavation in ordinary soil to a depth not exceeding 1000mm starting from Natural Ground Level for only expansive soil. Only site clearing to depth 20cm will be computed and there is no bulk excavation for non-expansive soil.', unit: 'M3', qty: 10, rate: 100 },
+    { id: 2, desc: 'Short item', unit: 'M3', qty: 10, rate: 100 }] }, 1);
+  q.sched.tasks[1] = { dur: 2 }; q.sched.tasks[2] = { dur: 1 };
+  var wb = SE.workbook(q);
+  wb.sheets.forEach(function (sh) {
+    var hs = Object.keys(sh.heights || {}).map(function (k) { return sh.heights[k]; });
+    assert.ok(hs.length && hs.every(function (h) { return h === hs[0]; }), sh.name + ' has equal row heights');
+    assert.ok(sh.printTitles && sh.printTitles[0] <= sh.printTitles[1], sh.name + ' repeats its header');
+  });
+  var g = wb.sheets[0], cells = [];
+  g.rows.forEach(function (r) { (r || []).forEach(function (c) { if (c && typeof c.v === 'string') cells.push(c); }); });
+  var long = cells.filter(function (c) { return /^Bulk excavation/.test(c.v); })[0];
+  assert.ok(long && /non-expansive soil\.$/.test(long.v) && long.s.wrap && long.s.v === 'top', 'full text kept, wrapped');
+  assert.ok(cells.some(function (c) { return c.v === 'Short item'; }));
+});
 (function () {
   var wb = SE.workbook(p);
   var bytes = X.build(wb);

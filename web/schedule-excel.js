@@ -212,6 +212,53 @@
     return sh;
   }
 
+  /* Every table row has the same height (two lines) and text wraps inside its cell, so what does not fit is hidden by the row
+     height, not spilled into the next column. The cell keeps its full text (it shows in the formula bar, and importing the
+     file back keeps the whole description). Header rows repeat on every printed page. */
+  var ROW_H = 32, FIRST_ROW = 6;
+  function colIndex(a) { var n = 0; for (var i = 0; i < a.length; i++) n = n * 26 + a.charCodeAt(i) - 64; return n - 1; }
+  function uniformRows(wb) {
+    wb.sheets.forEach(function (sh) {
+      var span = {};   // merged cells: the width of the whole range
+      sh.merges.forEach(function (m) {
+        var q = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(m);
+        if (!q) return;
+        var c0 = colIndex(q[1]), c1 = colIndex(q[3]), w = 0;
+        for (var c = c0; c <= c1; c++) w += sh.cols[c] || 8.43;
+        span[(+q[2]) + ':' + c0] = w;
+      });
+      sh.heights = sh.heights || {};
+      var head = [], from = 0;
+      sh.rows.forEach(function (row, i) {   // the table starts at its first header row; what is above it (project info) is left alone
+        if (!from && row && row.some(function (cell) { return cell && cell.s && cell.s.fill === 'D9D9D9'; })) from = i + 1;
+      });
+      sh.rows.forEach(function (row, i) {
+        var r = i + 1;
+        if (!row || r < (from || FIRST_ROW)) return;
+        var any = false;
+        row.forEach(function (cell, c) {
+          if (!cell) return;
+          any = true;
+          var s = st({ v: 'center' }, cell.s || {});
+          if (s.fill === 'D9D9D9') head.push(r);
+          if (typeof cell.v === 'string' && cell.v && cell.f == null) {
+            if (s.h !== 'right') s.wrap = true;
+            var w = span[r + ':' + c] || sh.cols[c] || 8.43;
+            if (cell.v.length > w * 1.8) s.v = 'top';   // a long text that will be cut by the row height starts at the top, so its beginning shows
+          }
+          cell.s = s;
+        });
+        if (any) sh.heights[r] = ROW_H;
+      });
+      if (head.length) {
+        head = head.filter(function (r, i) { return head.indexOf(r) === i; }).sort(function (a, b) { return a - b; });
+        var last = head[0];
+        while (head.indexOf(last + 1) >= 0) last += 1;   // the first block of header rows
+        sh.printTitles = [head[0], last];
+      }
+    });
+  }
+
   function workbook(p, opts) {
     opts = opts || {};
     var keyFn = opts.keyFn, label = opts.monthLabel || function (k) { return k; };
@@ -226,6 +273,7 @@
     cashSheet(wb, p, sc, cfw);
     paymentSheet(wb, p, pay);
     ganttSheet(wb, p, sc);
+    uniformRows(wb);
     return wb;
   }
 
