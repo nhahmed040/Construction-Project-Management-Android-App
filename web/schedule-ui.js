@@ -4,7 +4,7 @@
   'use strict';
 
   var S = window.CBSched, L = window.CBLogic;
-  var gantt = { gw: 16, asOf: '' };
+  var gantt = { gw: 16, asOf: '', links: true };
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   var STD_ROLES = S.STD_ROLES, STD_EQUIP = S.STD_EQUIP;
@@ -698,6 +698,48 @@
   }
 
   /* ---------- Gantt chart ---------- */
+  /* Link lines between tasks: an elbow connector from the edge of the predecessor to the edge of the successor. */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function drawLinks(c, rowsBox, rowEls, a, gw, LABEL, width) {
+    var sc = c.sc, items = [];
+    sc.rows.forEach(function (r) {
+      if (r.level !== 2 || !r.sched || !r.explicit) return;
+      r.preds.forEach(function (q) { if (!q.implicit && sc.byId[q.id]) items.push({ P: sc.byId[q.id], Q: r, q: q }); });
+    });
+    if (!items.length) return;
+    var svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('class', 'gt-links');
+    svg.setAttribute('width', width);
+    svg.setAttribute('height', rowsBox.offsetHeight);
+    svg.setAttribute('aria-hidden', 'true');
+    rowsBox.appendChild(svg);
+    function xs(r) { return LABEL + (r.sd - a) * gw; }
+    function xe(r) { return LABEL + (r.fd - a + 1) * gw - 2; }
+    items.forEach(function (it) {
+      var pe = rowEls[String(it.P.id)], se = rowEls[String(it.Q.id)];
+      if (!pe || !se) return;
+      var y1 = pe.offsetTop + 13, y2 = se.offsetTop + 13, type = it.q.type;
+      var fromEnd = type === 'FS' || type === 'FF', toEnd = type === 'FF' || type === 'SF';
+      var x1 = fromEnd ? xe(it.P) : xs(it.P), x2 = toEnd ? xe(it.Q) : xs(it.Q);
+      var sf = fromEnd ? 1 : -1, st = toEnd ? 1 : -1;   // side the line leaves / arrives on
+      var ex = x1 + sf * 6, tx = x2 + st * 6, ym = y1 + (y2 >= y1 ? 13 : -13), d;
+      if (sf === st) { var vx = sf > 0 ? Math.max(ex, tx) : Math.min(ex, tx); d = 'M' + x1 + ' ' + y1 + 'H' + vx + 'V' + y2 + 'H' + x2; }
+      else if ((sf > 0 && ex <= tx) || (sf < 0 && ex >= tx)) d = 'M' + x1 + ' ' + y1 + 'H' + tx + 'V' + y2 + 'H' + x2;
+      else d = 'M' + x1 + ' ' + y1 + 'H' + ex + 'V' + ym + 'H' + tx + 'V' + y2 + 'H' + x2;
+      var cls = 'gl' + (it.Q.conflict ? ' bad' : it.P.critical && it.Q.critical ? ' crit' : '');
+      var path = document.createElementNS(SVGNS, 'path');
+      path.setAttribute('d', d); path.setAttribute('class', cls);
+      var dir = st > 0 ? -1 : 1;   // arrow points back along the approach
+      var head = document.createElementNS(SVGNS, 'path');
+      head.setAttribute('d', 'M' + x2 + ' ' + y2 + 'l' + (-dir * 5) + ' -3.5v7z'.replace('l' + (-dir * 5), 'l' + (-dir * 5)));
+      head.setAttribute('class', cls + ' head');
+      var tip = document.createElementNS(SVGNS, 'title');
+      tip.textContent = type + (it.q.lag ? (it.q.lag > 0 ? '+' : '') + it.q.lag + 'd' : '') + ': ' + it.P.desc + ' → ' + it.Q.desc;
+      path.appendChild(tip);
+      svg.appendChild(path); svg.appendChild(head);
+    });
+  }
+
   function secGantt(body, p, A) {
     var c = ctx(p, A), t = c.t, sc = c.sc;
     if (noteIfEmpty(c, body)) return;
@@ -711,6 +753,7 @@
     zr.appendChild(c.btn('－', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.max(0, i - 1)] || 16; A.rerender(); }));
     zr.appendChild(c.el('span', 'zoomlbl', t('sch_zoom')));
     zr.appendChild(c.btn('＋', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.min(sizes.length - 1, i + 1)] || 16; A.rerender(); }));
+    zr.appendChild(c.btn((gantt.links ? '☑ ' : '☐ ') + t('sch_show_links'), '', function () { gantt.links = !gantt.links; A.rerender(); }));
     zr.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
     bar.appendChild(zr);
     var lg = c.el('div', 'glegend');
@@ -765,8 +808,10 @@
     var today = S.toDays(g.asOf);
     if (today >= a && today <= b) { var tl = c.el('b', 'gt-today'); tl.style.left = ((today - a) * gw + gw / 2) + 'px'; stripes.appendChild(tl); }
     rowsBox.appendChild(stripes);
+    var rowEls = {};
     sc.rows.forEach(function (r) {
       var row = c.el('div', 'gt-row lv' + r.level);
+      rowEls[String(r.id)] = row;
       var lb = c.el('div', 'gt-label', (r.no ? r.no + ' ' : '') + r.desc);
       lb.title = r.desc;
       row.appendChild(lb);
@@ -790,6 +835,7 @@
       rowsBox.appendChild(row);
     });
     inner.appendChild(rowsBox);
+    if (gantt.links && gw >= 9) setTimeout(function () { if (rowsBox.isConnected) drawLinks(c, rowsBox, rowEls, a, gw, LABEL, width); }, 0);
     wrap.appendChild(inner);
     body.appendChild(wrap);
     body.appendChild(c.el('p', 'muted small', t('sch_gantt_note')));

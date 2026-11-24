@@ -9,6 +9,7 @@
     about_help_c1: 'Schedule: Projects → New project from BoQ (Excel) → Schedule → Generate schedule from BoQ. Tap any task to change its duration, crew or cost split.',
     about_help_c2: 'Progress: record quantities done in the BoQ tab. The Gantt and Schedule tabs compare them with the plan and mark late tasks.',
     grp_overview: 'Project', choose_project: 'Choose a project first.', grp_pm: 'Project Management', grp_admin: 'Administration',
+    sch_show_links: 'Links',
     sch_links: 'Linked to other tasks', sch_links_note: 'Choose up to 3 predecessors. Lag waits working days after the link; a negative lag (lead) lets the task start earlier and overlap.',
     sch_pred: 'Predecessor', sch_link_type: 'Link type', sch_lag: 'Lag (+) / lead (−), working days',
     sch_link_FS: 'FS – finish to start', sch_link_SS: 'SS – start to start', sch_link_FF: 'FF – finish to finish', sch_link_SF: 'SF – start to finish',
