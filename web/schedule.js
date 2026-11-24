@@ -304,7 +304,14 @@
   /* Direct cost shares (material / labour / equipment), as parts of the 83 that is left after miscellaneous, overhead and
      profit (2 + 7.5 + 7.5). Applied to another pool they are scaled to fit it. Withholding tax is not a cost share: it is
      taken off each payment (p.wht). */
-  var PRESETS = { general: [65, 15, 3], earth_mach: [3, 15, 65], earth_lab: [3, 65, 15] };
+  var PRESETS = {
+    general: [65, 15, 3], earth_mach: [3, 15, 65], earth_lab: [3, 65, 15],
+    mobil: [5, 18, 60], hardcore: [40, 28, 15], lean: [62, 15, 6], concrete: [60, 15, 8], rebar: [72, 9, 2], formwork: [38, 40, 5],
+    hcb: [62, 18, 3], plaster: [45, 35, 3], roof: [66, 14, 3], tile: [62, 18, 3], carp: [63, 16, 4], plumb: [70, 10, 3], elec: [69, 11, 3]
+  };
+  /* the preset the BoQ generator gives each type of work (tasks you set by hand are never touched) */
+  var TPL_PRESET = { mobil: 'mobil', hardcore: 'hardcore', lean: 'lean', concrete: 'concrete', rebar: 'rebar', formwork: 'formwork', hcb: 'hcb', masonry: 'hcb',
+    plaster: 'plaster', pointing: 'plaster', paint: 'plaster', roof: 'roof', tile: 'tile', carp: 'carp', metal: 'carp', glaze: 'carp', plumb: 'plumb', elec: 'elec' };
 
   function indirectPct(cf) { return r2(cf.misc + cf.overhead + cf.profit); }
   function poolOf(cf) { return Math.max(0, r2(100 - indirectPct(cf))); }
@@ -516,7 +523,7 @@
           var eq = ensure(s.equip, n, function () { return { id: L.newId(), name: n, source: src ? src[1] : 'Rental' }; });
           t.eq[String(eq.id)] = x.tpl.eq[n];
         });
-        var pid = x.tpl.preset;
+        var pid = x.tpl.preset || TPL_PRESET[x.tpl.id];
         if (pid === 'earth_mach' && /trench|manual|by hand|hand dug/i.test(x.it.desc || '')) pid = 'earth_lab';
         var sp = pid ? presetSplit(s.cf, pid) : null, def = s.cf.defSplit;
         if (sp && !(Math.abs(sp[0] - def[0]) < 0.01 && Math.abs(sp[1] - def[1]) < 0.01 && Math.abs(sp[2] - def[2]) < 0.01)) t.split = sp; else delete t.split;
