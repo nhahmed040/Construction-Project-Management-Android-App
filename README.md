@@ -53,3 +53,7 @@ GitHub Actions builds the APK on every push (Actions → *Build APK* → artifac
 - Built-in presets (General 65/15/3, earthwork by machine or by hand, backfilling 40/20/23, mobilization, hardcore, lean and structural concrete, reinforcement, formwork, block masonry, plaster and painting, roofing, tiling, carpentry and metalwork, plumbing, electrical) fill the split for the project or for one task. They scale to fit if the indirect costs change. The BoQ generator gives each type of work its preset. You can save up to 8 presets of your own.
 - Withholding tax (default 3%, the project's own setting) is not a cost share. It is taken off each payment, and the cash flow shows the net payment after withholding.
 - Projects saved before this change keep working: the withholding points moved to Equipment.
+
+## Task IDs
+
+Every row of the schedule has an ID, its row number (1, 2, 3 ...), as in MS Project. Type predecessors with those IDs in the task editor: `3` (finish to start), `5SS+2`, `7FF-1`. Links are stored on the tasks themselves, so when rows are added or moved the IDs change but the links stay attached to the right tasks.

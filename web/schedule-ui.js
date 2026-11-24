@@ -188,7 +188,9 @@
     list.classList.add('schedlist');
     sc.rows.forEach(function (r) {
       var line = c.el('div', 'srow lv' + r.level + (r.level === 2 && r.kind === 'plain' ? ' plain' : ''));
-      var title = c.el('div', 'stitle', (r.no ? r.no + '  ' : '') + r.desc);
+      var title = c.el('div', 'stitle');
+      title.appendChild(c.el('span', 'sid', String(r.n)));
+      title.appendChild(document.createTextNode((r.no ? r.no + '  ' : '') + r.desc));
       line.appendChild(title);
       if (r.level === 2) {
         var meta = c.el('div', 'smeta');
@@ -280,7 +282,7 @@
     return r.preds.map(function (q) {
       var pr = c.sc.byId[q.id];
       var lag = q.lag ? (q.lag > 0 ? '+' : '') + q.lag + 'd' : '';
-      return (pr && pr.no ? pr.no : '#' + q.id) + ' ' + q.type + lag;
+      return (pr ? pr.n : '?') + ' ' + q.type + lag;
     }).join(', ');
   }
 
@@ -288,11 +290,6 @@
     var p = c.p, t = c.t, id = String(r.id);
     var task = p.sched.tasks[id] || (p.sched.tasks[id] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
     var mode = task.start ? 'fixed' : Array.isArray(task.pred) ? 'links' : task.par ? 'with' : 'after';
-    var opts = [{ value: '', label: '—' }];
-    c.sc.rows.forEach(function (x) {
-      if (x.level === 2 && x.sched && String(x.id) !== id) opts.push({ value: String(x.id), label: ((x.no ? x.no + ' ' : '') + x.desc).slice(0, 48) });
-    });
-    var typeOpts = S.LINK_TYPES.map(function (k) { return { value: k, label: t('sch_link_' + k) }; });
     var cur = Array.isArray(task.pred) ? task.pred : [];
     var show = { key: 'mode', values: ['links', 'fixed'] };
     var fields = [
@@ -300,14 +297,9 @@
       { key: 'mode', label: t('sch_starts'), type: 'select', value: mode,
         options: [{ value: 'after', label: t('sch_after_prev') }, { value: 'with', label: t('sch_with_prev') }, { value: 'links', label: t('sch_links') }, { value: 'fixed', label: t('sch_fixed') }] },
       { key: 'start', label: t('sch_start'), type: 'date', value: task.start, showFor: { key: 'mode', values: ['fixed'] } },
+      { key: 'preds', label: t('sch_pred_ids'), type: 'text', value: S.formatLinks(cur, c.sc), ph: '3, 5SS+2, 7FF-1', max: 80, showFor: show },
       { type: 'note', text: t('sch_links_note'), showFor: show }
     ];
-    for (var k = 0; k < 3; k++) {
-      var q = cur[k] || {};
-      fields.push({ key: 'p' + k, label: t('sch_pred') + ' ' + (k + 1), type: 'select', value: q.id ? String(q.id) : '', options: opts, showFor: show });
-      fields.push({ key: 't' + k, label: t('sch_link_type'), type: 'select', value: q.type || 'FS', options: typeOpts, showFor: show });
-      fields.push({ key: 'l' + k, label: t('sch_lag'), type: 'number', step: '1', noCalc: true, value: q.lag || 0, showFor: show });
-    }
     fields.push({ key: 'delay', label: t('sch_delay'), type: 'number', min: 0, step: '1', noCalc: true, value: task.delay || '', ph: '0', showFor: { key: 'mode', values: ['after', 'with', 'links'] } });
     var info = [];
     if (r.sd != null) {
@@ -318,19 +310,16 @@
     } else info.push(t('sch_set_duration'));
     fields.push({ type: 'note', text: info.join('\n') + basisText(c, r, task) });
     c.A.openForm({
-      title: (r.no ? r.no + ' ' : '') + r.desc.slice(0, 60),
+      title: r.n + ' · ' + (r.no ? r.no + ' ' : '') + r.desc.slice(0, 60),
       fields: fields,
       onSubmit: function (v) {
         if (v.mode === 'fixed' && !L.isDate(v.start)) return t('required');
         var preds = [];
         if (v.mode === 'links' || v.mode === 'fixed') {
-          for (var k = 0; k < 3; k++) {
-            var pid = v['p' + k];
-            if (!pid) continue;
-            if (preds.some(function (x) { return x.id === pid; })) return t('sch_pred_twice');
-            if (S.wouldLoop(p, id, pid)) return t('sch_pred_loop');
-            preds.push({ id: pid, type: v['t' + k] || 'FS', lag: Math.round(Number(v['l' + k]) || 0) });
-          }
+          var res = S.parseLinks(v.preds, c.sc, id);
+          if (res.error) return t('sch_pred_err_' + res.error.why, { x: res.error.part });
+          for (var k = 0; k < res.list.length; k++) if (S.wouldLoop(p, id, res.list[k].id)) return t('sch_pred_loop');
+          preds = res.list;
         }
         task.dur = Math.min(9999, Math.max(0, Math.round(v.dur * 100) / 100));
         task.par = v.mode === 'with';
@@ -351,7 +340,7 @@
     pn.appendChild(c.kv(t('sch_critical_tasks'), sc.critical.length + ' / ' + sc.count));
     if (sc.conflicts.length) pn.appendChild(c.el('div', 'warn', t('sch_conflicts', { n: sc.conflicts.length })));
     if (sc.cycles.length) pn.appendChild(c.el('div', 'warn', t('sch_loops', { n: sc.cycles.length })));
-    var list = sc.critical.slice(0, 12).map(function (id) { var r = sc.byId[String(id)]; return (r.no ? r.no + ' ' : '') + r.desc.slice(0, 34); });
+    var list = sc.critical.slice(0, 12).map(function (id) { var r = sc.byId[String(id)]; return r.n + ' · ' + r.desc.slice(0, 34); });
     if (list.length) {
       var ul = c.el('ol', 'critlist');
       list.forEach(function (x) { ul.appendChild(c.el('li', null, x)); });
@@ -851,7 +840,9 @@
     sc.rows.forEach(function (r) {
       var row = c.el('div', 'gt-row lv' + r.level);
       rowEls[String(r.id)] = row;
-      var lb = c.el('div', 'gt-label', (r.no ? r.no + ' ' : '') + r.desc);
+      var lb = c.el('div', 'gt-label');
+      lb.appendChild(c.el('span', 'sid', String(r.n)));
+      lb.appendChild(document.createTextNode((r.no ? r.no + ' ' : '') + r.desc));
       lb.title = r.desc;
       row.appendChild(lb);
       if (r.sd != null) {

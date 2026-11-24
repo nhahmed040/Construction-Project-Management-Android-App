@@ -228,6 +228,30 @@ ok('built-in presets all add up to the pool and the generator uses them', functi
   assert.strictEqual(S.templateOf({ desc: 'Hardcore filling 200mm thick', unit: 'M3' }).id, 'hardcore');
   assert.deepStrictEqual(sp(1), [72, 9, 2]); assert.deepStrictEqual(sp(2), [60, 15, 8]); assert.deepStrictEqual(sp(3), [45, 35, 3]); assert.deepStrictEqual(sp(4), [3, 15, 65]);
 });
+
+ok('task IDs are row numbers and links are typed with them', function () {
+  var q = net({ 1: { dur: 2 }, 2: { dur: 2 }, 3: { dur: 2 }, 4: { dur: 0 } });
+  var c = S.compute(q);
+  assert.deepStrictEqual(c.rows.map(function (r) { return r.n; }), [1, 2, 3, 4]);
+  var r = S.parseLinks('1, 2ss+1, 3FF-2d', c, '4');
+  assert.strictEqual(r.error, null);
+  assert.deepStrictEqual(r.list, [{ id: '1', type: 'FS', lag: 0 }, { id: '2', type: 'SS', lag: 1 }, { id: '3', type: 'FF', lag: -2 }]);
+  assert.strictEqual(S.formatLinks(r.list, c), '1, 2SS+1, 3FF-2');
+  assert.strictEqual(S.parseLinks('9', c, '1').error.why, 'task');   // there is no row 9
+  assert.strictEqual(S.parseLinks('4', c, '1').error.why, 'task');   // row 4 has no duration
+  assert.strictEqual(S.parseLinks('1', c, '1').error.why, 'self');
+  assert.strictEqual(S.parseLinks('1, 1', c, '2').error.why, 'twice');
+  assert.strictEqual(S.parseLinks('x', c, '2').error.why, 'format');
+  assert.strictEqual(S.parseLinks('', c, '2').list.length, 0);
+});
+ok('links stay on their tasks when the IDs move', function () {
+  var q = net({ 1: { dur: 2 }, 2: { dur: 2, pred: [{ id: 1, type: 'FS', lag: 0 }] } });
+  assert.strictEqual(S.formatLinks(q.sched.tasks[2].pred, S.compute(q)), '1');
+  q.boq.unshift({ id: 9, desc: 'new first row', qty: 1, rate: 1, done: 0 });   // pushes everything down one row
+  var c = S.compute(q);
+  assert.strictEqual(S.formatLinks(q.sched.tasks[2].pred, c), '2');
+  assert.strictEqual(at(c, 2).preds[0].id, '1');
+});
 console.log(n + ' passed');
 
 ok('progress vs plan: planned, actual and late tasks', function () {

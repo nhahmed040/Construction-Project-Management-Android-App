@@ -94,6 +94,7 @@
       }
       rows.push(row);
     });
+    rows.forEach(function (r, k) { r.n = k + 1; });   // the task ID: the row number, as in MS Project
     var ids = Object.keys(byId);
     // the links of every scheduled task (explicit list, or the BoQ order)
     ids.forEach(function (id) {
@@ -196,8 +197,32 @@
       start: lo2 == null ? '' : fromDays(lo2), finish: hi2 == null ? '' : fromDays(hi2),
       workDays: lo2 == null ? 0 : workCount(lo2, hi2, off), calDays: lo2 == null ? 0 : hi2 - lo2 + 1,
       total: total, earned: earnedAll, pct: total > 0 ? earnedAll / total * 100 : 0,
-      critical: critical, conflicts: conflicts, cycles: cycles, byId: byId
+      critical: critical, conflicts: conflicts, cycles: cycles, byId: byId,
+      byN: rows.reduce(function (m, r) { m[r.n] = r; return m; }, {})
     };
+  }
+
+  /* "3, 5SS+2, 7FF-1" <-> links. Numbers are task IDs (row numbers). Returns { list, error } with the task ids stored internally. */
+  function parseLinks(text, sc, selfId) {
+    var out = [], bad = null;
+    String(text || '').split(/[,;]+/).forEach(function (part) {
+      part = part.trim();
+      if (!part || bad) return;
+      var m = /^(\d+)\s*(FS|SS|FF|SF)?\s*([+-]\s*\d+(?:\.\d+)?)?\s*d?$/i.exec(part);
+      if (!m) { bad = { part: part, why: 'format' }; return; }
+      var row = sc.byN[+m[1]];
+      if (!row || !row.sched) { bad = { part: part, why: 'task' }; return; }
+      if (String(row.id) === String(selfId)) { bad = { part: part, why: 'self' }; return; }
+      if (out.some(function (q) { return q.id === String(row.id); })) { bad = { part: part, why: 'twice' }; return; }
+      out.push({ id: String(row.id), type: (m[2] || 'FS').toUpperCase(), lag: Math.round(Number((m[3] || '0').replace(/\s+/g, '')) || 0) });
+    });
+    return { list: out, error: bad };
+  }
+  function formatLinks(list, sc) {
+    return (list || []).map(function (q) {
+      var r = sc.byId[String(q.id)];
+      return (r ? r.n : '?') + (q.type !== 'FS' || q.lag ? q.type : '') + (q.lag ? (q.lag > 0 ? '+' : '') + q.lag : '');
+    }).join(', ');
   }
 
   /* Would linking `id` after `predId` close a loop? (used by the editor) */
@@ -825,7 +850,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

@@ -191,17 +191,17 @@
     }
     var sh = sheet('Gantt', wb, [6, 56, 14, 14, 8, 16, 8].concat(weeks.map(function () { return 4.5; })));
     var r = titleBlock(sh, p, 'Gantt chart (weeks start on Monday)');
-    ['No', 'Task Name', 'Start', 'Finish', 'Days', 'Predecessors', 'Float'].forEach(function (x, i) { sh.put(r, i, { v: x, s: HEAD }); });
+    ['ID', 'Task Name', 'Start', 'Finish', 'Days', 'Predecessors', 'Float'].forEach(function (x, i) { sh.put(r, i, { v: x, s: HEAD }); });
     weeks.forEach(function (w, i) { var iso = S.fromDays(w); sh.put(r, 7 + i, { v: iso.slice(8, 10) + '/' + iso.slice(5, 7), s: st({ sz: 8 }, HEAD) }); });
     sh.heights = {}; sh.heights[r] = 30;
     var bar = { fill: '2F75B5', border: 'thin' }, grp = { fill: '1F3864', border: 'thin' }, lin = { fill: '8EA9DB', border: 'thin' }, blank = { border: 'thin' };
     sc.rows.forEach(function (row) {
       r += 1;
       var base = labelCell(row, row.level);
-      sh.put(r, 0, { v: row.no, s: row.level === 2 ? CEN : base }); sh.put(r, 1, { v: row.desc, s: base });
+      sh.put(r, 0, { v: row.n, s: CEN }); sh.put(r, 1, { v: (row.no ? row.no + '  ' : '') + row.desc, s: base });
       sh.put(r, 2, { v: d2(row.start), s: row.level === 2 ? CEN : base }); sh.put(r, 3, { v: d2(row.finish), s: row.level === 2 ? CEN : base });
       sh.put(r, 4, { v: row.dur || '', s: row.level === 2 ? CEN : base });
-      var lk = (row.preds || []).map(function (q) { var pr = sc.byId[q.id]; return (pr && pr.no ? pr.no : '#' + q.id) + ' ' + q.type + (q.lag ? (q.lag > 0 ? '+' : '') + q.lag : ''); }).join(', ');
+      var lk = S.formatLinks((row.preds || []).filter(function (q) { return !q.implicit; }), sc);
       sh.put(r, 5, { v: lk, s: row.level === 2 ? CEN : base });
       sh.put(r, 6, { v: row.tf == null ? '' : (row.critical ? 'Critical' : row.tf + 'd'), s: row.level === 2 ? CEN : base });
       weeks.forEach(function (w, i) {

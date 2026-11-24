@@ -715,3 +715,5 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .gt-links .gl.head.crit { fill: var(--out); }
 .gt-links .gl.bad { stroke: var(--out); stroke-dasharray: 3 2; }
 .gt-links .gl.head.bad { fill: var(--out); stroke: none; }
+
+.sid { display: inline-block; min-width: 1.7em; margin-right: 6px; padding: 0 5px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-size: .72rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
