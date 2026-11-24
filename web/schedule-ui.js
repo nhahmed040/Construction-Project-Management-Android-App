@@ -546,8 +546,9 @@
     st.appendChild(c.kv(t('sch_misc'), cf.misc + '%'));
     st.appendChild(c.kv(t('sch_overhead'), cf.overhead + '%'));
     st.appendChild(c.kv(t('sch_profit'), cf.profit + '%'));
-    st.appendChild(c.kv(t('sch_wht'), cf.wht + '%'));
-    st.appendChild(c.kv(t('sch_default_split'), t('sch_material') + ' ' + cf.defSplit[0] + '% · ' + t('sch_labour') + ' ' + cf.defSplit[1] + '% · ' + t('sch_equip') + ' ' + Math.max(0, L.round2(100 - S.indirectPct(cf) - cf.defSplit[0] - cf.defSplit[1])) + '%'));
+    st.appendChild(c.kv(t('sch_default_split'), t('sch_material') + ' ' + cf.defSplit[0] + '% · ' + t('sch_labour') + ' ' + cf.defSplit[1] + '% · ' + t('sch_equip') + ' ' + cf.defSplit[2] + '%'));
+    st.appendChild(c.kv(t('sch_wht_pay'), (p.wht || 0) + '%'));
+    if (cf.legacy) st.appendChild(c.el('p', 'muted small', t('sch_legacy_note')));
     st.appendChild(c.kv(t('sch_adv'), cf.advPct + '%'));
     st.appendChild(c.kv(t('sch_interim'), String(cf.cuts.length || cf.interim)));
     st.appendChild(c.btn(t('sch_edit'), 'block', function () { editCf(c); }));
@@ -562,11 +563,12 @@
     tp.appendChild(c.kv(t('sch_misc'), money(L.round2(T.misc))));
     tp.appendChild(c.kv(t('sch_overhead'), money(L.round2(T.oh))));
     tp.appendChild(c.kv(t('sch_profit'), money(L.round2(T.profit)), 'pos'));
-    tp.appendChild(c.kv(t('sch_wht'), money(L.round2(T.wht))));
     tp.appendChild(c.kv(t('sch_indirect'), money(L.round2(cfw.indirect)), 'total'));
     tp.appendChild(c.kv(t('sch_total_excl'), money(L.round2(T.amount)), 'total'));
     tp.appendChild(c.kv('+ VAT (' + p.vat + '%)', money(L.round2(T.vat))));
     tp.appendChild(c.kv(t('contract_incl_vat'), money(L.round2(cfw.withVat)), 'total'));
+    tp.appendChild(c.kv('− ' + t('sch_wht') + ' (' + (p.wht || 0) + '%)', money(L.round2(T.wht))));
+    tp.appendChild(c.kv(t('sch_net_pay'), money(L.round2(cfw.net)), 'total'));
     body.appendChild(tp);
 
     var pp = c.panel(t('sch_payments'));
@@ -584,9 +586,10 @@
       d.appendChild(c.kv(t('sch_misc'), money(L.round2(x.misc))));
       d.appendChild(c.kv(t('sch_overhead'), money(L.round2(x.oh))));
       d.appendChild(c.kv(t('sch_profit'), money(L.round2(x.profit))));
-      d.appendChild(c.kv(t('sch_wht'), money(L.round2(x.wht))));
       d.appendChild(c.kv('VAT', money(L.round2(x.vat))));
       d.appendChild(c.kv(t('sch_total_incl'), money(L.round2(x.total)), 'total'));
+      d.appendChild(c.kv('− ' + t('sch_wht'), money(L.round2(x.wht))));
+      d.appendChild(c.kv(t('sch_net_pay'), money(L.round2(x.net)), 'total'));
       d.appendChild(c.kv(t('sch_cum'), (Math.round(x.cumPct * 10) / 10) + '%'));
       pp.appendChild(d);
     });
@@ -618,7 +621,7 @@
       var line = c.el('div', 'srow lv2' + (x.split.over ? ' bad' : ''));
       line.tabIndex = 0; line.setAttribute('role', 'button');
       line.appendChild(c.el('div', 'stitle', (x.no ? x.no + '  ' : '') + x.desc));
-      line.appendChild(c.el('div', 'smeta', money(L.round2(x.amount)) + ' · ' + x.split.mat + '/' + x.split.lab + '/' + x.split.eq + '%' + (x.split.custom ? ' ✎' : '')));
+      line.appendChild(c.el('div', 'smeta', money(L.round2(x.amount)) + ' · ' + x.split.mat + '/' + x.split.lab + '/' + x.split.eq + '%' + (x.split.custom ? ' ✎' : '') + (x.split.over ? ' ⚠' : '')));
       line.addEventListener('click', function () { editSplit(c, x); });
       lp.appendChild(line);
     });
@@ -626,26 +629,56 @@
     if (p.boq.length) body.appendChild(c.btn(t('sch_export'), 'block', function () { exportExcel(c); }));
   }
 
+  function presetOptions(c, extra) {
+    var t = c.t, cf = c.p.sched.cf, out = extra ? extra.slice() : [];
+    S.presetList(cf).forEach(function (q) {
+      var base = q.name || t('sch_preset_' + q.id);
+      out.push({ value: q.id, label: base + ' (' + q.split.join('/') + ')' });
+    });
+    return out;
+  }
   function editCf(c) {
-    var t = c.t, cf = c.p.sched.cf;
+    var t = c.t, p = c.p, cf = p.sched.cf, oldPool = S.poolOf(cf);
     c.A.openForm({
       title: t('sch_cf_settings'),
       fields: [
         { key: 'misc', label: t('sch_misc') + ' %', type: 'number', min: 0, max: 100, value: cf.misc },
         { key: 'overhead', label: t('sch_overhead') + ' %', type: 'number', min: 0, max: 100, value: cf.overhead },
         { key: 'profit', label: t('sch_profit') + ' %', type: 'number', min: 0, max: 100, value: cf.profit },
-        { key: 'wht', label: t('sch_wht') + ' %', type: 'number', min: 0, max: 100, value: cf.wht },
+        { key: 'preset', label: t('sch_preset_fill'), type: 'select', value: 'keep', options: presetOptions(c, [{ value: 'keep', label: t('sch_preset_keep') }]) },
         { key: 'mat', label: t('sch_material') + ' % (' + t('sch_default_split') + ')', type: 'number', min: 0, max: 100, value: cf.defSplit[0] },
         { key: 'lab', label: t('sch_labour') + ' % (' + t('sch_default_split') + ')', type: 'number', min: 0, max: 100, value: cf.defSplit[1] },
+        { key: 'eq', label: t('sch_equip') + ' % (' + t('sch_default_split') + ')', type: 'number', min: 0, max: 100, value: cf.defSplit[2] },
+        { key: 'saveas', label: t('sch_preset_save'), type: 'text', value: '', ph: t('sch_preset_name'), max: 30 },
+        { key: 'wht', label: t('sch_wht_pay') + ' %', type: 'number', min: 0, max: 100, value: p.wht || 0 },
         { key: 'adv', label: t('sch_adv') + ' %', type: 'number', min: 0, max: 100, value: cf.advPct },
         { key: 'interim', label: t('sch_interim'), type: 'number', min: 0, max: 20, step: '1', noCalc: true, value: cf.interim },
         { type: 'note', text: t('sch_cf_note') }
       ],
       onSubmit: function (v) {
-        var ind = v.misc + v.overhead + v.profit + v.wht;
-        if (ind > 100 || v.mat + v.lab + ind > 100.005) return t('sch_split_over');
-        cf.misc = v.misc; cf.overhead = v.overhead; cf.profit = v.profit; cf.wht = v.wht;
-        cf.defSplit = [v.mat, v.lab]; cf.advPct = Math.min(100, v.adv);
+        var ind = L.round2(v.misc + v.overhead + v.profit);
+        if (ind > 100) return t('sch_split_over');
+        var pool = L.round2(100 - ind), sp = [v.mat, v.lab, v.eq];
+        if (v.preset !== 'keep') {
+          var tmp = { misc: v.misc, overhead: v.overhead, profit: v.profit, presets: cf.presets };
+          sp = S.presetSplit(tmp, v.preset) || sp;
+        }
+        var sum = L.round2(sp[0] + sp[1] + sp[2]);
+        if (Math.abs(sum - pool) > 0.01) return t('sch_split_sum', { sum: sum, pool: pool, left: L.round2(pool - sum) });
+        var name = String(v.saveas || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+        if (name) {
+          if (cf.presets.length >= 8 && !cf.presets.some(function (q) { return q.name === name; })) return t('sch_preset_full');
+          var ex = cf.presets.filter(function (q) { return q.name === name; })[0];
+          if (ex) ex.split = sp.slice(); else cf.presets.push({ name: name, split: sp.slice() });
+        }
+        // the shares of every task that has its own split stay in proportion when the pool changes
+        if (Math.abs(pool - oldPool) > 0.001) Object.keys(p.sched.tasks).forEach(function (k) {
+          var tk = p.sched.tasks[k];
+          if (tk.split && tk.split.length >= 3) tk.split = S.fitSplit(tk.split, pool);
+        });
+        cf.misc = v.misc; cf.overhead = v.overhead; cf.profit = v.profit;
+        cf.defSplit = sp.map(L.round2); cf.advPct = Math.min(100, v.adv); cf.legacy = false;
+        p.wht = Math.min(100, Math.max(0, v.wht));
         var n = Math.max(0, Math.min(20, Math.round(v.interim)));
         if (n !== cf.interim) cf.cuts = [];
         cf.interim = n;
@@ -655,23 +688,25 @@
     });
   }
   function editSplit(c, x) {
-    var t = c.t, p = c.p, cf = p.sched.cf, pool = Math.max(0, L.round2(100 - S.indirectPct(cf)));
+    var t = c.t, p = c.p, cf = p.sched.cf, pool = S.poolOf(cf);
     var task = p.sched.tasks[String(x.id)] || (p.sched.tasks[String(x.id)] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
     c.A.openForm({
       title: x.desc.slice(0, 60),
       fields: [
         { key: 'preset', label: t('sch_preset'), type: 'select', value: 'keep',
-          options: [{ value: 'keep', label: t('sch_preset_keep') }, { value: 'general', label: t('sch_preset_general') }, { value: 'earthwork', label: t('sch_preset_earth') }, { value: 'backfill', label: t('sch_preset_back') }, { value: 'default', label: t('sch_preset_default') }] },
+          options: presetOptions(c, [{ value: 'keep', label: t('sch_preset_keep') }]).concat([{ value: 'default', label: t('sch_preset_default') }]) },
         { key: 'mat', label: t('sch_material') + ' %', type: 'number', min: 0, max: 100, value: x.split.mat },
         { key: 'lab', label: t('sch_labour') + ' %', type: 'number', min: 0, max: 100, value: x.split.lab },
+        { key: 'eq', label: t('sch_equip') + ' %', type: 'number', min: 0, max: 100, value: x.split.eq },
         { type: 'note', text: t('sch_split_pool', { pool: pool }) }
       ],
       onSubmit: function (v) {
         if (v.preset === 'default') { delete task.split; }
         else {
-          var sp = v.preset !== 'keep' && S.PRESETS[v.preset] ? S.PRESETS[v.preset] : [v.mat, v.lab];
-          if (sp[0] + sp[1] > pool + 0.005) return t('sch_split_over');
-          task.split = [sp[0], sp[1]];
+          var sp = v.preset !== 'keep' ? S.presetSplit(cf, v.preset) : [v.mat, v.lab, v.eq];
+          var sum = L.round2(sp[0] + sp[1] + sp[2]);
+          if (Math.abs(sum - pool) > 0.01) return t('sch_split_sum', { sum: sum, pool: pool, left: L.round2(pool - sum) });
+          task.split = sp.map(L.round2);
         }
         c.A.save(); c.A.rerender();
         return null;

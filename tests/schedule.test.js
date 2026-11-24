@@ -48,11 +48,12 @@ ok('task dates follow the workbook', function () {
 
 ok('cash flow reproduces the workbook split', function () {
   var cf = S.cashflow(p), r = cf.rows[0];
-  near(r.mat, 1584); near(r.lab, 6336); near(r.eq, 34320); near(r.misc, 1584); near(r.oh, 3696); near(r.profit, 3696); near(r.wht, 1584); near(r.vat, 7920);
+  near(r.mat, 1584); near(r.lab, 6336); near(r.eq, 35904); near(r.misc, 1584); near(r.oh, 3696); near(r.profit, 3696); near(r.vat, 7920);
+  near(r.mat + r.lab + r.eq + r.misc + r.oh + r.profit, r.amount, 0.01);   // withholding tax is not a cost share any more
   var back = cf.rows[1];
-  near(back.mat, 44936); near(back.lab, 22468); near(back.eq, 22468);
+  near(back.mat, 44936); near(back.lab, 22468); near(back.eq, back.amount * 0.23, 0.01);
   var ter = cf.rows[3];
-  near(ter.mat, 1062393.6096, 0.01); near(ter.eq, 51406.1424, 0.01);
+  near(ter.mat, 1062393.6096, 0.01); near(ter.eq, ter.amount * ter.split.eq / 100, 0.01); near(ter.mat + ter.lab + ter.eq + ter.misc + ter.oh + ter.profit, ter.amount, 0.01);
   near(cf.totals.amount, 1911947.84);
 });
 
@@ -61,7 +62,7 @@ ok('payments add up to the contract and carry cost shares', function () {
   near(pay.totals.amount, pay.total, 0.01, 'sum of payments');
   near(pay.list[0].amount, pay.total * 0.2, 0.01, 'advance 20%');
   assert.strictEqual(pay.list[pay.list.length - 1].name, 'Final payment');
-  pay.list.forEach(function (x) { assert.ok(x.amount >= 0); near(x.mat + x.lab + x.eq + x.misc + x.oh + x.profit + x.wht, x.amount, 0.01); });
+  pay.list.forEach(function (x) { assert.ok(x.amount >= 0); near(x.mat + x.lab + x.eq + x.misc + x.oh + x.profit, x.amount, 0.01); near(x.net, x.total - x.amount * p.wht / 100, 0.01); });
   near(pay.totals.vat, pay.total * 0.15, 0.01);
 });
 
@@ -186,6 +187,35 @@ ok('reschedule pushes late work on and leaves manual dates alone', function () {
   assert.strictEqual(S.reschedule(q, '2027-01-12', true).extended.length, 0);   // idempotent
   assert.ok(dry.delayed.length >= 1);
 });
+
+ok('cost split: defaults, presets that fit the pool, withholding off the payment', function () {
+  var q = L.sanitizeProject({ name: 'Q', vat: 15, wht: 3, boq: [{ id: 1, desc: 'a', qty: 10, rate: 1000, done: 0 }], boqLines: 2 }, 1);
+  var cf = q.sched.cf;
+  assert.deepStrictEqual([cf.misc, cf.overhead, cf.profit], [2, 7.5, 7.5]); assert.deepStrictEqual(cf.defSplit, [65, 15, 3]);
+  assert.strictEqual(S.poolOf(cf), 83);
+  assert.deepStrictEqual(S.presetSplit(cf, 'earth_mach'), [3, 15, 65]); assert.deepStrictEqual(S.presetSplit(cf, 'earth_lab'), [3, 65, 15]);
+  cf.overhead = 10.5;   // pool 80: presets scale to fit it
+  var sp = S.presetSplit(cf, 'earth_mach'); near(sp[0] + sp[1] + sp[2], 80, 0.001);
+  cf.overhead = 7.5;
+  var c = S.cashflow(q), r = c.rows[0];
+  near(r.mat + r.lab + r.eq + r.misc + r.oh + r.profit, 10000, 0.01); near(r.wht, 300, 0.01); near(c.net, 11500 - 300, 0.01);
+  var pay = S.payments(q, S.compute(q));
+  near(pay.totals.wht, 300, 0.01); near(pay.totals.net, 11200, 0.01); assert.strictEqual(pay.shares.wht, undefined);
+});
+ok('cost split: user presets are kept, junk is dropped, splits that do not fit are flagged', function () {
+  var q = L.sanitizeProject({ name: 'Q', boq: [{ id: 1, desc: 'a', qty: 1, rate: 100 }], boqLines: 2,
+    sched: { cf: { presets: [{ name: '  Slab  ', split: [50, 20, 13] }, { name: '', split: [1, 2, 3] }, { name: 'x', split: [1, 2] }, null] }, tasks: { 1: { dur: 1, split: [10, 10, 10] } } } }, 1);
+  assert.deepStrictEqual(q.sched.cf.presets, [{ name: 'Slab', split: [50, 20, 13] }]);
+  assert.deepStrictEqual(S.presetSplit(q.sched.cf, 'u0'), [50, 20, 13]);
+  assert.strictEqual(S.splitOf(q, 1).over, true);
+});
+ok('cost split: an older project gives the freed withholding points to equipment', function () {
+  var q = L.sanitizeProject({ name: 'Q', boq: [{ id: 1, desc: 'a', qty: 1, rate: 100 }], boqLines: 2,
+    sched: { cf: { misc: 3, overhead: 7, profit: 7, wht: 3, defSplit: [62, 15] }, tasks: { 1: { dur: 1, split: [3, 12] } } } }, 1);
+  assert.deepStrictEqual(q.sched.cf.defSplit, [62, 15, 6]); assert.strictEqual(q.sched.cf.legacy, true);
+  assert.deepStrictEqual(q.sched.tasks[1].split, [3, 12, 68]); assert.strictEqual(q.sched.cf.wht, undefined);
+  near(S.cashflow(q).rows[0].mat + S.cashflow(q).rows[0].lab + S.cashflow(q).rows[0].eq + 17, 100, 0.001);
+});
 console.log(n + ' passed');
 
 ok('progress vs plan: planned, actual and late tasks', function () {
@@ -227,7 +257,7 @@ ok('generate: durations, crews, equipment and splits from the BoQ', function () 
   assert.deepStrictEqual([d(1).dur, d(2).dur, d(3).dur, d(4).dur, d(5).dur, d(6).dur], [1, 3, 1, 25, 8, 5]);
   assert.strictEqual(d(5).tpl, 'concrete', 'concrete mentioning formwork stays concrete');
   assert.strictEqual(d(7).tpl, 'plaster'); assert.strictEqual(d(8).tpl, 'plumb'); assert.strictEqual(d(9).tpl, 'plumb'); assert.strictEqual(d(10).tpl, 'general');
-  assert.deepStrictEqual(d(1).split, [3, 12]); assert.deepStrictEqual(d(2).split, [40, 20]); assert.strictEqual(d(4).split, undefined);
+  assert.deepStrictEqual(d(1).split, [3, 65, 15], 'hand trench uses the labour preset'); assert.deepStrictEqual(d(2).split, [3, 65, 15]); assert.strictEqual(d(4).split, undefined);
   var role = function (n) { return q.sched.roles.filter(function (x) { return x.name === n; })[0]; };
   assert.strictEqual(d(1).mp[String(role('Daily Labour').id)], 6); assert.strictEqual(d(4).mp[String(role('Tiler').id)], 5);
   assert.strictEqual(role('Project Manager').type, 'permanent');
@@ -275,7 +305,7 @@ var pending = 0;
     });
     ok('excel cash flow sheet has the split', function () {
       var flat = sheets[5].rows.map(function (r) { return r.join('|'); }).join('\n');
-      assert.ok(/52800/.test(flat) && /1584/.test(flat) && /34320/.test(flat));
+      assert.ok(/52800/.test(flat) && /1584/.test(flat) && /35904/.test(flat));
     });
     ok('excel gantt marks the weeks', function () { assert.ok(sheets[7].rows.length > 10); });
     console.log('done');

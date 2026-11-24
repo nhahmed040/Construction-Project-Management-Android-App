@@ -132,10 +132,10 @@
     var sh = sheet('Cash Flow', wb, [6, 56, 8, 10, 11, 15, 15, 15, 15, 15, 15, 15, 15, 15]);
     var r = titleBlock(sh, p, 'Cash Flow');
     r += 1;
-    ['No', 'Task Name', 'Unit', 'QTY', 'Rate', 'Amount', 'Material Cost', 'Labor Cost', 'Equipment and tools Cost', 'Miscellaneous Expenses', 'Over head cost', 'Profit', 'Withholding Tax', 'VAT']
+    ['No', 'Task Name', 'Unit', 'QTY', 'Rate', 'Amount', 'Material Cost', 'Labor Cost', 'Equipment and tools Cost', 'Miscellaneous Expenses', 'Over head cost', 'Profit', 'Withholding Tax (deducted)', 'VAT']
       .forEach(function (x, i) { sh.put(r, i, { v: x, s: HEAD }); });
     sh.put(r - 1, 6, { v: 'Direct Cost', s: HEAD }); sh.put(r - 1, 9, { v: 'Indirect Cost', s: HEAD });
-    sh.merges.push('G' + (r - 1) + ':I' + (r - 1), 'J' + (r - 1) + ':M' + (r - 1));
+    sh.merges.push('G' + (r - 1) + ':I' + (r - 1), 'J' + (r - 1) + ':L' + (r - 1));
     var first = r + 1, byId = {};
     cfw.rows.forEach(function (x) { byId[x.id] = x; });
     sc.rows.forEach(function (row) {
@@ -145,7 +145,7 @@
       sh.put(r, 0, { v: x.no, s: CEN }); sh.put(r, 1, { v: x.desc, s: TXT }); sh.put(r, 2, { v: x.unit, s: CEN });
       sh.put(r, 3, { v: x.qty, s: QT }); sh.put(r, 4, { v: x.rate, s: st({ fmt: '#,##0.00####' }, NUM) });
       sh.put(r, 5, { v: x.amount, f: 'D' + r + '*E' + r, s: NUM });
-      var pc = [x.split.mat, x.split.lab, x.split.eq, p.sched.cf.misc, p.sched.cf.overhead, p.sched.cf.profit, p.sched.cf.wht, p.vat];
+      var pc = [x.split.mat, x.split.lab, x.split.eq, p.sched.cf.misc, p.sched.cf.overhead, p.sched.cf.profit, p.wht || 0, p.vat];
       var vals = [x.mat, x.lab, x.eq, x.misc, x.oh, x.profit, x.wht, x.vat];
       for (var k = 0; k < 8; k++) sh.put(r, 6 + k, { v: vals[k], f: 'F' + r + '*' + pc[k] / 100, s: NUM });
     });
@@ -159,9 +159,9 @@
   }
 
   function paymentSheet(wb, p, pay) {
-    var sh = sheet('Cash Flow Summary', wb, [6, 22, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16]);
+    var sh = sheet('Cash Flow Summary', wb, [6, 22, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16]);
     var r = titleBlock(sh, p, 'Payment schedule');
-    ['No', 'Payments', 'Date', 'Amount', 'Material Cost', 'Labor Cost', 'Equipment and tools Cost', 'Miscellaneous Expenses', 'Over head cost', 'Profit', 'Withholding Tax', 'VAT', 'Total with VAT']
+    ['No', 'Payments', 'Date', 'Amount', 'Material Cost', 'Labor Cost', 'Equipment and tools Cost', 'Miscellaneous Expenses', 'Over head cost', 'Profit', 'Withholding Tax (deducted)', 'VAT', 'Total with VAT', 'Net after withholding']
       .forEach(function (x, i) { sh.put(r, i, { v: x, s: st({ sz: 10 }, HEAD) }); });
     var first = r + 1;
     pay.list.forEach(function (x, i) {
@@ -170,14 +170,15 @@
       sh.put(r, 0, { v: i + 1, s: CEN }); sh.put(r, 1, { v: x.name, s: TXT }); sh.put(r, 2, { v: d2(x.date), s: CEN });
       v.forEach(function (n, k) { sh.put(r, 3 + k, { v: n, s: NUM }); });
       sh.put(r, 12, { v: x.total, f: 'D' + r + '+L' + r, s: NUM });
+      sh.put(r, 13, { v: x.net, f: 'M' + r + '-K' + r, s: NUM });
     });
     var last = r;
     r += 1;
     sh.put(r, 1, { v: 'Total', s: TOTAL }); sh.put(r, 2, { v: '', s: TOTAL });
-    for (var c = 3; c < 13; c++) { var col = require_col(c); sh.put(r, c, { v: 0, f: 'SUM(' + col + first + ':' + col + last + ')', s: st({ fmt: MONEY, h: 'right' }, TOTAL) }); }
+    for (var c = 3; c < 14; c++) { var col = require_col(c); sh.put(r, c, { v: 0, f: 'SUM(' + col + first + ':' + col + last + ')', s: st({ fmt: MONEY, h: 'right' }, TOTAL) }); }
     r += 2;
     sh.put(r, 1, { v: 'Cost shares', s: { b: true, font: F } });
-    [['Material', pay.shares.mat], ['Labor', pay.shares.lab], ['Equipment and tools', pay.shares.eq], ['Miscellaneous', pay.shares.misc], ['Over head', pay.shares.oh], ['Profit', pay.shares.profit], ['Withholding Tax', pay.shares.wht]]
+    [['Material', pay.shares.mat], ['Labor', pay.shares.lab], ['Equipment and tools', pay.shares.eq], ['Miscellaneous', pay.shares.misc], ['Over head', pay.shares.oh], ['Profit', pay.shares.profit]]
       .forEach(function (x, i) { sh.put(r + 1 + i, 1, { v: x[0], s: CELL }); sh.put(r + 1 + i, 2, { v: x[1], s: st({ fmt: '0.00%', h: 'right' }, CELL) }); });
     return sh;
   }

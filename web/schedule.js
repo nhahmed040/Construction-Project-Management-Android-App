@@ -301,32 +301,54 @@
   function equipment(p, sc, keyFn) { return usage(p, sc, p.sched.equip, 'eq', keyFn, false); }
 
   /* ---------- cash flow ---------- */
-  var PRESETS = { general: [62, 15], earthwork: [3, 12], backfill: [40, 20] };
+  /* Direct cost shares (material / labour / equipment), as parts of the 83 that is left after miscellaneous, overhead and
+     profit (2 + 7.5 + 7.5). Applied to another pool they are scaled to fit it. Withholding tax is not a cost share: it is
+     taken off each payment (p.wht). */
+  var PRESETS = { general: [65, 15, 3], earth_mach: [3, 15, 65], earth_lab: [3, 65, 15] };
 
-  function indirectPct(cf) { return r2(cf.misc + cf.overhead + cf.profit + cf.wht); }
+  function indirectPct(cf) { return r2(cf.misc + cf.overhead + cf.profit); }
+  function poolOf(cf) { return Math.max(0, r2(100 - indirectPct(cf))); }
+  /* scale three shares so that they add up to the pool */
+  function fitSplit(sp, pool) {
+    var sum = sp[0] + sp[1] + sp[2];
+    if (!(sum > 0)) return [pool, 0, 0];
+    var m = r2(sp[0] * pool / sum), l = r2(sp[1] * pool / sum);
+    return [m, l, r2(pool - m - l)];
+  }
+  function presetList(cf) {
+    var out = Object.keys(PRESETS).map(function (k) { return { id: k, split: PRESETS[k] }; });
+    (cf.presets || []).forEach(function (q, i) { out.push({ id: 'u' + i, name: q.name, split: q.split }); });
+    return out;
+  }
+  function presetSplit(cf, id) {
+    if (PRESETS[id]) return fitSplit(PRESETS[id], poolOf(cf));
+    var m = /^u(\d+)$/.exec(id || ''), q = m && cf.presets && cf.presets[+m[1]];
+    return q ? fitSplit(q.split, poolOf(cf)) : null;
+  }
   function splitOf(p, id) {
-    var cf = p.sched.cf, t = p.sched.tasks[String(id)], sp = t && t.split ? t.split : cf.defSplit;
-    var pool = Math.max(0, 100 - indirectPct(cf)), m = sp[0], l = sp[1];
-    var e = pool - m - l;
-    return { mat: m, lab: l, eq: Math.max(0, r2(e)), pool: pool, over: e < -0.005, custom: !!(t && t.split) };
+    var cf = p.sched.cf, t = p.sched.tasks[String(id)], pool = poolOf(cf);
+    var sp = t && t.split ? t.split : cf.defSplit;
+    var m = sp[0], l = sp[1], e = sp.length > 2 ? sp[2] : pool - m - l;
+    return { mat: m, lab: l, eq: Math.max(0, r2(e)), pool: pool, over: Math.abs(m + l + e - pool) > 0.01 || e < -0.005, custom: !!(t && t.split) };
   }
 
   function cashflow(p) {
-    var cf = p.sched.cf, vat = p.vat, rows = [];
+    var cf = p.sched.cf, vat = p.vat, wht = p.wht || 0, rows = [];
     var tot = { amount: 0, mat: 0, lab: 0, eq: 0, misc: 0, oh: 0, profit: 0, wht: 0, vat: 0 };
     p.boq.forEach(function (i) {
       if (!L.isItemRow(i) || L.isHeading(i)) return;
       var a = i.qty * i.rate, sp = splitOf(p, i.id);
       var r = { id: i.id, no: i.no, desc: i.desc, unit: i.unit, qty: i.qty, rate: i.rate, amount: a, split: sp,
         mat: a * sp.mat / 100, lab: a * sp.lab / 100, eq: a * sp.eq / 100,
-        misc: a * cf.misc / 100, oh: a * cf.overhead / 100, profit: a * cf.profit / 100, wht: a * cf.wht / 100, vat: a * vat / 100 };
+        misc: a * cf.misc / 100, oh: a * cf.overhead / 100, profit: a * cf.profit / 100, wht: a * wht / 100, vat: a * vat / 100 };
       Object.keys(tot).forEach(function (k) { tot[k] += r[k]; });
       rows.push(r);
     });
-    var direct = tot.mat + tot.lab + tot.eq, indirect = tot.misc + tot.oh + tot.profit + tot.wht;
+    var direct = tot.mat + tot.lab + tot.eq, indirect = tot.misc + tot.oh + tot.profit;
     var shares = {};
-    ['mat', 'lab', 'eq', 'misc', 'oh', 'profit', 'wht'].forEach(function (k) { shares[k] = tot.amount > 0 ? tot[k] / tot.amount : 0; });
-    return { rows: rows, totals: tot, direct: direct, indirect: indirect, shares: shares, withVat: tot.amount + tot.vat, vatPct: vat };
+    ['mat', 'lab', 'eq', 'misc', 'oh', 'profit'].forEach(function (k) { shares[k] = tot.amount > 0 ? tot[k] / tot.amount : 0; });
+    return { rows: rows, totals: tot, direct: direct, indirect: indirect, shares: shares, withVat: tot.amount + tot.vat, whtPct: wht,
+      net: tot.amount + tot.vat - tot.wht, vatPct: vat };
   }
 
   /* value of work planned up to and including day dayN (linear over each task's working days) */
@@ -351,9 +373,9 @@
       if (!cuts.length) for (var k = 1; k <= cf.interim; k++) cuts.push(fromDays(sc.sd + Math.round((sc.fd - sc.sd) * k / (cf.interim + 1))));
     } else cuts = [];
     function add(name, kind, date, amount) {
-      var x = { name: name, kind: kind, date: date, amount: amount, vat: amount * p.vat / 100 };
-      x.total = x.amount + x.vat;
-      ['mat', 'lab', 'eq', 'misc', 'oh', 'profit', 'wht'].forEach(function (c) { x[c] = amount * cfw.shares[c]; });
+      var x = { name: name, kind: kind, date: date, amount: amount, vat: amount * p.vat / 100, wht: amount * (p.wht || 0) / 100 };
+      x.total = x.amount + x.vat; x.net = x.total - x.wht;
+      ['mat', 'lab', 'eq', 'misc', 'oh', 'profit'].forEach(function (c) { x[c] = amount * cfw.shares[c]; });
       list.push(x);
     }
     if (adv > 0) add('Advance payment', 'adv', sc.start || p.startDate || '', adv);
@@ -369,7 +391,7 @@
     return { list: list, cuts: cuts, total: total, totals: sumPayments(list), shares: cfw.shares, cf: cfw };
   }
   function sumPayments(list) {
-    var t = { amount: 0, vat: 0, total: 0, mat: 0, lab: 0, eq: 0, misc: 0, oh: 0, profit: 0, wht: 0 };
+    var t = { amount: 0, vat: 0, total: 0, net: 0, mat: 0, lab: 0, eq: 0, misc: 0, oh: 0, profit: 0, wht: 0 };
     list.forEach(function (x) { Object.keys(t).forEach(function (k) { t[k] += x[k]; }); });
     return t;
   }
@@ -411,9 +433,9 @@
   /* per: output per crew-day (a number, or { def, 'M³': n, ... } by unit). units: only for these units. Order matters: first match wins. */
   var TEMPLATES = [
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
-    { id: 'cart', label: 'Cart away', re: /cart\s?away|carta?way|haul away|dispose|surplus/, per: { def: 96 }, crew: { Foreman: 1, 'Daily Labour': 6, 'Truck Driver': 1, 'Pick Up Driver': 1 }, eq: { 'Dump Truck': 1, 'Backhoe Loader': 1 }, split: [3, 12] },
-    { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers/, per: { def: 27 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, split: [40, 20] },
-    { id: 'excav', label: 'Excavation', re: /excavat|trench|\bpit\b|\bdig/, per: { def: 96 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 }, split: [3, 12] },
+    { id: 'cart', label: 'Cart away', re: /cart\s?away|carta?way|haul away|dispose|surplus/, per: { def: 96 }, crew: { Foreman: 1, 'Daily Labour': 6, 'Truck Driver': 1, 'Pick Up Driver': 1 }, eq: { 'Dump Truck': 1, 'Backhoe Loader': 1 }, preset: 'earth_mach' },
+    { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers/, per: { def: 27 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'earth_lab' },
+    { id: 'excav', label: 'Excavation', re: /excavat|trench|\bpit\b|\bdig/, per: { def: 96 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 }, preset: 'earth_mach' },
     { id: 'hardcore', label: 'Hardcore / aggregate', re: /hard\s?core|stone soling|crushed|aggregate|gravel|blinding|sand fill/, per: { def: 100, 'M³': 36 }, crew: { Foreman: 1, 'Daily Labour': 9, Mason: 3, Helper: 3 }, eq: { 'Plate Compactor': 1 } },
     { id: 'formwork', label: 'Formwork', re: /form\s?work|shuttering/, units: ['M²', 'M', 'LS'], per: { def: 80, M: 81 }, crew: { Foreman: 1, 'Daily Labour': 4, Carpenter: 4, Helper: 4 }, eq: {} },
     { id: 'rebar', label: 'Reinforcement bars', re: /bar\b|bars\b|rebar|reinforcement|stirrup|stirup/, units: ['KG'], per: { def: 258 }, crew: { Foreman: 1, 'Daily Labour': 2, 'Bar Bender': 2 }, eq: {} },
@@ -494,8 +516,10 @@
           var eq = ensure(s.equip, n, function () { return { id: L.newId(), name: n, source: src ? src[1] : 'Rental' }; });
           t.eq[String(eq.id)] = x.tpl.eq[n];
         });
-        var def = s.cf.defSplit, sp = x.tpl.split;
-        if (sp && !(Math.abs(sp[0] - def[0]) < 0.01 && Math.abs(sp[1] - def[1]) < 0.01)) t.split = [sp[0], sp[1]]; else delete t.split;
+        var pid = x.tpl.preset;
+        if (pid === 'earth_mach' && /trench|manual|by hand|hand dug/i.test(x.it.desc || '')) pid = 'earth_lab';
+        var sp = pid ? presetSplit(s.cf, pid) : null, def = s.cf.defSplit;
+        if (sp && !(Math.abs(sp[0] - def[0]) < 0.01 && Math.abs(sp[1] - def[1]) < 0.01 && Math.abs(sp[2] - def[2]) < 0.01)) t.split = sp; else delete t.split;
       });
     }
     for (mult = 1; mult <= 10; mult++) {
@@ -730,7 +754,7 @@
         it.split = [Math.round(x.m / x.a * 10000) / 100, Math.round(x.l / x.a * 10000) / 100];
       });
       var f = cf[0];
-      cfSet = { misc: Math.round(f.misc / f.a * 10000) / 100, overhead: Math.round(f.oh / f.a * 10000) / 100, profit: Math.round(f.profit / f.a * 10000) / 100, wht: Math.round(f.wht / f.a * 10000) / 100 };
+      cfSet = { misc: Math.round(f.misc / f.a * 10000) / 100, overhead: Math.round(f.oh / f.a * 10000) / 100, profit: Math.round(f.profit / f.a * 10000) / 100 };
     } else if (cf) notes.push('cash flow sheet rows do not match the task sheet, material / labour / equipment shares were not imported');
     // people: names and required numbers of the permanent staff
     sheets.forEach(function (sh) {
@@ -756,6 +780,7 @@
   function applyImport(p, d, opts) {
     opts = opts || {};
     var ids = { role: {}, equip: {} }, sched = p.sched;
+    if (d.cf) Object.keys(d.cf).forEach(function (k) { sched.cf[k] = d.cf[k]; });
     var roles = d.roles.map(function (r) { var id = L.newId(); ids.role[r.name] = id; return { id: id, name: r.name, type: r.type, person: r.person, count: r.type === 'permanent' ? r.count : 0 }; });
     var equip = d.equip.map(function (e) { var id = L.newId(); ids.equip[e.name] = id; return { id: id, name: e.name, source: e.source }; });
     var boq = [], tasks = {}, stretched = 0;
@@ -772,15 +797,14 @@
         }
         Object.keys(it.mp || {}).forEach(function (n) { if (ids.role[n]) t.mp[ids.role[n]] = it.mp[n]; });
         Object.keys(it.eq || {}).forEach(function (n) { if (ids.equip[n]) t.eq[ids.equip[n]] = it.eq[n]; });
-        var ds = sched.cf.defSplit;
-        if (it.split && !(Math.abs(it.split[0] - ds[0]) < 0.01 && Math.abs(it.split[1] - ds[1]) < 0.01)) t.split = it.split;
+        var ds = sched.cf.defSplit, pl = poolOf(sched.cf);
+        if (it.split) { var isp = [it.split[0], it.split[1], Math.max(0, r2(pl - it.split[0] - it.split[1]))]; if (!(Math.abs(isp[0] - ds[0]) < 0.01 && Math.abs(isp[1] - ds[1]) < 0.01 && Math.abs(isp[2] - ds[2]) < 0.01)) t.split = isp; }
         tasks[String(id)] = t;
       }
     });
     p.boq = boq; p.boqLines = 2;
     sched.roles = roles; sched.equip = equip; sched.tasks = tasks;
     d.stretched = stretched;
-    if (d.cf) Object.keys(d.cf).forEach(function (k) { sched.cf[k] = d.cf[k]; });
     if (d.proj && d.proj.start) sched.start = d.proj.start;
     if (!p.startDate && (d.info.start || (d.proj && d.proj.start))) p.startDate = d.info.start || d.proj.start;
     if (!p.endDate && (d.info.end || (d.proj && d.proj.finish))) p.endDate = d.info.end || d.proj.finish;
@@ -795,7 +819,7 @@
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
     compute: compute, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
-    PRESETS: PRESETS, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
+    PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };
 });

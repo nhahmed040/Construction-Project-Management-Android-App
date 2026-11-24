@@ -390,20 +390,38 @@
     if (isDate(t.snet)) out.snet = t.snet;
     if (Array.isArray(t.split) && t.split.length >= 2) {
       var m = Math.min(num(t.split[0], 0, 100), 100), l = Math.min(num(t.split[1], 0, 100), 100);
-      out.split = [m, l];
+      out.split = t.split.length >= 3 ? [m, l, Math.min(num(t.split[2], 0, 100), 100)] : [m, l];   // two numbers = an older save: equipment is the rest
     }
     return out;
   }
   function sanitizeSched(s) {
     s = s && typeof s === 'object' ? s : {};
     var cf = s.cf && typeof s.cf === 'object' ? s.cf : {};
-    var ds = Array.isArray(cf.defSplit) && cf.defSplit.length >= 2 ? [num(cf.defSplit[0], 0, 100), num(cf.defSplit[1], 0, 100)] : [62, 15];
+    var misc = num(cf.misc == null ? 2 : cf.misc, 0, 100), overhead = num(cf.overhead == null ? 7.5 : cf.overhead, 0, 100), profit = num(cf.profit == null ? 7.5 : cf.profit, 0, 100);
+    var pool = Math.max(0, Math.round((100 - misc - overhead - profit) * 100) / 100);
+    var legacy = !!cf.legacy, ds;
+    if (Array.isArray(cf.defSplit) && cf.defSplit.length >= 3) ds = [num(cf.defSplit[0], 0, 100), num(cf.defSplit[1], 0, 100), num(cf.defSplit[2], 0, 100)];
+    else if (Array.isArray(cf.defSplit) && cf.defSplit.length === 2) {   // older save: withholding tax was one of the indirect costs, equipment was what was left
+      var dm = num(cf.defSplit[0], 0, 100), dl = num(cf.defSplit[1], 0, 100);
+      ds = [dm, dl, Math.max(0, Math.round((pool - dm - dl) * 100) / 100)];
+      legacy = true;
+    } else ds = [65, 15, 3];
+    var presets = [];
+    (Array.isArray(cf.presets) ? cf.presets : []).slice(0, 8).forEach(function (q) {
+      if (!q || typeof q !== 'object' || !Array.isArray(q.split) || q.split.length < 3) return;
+      var nm = String(q.name || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+      if (nm) presets.push({ name: nm, split: [num(q.split[0], 0, 100), num(q.split[1], 0, 100), num(q.split[2], 0, 100)] });
+    });
     var cuts = [];
     (Array.isArray(cf.cuts) ? cf.cuts : []).slice(0, 24).forEach(function (d) { if (isDate(d) && cuts.indexOf(d) < 0) cuts.push(d); });
     cuts.sort();
     var tasks = {};
     if (s.tasks && typeof s.tasks === 'object') Object.keys(s.tasks).slice(0, 4000).forEach(function (k) {
-      if (/^\d+$/.test(k)) tasks[k] = sanitizeSchedTask(s.tasks[k]);
+      if (/^\d+$/.test(k)) {
+        var tk = sanitizeSchedTask(s.tasks[k]);
+        if (tk.split && tk.split.length === 2) tk.split.push(Math.max(0, Math.round((pool - tk.split[0] - tk.split[1]) * 100) / 100));
+        tasks[k] = tk;
+      }
     });
     return {
       start: isDate(s.start) ? s.start : '',
@@ -412,9 +430,8 @@
       equip: mapList(s.equip, sanitizeEquip, 60),
       tasks: tasks,
       cf: {
-        misc: num(cf.misc == null ? 3 : cf.misc, 0, 100), overhead: num(cf.overhead == null ? 7 : cf.overhead, 0, 100),
-        profit: num(cf.profit == null ? 7 : cf.profit, 0, 100), wht: num(cf.wht == null ? 3 : cf.wht, 0, 100),
-        defSplit: ds, advPct: num(cf.advPct == null ? 20 : cf.advPct, 0, 100),
+        misc: misc, overhead: overhead, profit: profit,
+        defSplit: ds, presets: presets, legacy: legacy, advPct: num(cf.advPct == null ? 20 : cf.advPct, 0, 100),
         interim: schedInt(cf.interim == null ? 3 : cf.interim, 0, 20), cuts: cuts
       }
     };
