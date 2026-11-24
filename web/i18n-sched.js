@@ -74,6 +74,7 @@
     sch_monthly: 'Planned value by month', sch_monthly_note: 'Each task earns its value evenly over its working days.',
     sch_split_list: 'Cost split per task', sch_split_note: 'Material / labour / equipment %. Tap a task to change it. ✎ marks a changed split.',
     sch_preset: 'Preset', sch_preset_keep: 'Keep my percentages', sch_preset_general: 'General work', sch_preset_earth_mach: 'Earthwork – machinery', sch_preset_earth_lab: 'Earthwork – labour',
+    sch_preset_backfill: 'Backfilling',
     sch_preset_mobil: 'Mobilization / site setup', sch_preset_hardcore: 'Hardcore / stone soling', sch_preset_lean: 'Lean concrete / blinding', sch_preset_concrete: 'Structural concrete',
     sch_preset_rebar: 'Reinforcement', sch_preset_formwork: 'Formwork / scaffolding', sch_preset_hcb: 'HCB / block masonry', sch_preset_plaster: 'Plaster / screed / painting',
     sch_preset_roof: 'Roofing', sch_preset_tile: 'Tiling', sch_preset_carp: 'Carpentry / metalwork / joinery', sch_preset_plumb: 'Plumbing / sanitary', sch_preset_elec: 'Electrical',

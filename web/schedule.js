@@ -306,7 +306,7 @@
      taken off each payment (p.wht). */
   var PRESETS = {
     general: [65, 15, 3], earth_mach: [3, 15, 65], earth_lab: [3, 65, 15],
-    mobil: [5, 18, 60], hardcore: [40, 28, 15], lean: [62, 15, 6], concrete: [60, 15, 8], rebar: [72, 9, 2], formwork: [38, 40, 5],
+    backfill: [40, 20, 23], mobil: [5, 18, 60], hardcore: [40, 28, 15], lean: [62, 15, 6], concrete: [60, 15, 8], rebar: [72, 9, 2], formwork: [38, 40, 5],
     hcb: [62, 18, 3], plaster: [45, 35, 3], roof: [66, 14, 3], tile: [62, 18, 3], carp: [63, 16, 4], plumb: [70, 10, 3], elec: [69, 11, 3]
   };
   /* the preset the BoQ generator gives each type of work (tasks you set by hand are never touched) */
@@ -441,7 +441,7 @@
   var TEMPLATES = [
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
     { id: 'cart', label: 'Cart away', re: /cart\s?away|carta?way|haul away|dispose|surplus/, per: { def: 96 }, crew: { Foreman: 1, 'Daily Labour': 6, 'Truck Driver': 1, 'Pick Up Driver': 1 }, eq: { 'Dump Truck': 1, 'Backhoe Loader': 1 }, preset: 'earth_mach' },
-    { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers/, per: { def: 27 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'earth_lab' },
+    { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers|fill(ing)? around|(fill|filling) .{0,40}(excavated|selected) (material|soil)/, per: { def: 27 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'backfill' },
     { id: 'excav', label: 'Excavation', re: /excavat|trench|\bpit\b|\bdig/, per: { def: 96 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 }, preset: 'earth_mach' },
     { id: 'hardcore', label: 'Hardcore / aggregate', re: /hard\s?core|stone soling|crushed|aggregate|gravel|blinding|sand fill/, per: { def: 100, 'M³': 36 }, crew: { Foreman: 1, 'Daily Labour': 9, Mason: 3, Helper: 3 }, eq: { 'Plate Compactor': 1 } },
     { id: 'formwork', label: 'Formwork', re: /form\s?work|shuttering/, units: ['M²', 'M', 'LS'], per: { def: 80, M: 81 }, crew: { Foreman: 1, 'Daily Labour': 4, Carpenter: 4, Helper: 4 }, eq: {} },

@@ -224,6 +224,8 @@ ok('built-in presets all add up to the pool and the generator uses them', functi
     { id: 3, desc: 'Cement plaster on walls', unit: 'M2', qty: 200, rate: 150 }, { id: 4, desc: 'Excavation by machine', unit: 'M3', qty: 300, rate: 200 }] }, 1);
   S.generate(q, { only: 'all' });
   var sp = function (id) { return q.sched.tasks[id].split; };
+  assert.strictEqual(S.templateOf({ desc: 'Fill around masonry foundation wall with selected excavated material from site.', unit: 'M3' }).id, 'backfill');
+  assert.strictEqual(S.templateOf({ desc: 'Hardcore filling 200mm thick', unit: 'M3' }).id, 'hardcore');
   assert.deepStrictEqual(sp(1), [72, 9, 2]); assert.deepStrictEqual(sp(2), [60, 15, 8]); assert.deepStrictEqual(sp(3), [45, 35, 3]); assert.deepStrictEqual(sp(4), [3, 15, 65]);
 });
 console.log(n + ' passed');
@@ -267,7 +269,7 @@ ok('generate: durations, crews, equipment and splits from the BoQ', function () 
   assert.deepStrictEqual([d(1).dur, d(2).dur, d(3).dur, d(4).dur, d(5).dur, d(6).dur], [1, 3, 1, 25, 8, 5]);
   assert.strictEqual(d(5).tpl, 'concrete', 'concrete mentioning formwork stays concrete');
   assert.strictEqual(d(7).tpl, 'plaster'); assert.strictEqual(d(8).tpl, 'plumb'); assert.strictEqual(d(9).tpl, 'plumb'); assert.strictEqual(d(10).tpl, 'general');
-  assert.deepStrictEqual(d(1).split, [3, 65, 15], 'hand trench uses the labour preset'); assert.deepStrictEqual(d(2).split, [3, 65, 15]); assert.deepStrictEqual(d(4).split, [62, 18, 3], 'block work uses its own preset');
+  assert.deepStrictEqual(d(1).split, [3, 65, 15], 'hand trench uses the labour preset'); assert.deepStrictEqual(d(2).split, [40, 20, 23]); assert.deepStrictEqual(d(4).split, [62, 18, 3], 'block work uses its own preset');
   var role = function (n) { return q.sched.roles.filter(function (x) { return x.name === n; })[0]; };
   assert.strictEqual(d(1).mp[String(role('Daily Labour').id)], 6); assert.strictEqual(d(4).mp[String(role('Tiler').id)], 5);
   assert.strictEqual(role('Project Manager').type, 'permanent');
