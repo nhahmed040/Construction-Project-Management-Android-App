@@ -178,6 +178,15 @@
     row.appendChild(c.btn(t('sch_import'), '', function () { pickImport(c, false); }));
     if (p.boq.length) row.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
     pn.appendChild(row);
+    var trow = c.el('div', 'btnrow');
+    [['mp', '👷 ' + t('sch_roles'), 'manpower'], ['eq', '🚜 ' + t('sch_machines'), 'equipment']].forEach(function (x) {
+      trow.appendChild(c.btn(x[1], '', function () {
+        folds[x[0] + '-types'] = true;
+        A.goSection(x[2]);
+        setTimeout(function () { var d = document.querySelector('.fold[data-key="' + x[0] + '-types"]'); if (d) d.scrollIntoView({ block: 'start' }); }, 60);
+      }));
+    });
+    pn.appendChild(trow);
     body.appendChild(pn);
     if (noteIfEmpty(c, body)) return;
     var g = S.progress(p, sc, asOfDate());
@@ -369,7 +378,7 @@
   var folds = {};
   function fold(c, key, title, count, build, openByDefault) {
     var d = document.createElement('details');
-    d.className = 'panel fold';
+    d.className = 'panel fold'; d.dataset.key = key;
     d.open = key in folds ? folds[key] : !!openByDefault;
     var sm = document.createElement('summary');
     sm.appendChild(c.el('span', null, title));

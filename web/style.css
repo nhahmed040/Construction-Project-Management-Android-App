@@ -748,3 +748,4 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .fold[open] > summary::before { transform: rotate(90deg); }
 .fold > summary .foldcount { margin-left: auto; font-size: .75rem; background: var(--accent-soft); color: var(--accent); border-radius: 10px; padding: 1px 8px; }
 .fold[open] > summary { margin-bottom: 8px; }
+.fold { scroll-margin-top: 90px; }
