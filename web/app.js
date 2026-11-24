@@ -1308,7 +1308,12 @@
     return {
       t: t, el: el, btn: btn, kv: kv, panel: panel, money: money, fmtDate: fmtDate, toast: toast, openForm: openForm, save: save,
       cal: cal, lang: function () { return state.settings.lang; }, saveWorkbook: saveWorkbook, safeName: safeName,
-      rerender: function () { renderAll(); },
+      rerender: function () {   // redraw, then put the page and the Gantt back where they were
+        var y = window.pageYOffset, g = document.querySelector('.gantt'), gl = g ? g.scrollLeft : 0, gt = g ? g.scrollTop : 0;
+        renderAll();
+        function back() { window.scrollTo(0, y); var g2 = document.querySelector('.gantt'); if (g2) { g2.scrollLeft = gl; g2.scrollTop = gt; } }
+        back(); requestAnimationFrame(back);
+      },
       goSection: function (sec) { ui.section = sec; renderProjects(); window.scrollTo(0, 0); },
       addProject: function (np) { state.projects.push(np); ui.projectId = np.id; ui.section = 'schedule'; showView('projects'); save(); renderAll(); window.scrollTo(0, 0); }
     };

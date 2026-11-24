@@ -12,6 +12,7 @@
     sch_wht_pay: 'Withholding tax (taken off payments)', sch_net_pay: 'Net payment after withholding', sch_preset_fill: 'Fill from preset', sch_preset_save: 'Save these three as a preset', sch_preset_name: 'Preset name (optional)',
     sch_preset_full: 'You can keep up to 8 presets of your own. Use a name you already have to replace one.', sch_split_sum: 'Material + labour + equipment add up to {sum}%, they must add up to {pool}%.',
     sch_legacy_note: 'This project was saved when withholding tax was part of the cost split. Withholding is now taken off the payments, and its share went to Equipment. Open Edit to change it.',
+    sch_qty: 'Qty', sch_days_col: 'Days', sch_pred_col: 'Pred.', sch_columns: 'Columns', sch_manpower: 'Manpower', sch_equipment: 'Equipment',
     sch_show_links: 'Links',
     sch_links: 'Linked to other tasks', sch_links_note: 'Type the IDs (the row numbers in the first column), as in MS Project. 5 means finish-to-start; add SS, FF or SF and a lag: 5SS+2 waits 2 working days, 5FS-2 overlaps by 2. Separate several with commas.',
     sch_pred_ids: 'Predecessors (task IDs)', sch_pred_err_format: 'Cannot read "{x}". Write the task ID, then an optional link and lag, for example 3, 5SS+2, 7FF-1.',

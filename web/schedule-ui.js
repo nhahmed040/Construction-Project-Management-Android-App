@@ -4,7 +4,7 @@
   'use strict';
 
   var S = window.CBSched, L = window.CBLogic;
-  var gantt = { gw: 16, asOf: '', links: true };
+  var gantt = { gw: 16, asOf: '', links: true, cols: true };
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   var STD_ROLES = S.STD_ROLES, STD_EQUIP = S.STD_EQUIP;
@@ -192,6 +192,12 @@
       title.appendChild(c.el('span', 'sid', String(r.n)));
       title.appendChild(document.createTextNode((r.no ? r.no + '  ' : '') + r.desc));
       line.appendChild(title);
+      var cols = c.el('div', 'scols');
+      var q1 = c.el('div', 'scell'); q1.appendChild(c.el('small', null, t('sch_qty'))); q1.appendChild(c.el('div', 'gc', qtyText(r) || '—'));
+      var q2 = c.el('div', 'scell'); q2.appendChild(c.el('small', null, t('sch_days_col'))); q2.appendChild(durCell(c, r, 'gc'));
+      var q3 = c.el('div', 'scell wide'); q3.appendChild(c.el('small', null, t('sch_pred_col'))); q3.appendChild(predCell(c, r, 'gc'));
+      cols.appendChild(q1); cols.appendChild(q2); cols.appendChild(q3);
+      line.appendChild(cols);
       if (r.level === 2) {
         var meta = c.el('div', 'smeta');
         if (r.sd != null) meta.appendChild(c.el('span', null, A.fmtDate(r.start) + (r.finish !== r.start ? ' → ' + A.fmtDate(r.finish) : '') + ' · ' + days(r.dur)));
@@ -214,6 +220,7 @@
         line.setAttribute('role', 'button');
       } else if (r.sd != null) {
         line.appendChild(c.el('div', 'smeta', A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + ' · ' + days(r.dur)));
+        cols.classList.add('rolled');
       }
       list.appendChild(line);
     });
@@ -284,6 +291,93 @@
       var lag = q.lag ? (q.lag > 0 ? '+' : '') + q.lag + 'd' : '';
       return (pr ? pr.n : '?') + ' ' + q.type + lag;
     }).join(', ');
+  }
+
+  /* ---------- inline cells: quantity, duration and predecessors straight in the list and the Gantt ---------- */
+  function qtyText(r) { return r.level === 2 && r.qty > 0 ? S.fmtNum(r.qty) + (r.unit ? ' ' + r.unit : '') : ''; }
+  function linkList(r) { return r.sched && r.preds ? r.preds : (r.task && r.task.pred) || []; }
+  function newTask(p, id) { return p.sched.tasks[id] || (p.sched.tasks[id] = { dur: 0, start: '', par: false, mp: {}, eq: {} }); }
+
+  /* put a small input in the cell; Enter or leaving the cell saves, Escape cancels, a refused value shows its reason */
+  function inlineEdit(c, cell, value, type, commit) {
+    var input = document.createElement('input');
+    input.type = type; input.value = value; input.className = 'gcell-in';
+    if (type === 'number') { input.step = '0.25'; input.min = '0'; input.inputMode = 'decimal'; } else { input.maxLength = 80; input.setAttribute('enterkeyhint', 'done'); }
+    cell.textContent = ''; cell.classList.add('editing');
+    cell.appendChild(input);
+    input.focus(); input.select();
+    var done = false;
+    function end(save) {
+      if (done) return;
+      done = true;
+      var err = save ? commit(input.value) : null;
+      if (err) c.A.toast(err);
+      if (err || !save) c.A.rerender();
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); end(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); end(false); }
+    });
+    input.addEventListener('blur', function () { end(true); });
+    ['click', 'pointerdown'].forEach(function (ev) { input.addEventListener(ev, function (e) { e.stopPropagation(); }); });
+  }
+
+  function durCell(c, r, cls) {
+    var cell = c.el('div', cls + ' dur' + (r.level === 2 ? ' edit' : ''), r.dur ? S.fmtNum(r.dur) : (r.level === 2 ? '—' : ''));
+    if (r.level !== 2) return cell;
+    cell.title = c.t('sch_duration');
+    cell.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (cell.classList.contains('editing')) return;
+      inlineEdit(c, cell, r.dur || '', 'number', function (v) {
+        var d = Number(v);
+        if (v === '' || !(d >= 0)) return v === '' ? null : c.t('required');
+        d = Math.min(9999, Math.round(d * 100) / 100);
+        if (Math.abs(d - (r.dur || 0)) < 1e-9) { c.A.rerender(); return null; }
+        newTask(c.p, String(r.id)).dur = d;
+        c.A.save(); c.A.rerender();
+        return null;
+      });
+    });
+    return cell;
+  }
+
+  function predCell(c, r, cls) {
+    var list = linkList(r), txt = S.formatLinks(list, c.sc);
+    var implicit = list.length > 0 && list.every(function (q) { return q.implicit; });
+    var cell = c.el('div', cls + ' pred' + (r.level === 2 ? ' edit' : '') + (implicit ? ' implicit' : '') + (r.conflict ? ' bad' : ''), txt);
+    if (r.level !== 2) return cell;
+    cell.title = c.t('sch_pred_ids') + ' · 3, 5SS+2, 7FF-1';
+    cell.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (cell.classList.contains('editing')) return;
+      inlineEdit(c, cell, txt, 'text', function (v) {
+        v = String(v).trim();
+        if (v === txt) { c.A.rerender(); return null; }
+        var id = String(r.id), res = S.parseLinks(v, c.sc, id);
+        if (res.error) return c.t('sch_pred_err_' + res.error.why, { x: res.error.part });
+        for (var k = 0; k < res.list.length; k++) if (S.wouldLoop(c.p, id, res.list[k].id)) return c.t('sch_pred_loop');
+        newTask(c.p, id).pred = res.list;
+        c.A.save(); c.A.rerender();
+        return null;
+      });
+    });
+    return cell;
+  }
+
+  /* a section that folds; open or closed is remembered while the app is open */
+  var folds = {};
+  function fold(c, key, title, count, build, openByDefault) {
+    var d = document.createElement('details');
+    d.className = 'panel fold';
+    d.open = key in folds ? folds[key] : !!openByDefault;
+    var sm = document.createElement('summary');
+    sm.appendChild(c.el('span', null, title));
+    if (count != null) sm.appendChild(c.el('b', 'foldcount', String(count)));
+    d.appendChild(sm);
+    d.addEventListener('toggle', function () { folds[key] = d.open; });
+    build(d);
+    return d;
   }
 
   function editTask(c, r) {
@@ -365,75 +459,41 @@
     var c = ctx(p, A), t = c.t, isMp = kind === 'mp';
     var list = isMp ? p.sched.roles : p.sched.equip, field = isMp ? 'mp' : 'eq';
     var usage = isMp ? S.manpower(p, c.sc, c.keyFn) : S.equipment(p, c.sc, c.keyFn);
-    var pn = c.panel(isMp ? t('sch_roles') : t('sch_machines'));
+    var sum = c.panel(isMp ? t('sch_manpower') : t('sch_equipment'));
     if (c.sc.count) {
-      if (isMp) { pn.appendChild(c.kv(t('sch_peak'), String(usage.peak))); }
-      pn.appendChild(c.kv(isMp ? t('sch_manday_total') : t('sch_machday_total'), num(usage.totalDays)));
+      if (isMp) sum.appendChild(c.kv(t('sch_peak'), String(usage.peak)));
+      sum.appendChild(c.kv(isMp ? t('sch_manday_total') : t('sch_machday_total'), num(usage.totalDays)));
     }
-    if (!list.length) pn.appendChild(c.el('p', 'muted small', isMp ? t('sch_no_roles') : t('sch_no_machines')));
-    usage.rows.forEach(function (u) {
-      var r = c.el('div', 'urow');
-      r.tabIndex = 0; r.setAttribute('role', 'button');
-      var left = c.el('div', 'meta');
-      left.appendChild(c.el('div', 'title', u.item.name));
-      var sub = isMp ? (u.item.type === 'permanent' ? t('sch_permanent') : t('sch_temporary')) + (u.item.person ? ' · ' + u.item.person : '') : (u.item.source === 'Own' ? t('sch_own') : t('sch_rental'));
-      left.appendChild(c.el('div', 'detail', sub));
-      r.appendChild(left);
-      var right = c.el('div', 'uright');
-      right.appendChild(c.el('b', null, String(u.peak || 0)));
-      right.appendChild(c.el('span', 'muted small', ' · ' + num(u.days) + ' ' + (isMp ? t('sch_mandays') : t('sch_machdays'))));
-      r.appendChild(right);
-      r.addEventListener('click', function () { isMp ? editRole(c, u.item) : editMachine(c, u.item); });
-      pn.appendChild(r);
-    });
-    var row = c.el('div', 'btnrow');
-    row.appendChild(c.btn(isMp ? t('sch_add_role') : t('sch_add_machine'), 'primary', function () { isMp ? editRole(c, null) : editMachine(c, null); }));
-    if (!list.length) row.appendChild(c.btn(t('sch_add_standard'), '', function () {
-      (isMp ? STD_ROLES : STD_EQUIP).forEach(function (x) {
-        list.push(isMp ? { id: L.newId(), name: x[0], type: x[1], person: '', count: x[1] === 'permanent' ? 1 : 0 } : { id: L.newId(), name: x[0], source: x[1] });
-      });
-      A.save(); A.rerender();
-    }));
-    pn.appendChild(row);
-    body.appendChild(pn);
-    if (!p.boq.length) { noteIfEmpty(c, body); return; }
-
-    if (list.length && c.sc.count) {
-      // month grid
-      var grid = c.panel(isMp ? t('sch_by_month_mp') : t('sch_by_month_eq'));
-      var wrap = c.el('div', 'tablewrap'), tb = document.createElement('table');
-      tb.className = 'gridtable';
-      var hr = document.createElement('tr');
-      hr.appendChild(c.el('th', 'sticky', isMp ? t('sch_role') : t('sch_machine')));
-      usage.months.forEach(function (m) { hr.appendChild(c.el('th', null, c.monthLabel(m))); });
-      tb.appendChild(hr);
+    if (!list.length) sum.appendChild(c.el('p', 'muted small', isMp ? t('sch_no_roles') : t('sch_no_machines')));
+    var pn = fold(c, kind + '-types', isMp ? t('sch_roles') : t('sch_machines'), list.length, function (d) {
       usage.rows.forEach(function (u) {
-        if (!u.days && !u.peak) return;
-        var tr = document.createElement('tr');
-        tr.appendChild(c.el('td', 'sticky', u.item.name));
-        usage.months.forEach(function (m) { tr.appendChild(c.el('td', u.months[m] ? 'on' : '', u.months[m] ? num(u.months[m]) : '')); });
-        tb.appendChild(tr);
+        var r = c.el('div', 'urow');
+        r.tabIndex = 0; r.setAttribute('role', 'button');
+        var left = c.el('div', 'meta');
+        left.appendChild(c.el('div', 'title', u.item.name));
+        var sub = isMp ? (u.item.type === 'permanent' ? t('sch_permanent') : t('sch_temporary')) + (u.item.person ? ' · ' + u.item.person : '') : (u.item.source === 'Own' ? t('sch_own') : t('sch_rental'));
+        left.appendChild(c.el('div', 'detail', sub));
+        r.appendChild(left);
+        var right = c.el('div', 'uright');
+        right.appendChild(c.el('b', null, String(u.peak || 0)));
+        right.appendChild(c.el('span', 'muted small', ' · ' + num(u.days) + ' ' + (isMp ? t('sch_mandays') : t('sch_machdays'))));
+        r.appendChild(right);
+        r.addEventListener('click', function () { isMp ? editRole(c, u.item) : editMachine(c, u.item); });
+        d.appendChild(r);
       });
-      wrap.appendChild(tb);
-      grid.appendChild(wrap);
-      grid.appendChild(c.el('p', 'muted small', isMp ? t('sch_grid_note_mp') : t('sch_grid_note_eq')));
-      body.appendChild(grid);
-
-      if (isMp && usage.hist.length) {
-        var hp = c.panel(t('sch_daily_head'));
-        var chart = c.el('div', 'histo');
-        var max = usage.peak || 1;
-        usage.hist.forEach(function (h) {
-          var b = c.el('i'); b.style.height = Math.max(2, Math.round(h.n / max * 100)) + '%'; b.title = c.A.fmtDate(h.date) + ': ' + h.n;
-          chart.appendChild(b);
+      var row = c.el('div', 'btnrow');
+      row.appendChild(c.btn(isMp ? t('sch_add_role') : t('sch_add_machine'), 'primary', function () { isMp ? editRole(c, null) : editMachine(c, null); }));
+      if (!list.length) row.appendChild(c.btn(t('sch_add_standard'), '', function () {
+        (isMp ? STD_ROLES : STD_EQUIP).forEach(function (x) {
+          list.push(isMp ? { id: L.newId(), name: x[0], type: x[1], person: '', count: x[1] === 'permanent' ? 1 : 0 } : { id: L.newId(), name: x[0], source: x[1] });
         });
-        hp.appendChild(chart);
-        hp.appendChild(c.el('p', 'muted small', t('sch_peak') + ': ' + usage.peak));
-        body.appendChild(hp);
-      }
-    }
-
-    // per task assignment
+        A.save(); A.rerender();
+      }));
+      d.appendChild(row);
+    }, !list.length);
+    body.appendChild(sum);
+    if (!p.boq.length) { noteIfEmpty(c, body); return; }
+    // per task assignment: the tasks come first
     var tp = c.panel(isMp ? t('sch_crew') : t('sch_machines_per_task'));
     if (!list.length) tp.appendChild(c.el('p', 'muted small', isMp ? t('sch_no_roles') : t('sch_no_machines')));
     else {
@@ -442,7 +502,7 @@
         if (r.level !== 2 || r.kind === 'plain' && !r.dur) return;
         var line = c.el('div', 'srow lv2');
         line.tabIndex = 0; line.setAttribute('role', 'button');
-        line.appendChild(c.el('div', 'stitle', (r.no ? r.no + '  ' : '') + r.desc));
+        var ti = c.el('div', 'stitle'); ti.appendChild(c.el('span', 'sid', String(r.n))); ti.appendChild(document.createTextNode((r.no ? r.no + '  ' : '') + r.desc)); line.appendChild(ti);
         var parts = [];
         list.forEach(function (x) { var n = r.task && r.task[field] ? r.task[field][String(x.id)] : 0; if (n > 0) parts.push(x.name + ' ' + n); });
         line.appendChild(c.el('div', 'smeta', parts.length ? parts.join(' · ') : t('sch_none_assigned')));
@@ -451,6 +511,40 @@
       });
     }
     body.appendChild(tp);
+    body.appendChild(pn);
+
+    if (list.length && c.sc.count) {
+      body.appendChild(fold(c, kind + '-month', isMp ? t('sch_by_month_mp') : t('sch_by_month_eq'), null, function (g) {
+        var wrap = c.el('div', 'tablewrap'), tb = document.createElement('table');
+        tb.className = 'gridtable';
+        var hr = document.createElement('tr');
+        hr.appendChild(c.el('th', 'sticky', isMp ? t('sch_role') : t('sch_machine')));
+        usage.months.forEach(function (m) { hr.appendChild(c.el('th', null, c.monthLabel(m))); });
+        tb.appendChild(hr);
+        usage.rows.forEach(function (u) {
+          if (!u.days && !u.peak) return;
+          var tr = document.createElement('tr');
+          tr.appendChild(c.el('td', 'sticky', u.item.name));
+          usage.months.forEach(function (m) { tr.appendChild(c.el('td', u.months[m] ? 'on' : '', u.months[m] ? num(u.months[m]) : '')); });
+          tb.appendChild(tr);
+        });
+        wrap.appendChild(tb);
+        g.appendChild(wrap);
+        g.appendChild(c.el('p', 'muted small', isMp ? t('sch_grid_note_mp') : t('sch_grid_note_eq')));
+      }, false));
+      if (isMp && usage.hist.length) {
+        body.appendChild(fold(c, 'mp-daily', t('sch_daily_head'), null, function (hp) {
+          var chart = c.el('div', 'histo');
+          var max = usage.peak || 1;
+          usage.hist.forEach(function (h) {
+            var b = c.el('i'); b.style.height = Math.max(2, Math.round(h.n / max * 100)) + '%'; b.title = c.A.fmtDate(h.date) + ': ' + h.n;
+            chart.appendChild(b);
+          });
+          hp.appendChild(chart);
+          hp.appendChild(c.el('p', 'muted small', t('sch_peak') + ': ' + usage.peak));
+        }, false));
+      }
+    }
   }
 
   function editAssign(c, r, list, field) {
@@ -782,6 +876,7 @@
     zr.appendChild(c.el('span', 'zoomlbl', t('sch_zoom')));
     zr.appendChild(c.btn('＋', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.min(sizes.length - 1, i + 1)] || 16; A.rerender(); }));
     zr.appendChild(c.btn((gantt.links ? '☑ ' : '☐ ') + t('sch_show_links'), '', function () { gantt.links = !gantt.links; A.rerender(); }));
+    zr.appendChild(c.btn((gantt.cols ? '☑ ' : '☐ ') + t('sch_columns'), '', function () { gantt.cols = !gantt.cols; A.rerender(); }));
     zr.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
     bar.appendChild(zr);
     var lg = c.el('div', 'glegend');
@@ -791,7 +886,7 @@
     bar.appendChild(lg);
     body.appendChild(bar);
 
-    var gw = gantt.gw, LABEL = 150, a = sc.sd - ((S.dow(sc.sd) + 6) % 7), b = sc.fd;   // start on a Monday
+    var gw = gantt.gw, NAMEW = 150, EXTRA = gantt.cols ? 176 : 0, LABEL = NAMEW + EXTRA, a = sc.sd - ((S.dow(sc.sd) + 6) % 7), b = sc.fd;   // start on a Monday
     var n = b - a + 1, width = LABEL + n * gw;
     var wrap = c.el('div', 'gantt'), inner = c.el('div', 'gt-inner');
     inner.style.width = width + 'px';
@@ -800,6 +895,7 @@
     hm.style.width = width + 'px';
     var lab = c.el('div', 'gt-label gt-corner', t('sch_task'));
     hm.appendChild(lab);
+    if (EXTRA) hm.appendChild(c.el('div', 'gt-colhead gt-corner'));
     var area = c.el('div', 'gt-months');
     area.style.width = (n * gw) + 'px';
     var curKey = null, seg = null, segDays = 0;
@@ -815,6 +911,11 @@
     var hd = c.el('div', 'gt-head gt-days');
     hd.style.width = width + 'px';
     hd.appendChild(c.el('div', 'gt-label gt-corner'));
+    if (EXTRA) {
+      var ch = c.el('div', 'gt-colhead gt-corner');
+      ch.appendChild(c.el('span', 'cq', t('sch_qty'))); ch.appendChild(c.el('span', 'cd', t('sch_days_col'))); ch.appendChild(c.el('span', 'cp', t('sch_pred_col')));
+      hd.appendChild(ch);
+    }
     var dayrow = c.el('div', 'gt-dayrow');
     dayrow.style.width = (n * gw) + 'px';
     for (var d2 = a; d2 <= b; d2++) {
@@ -845,6 +946,13 @@
       lb.appendChild(document.createTextNode((r.no ? r.no + ' ' : '') + r.desc));
       lb.title = r.desc;
       row.appendChild(lb);
+      if (EXTRA) {
+        var gcs = c.el('div', 'gt-cols');
+        gcs.appendChild(c.el('div', 'gc cq', qtyText(r)));
+        gcs.appendChild(durCell(c, r, 'gc cd'));
+        gcs.appendChild(predCell(c, r, 'gc cp'));
+        row.appendChild(gcs);
+      }
       if (r.sd != null) {
         var bx = c.el('div', 'gt-bar ' + (r.level === 0 ? 'gb-group' : r.level === 1 ? 'gb-line' : 'gb-task'));
         bx.style.left = (LABEL + (r.sd - a) * gw) + 'px';
