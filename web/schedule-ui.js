@@ -645,7 +645,11 @@
         { key: 'misc', label: t('sch_misc') + ' %', type: 'number', min: 0, max: 100, value: cf.misc },
         { key: 'overhead', label: t('sch_overhead') + ' %', type: 'number', min: 0, max: 100, value: cf.overhead },
         { key: 'profit', label: t('sch_profit') + ' %', type: 'number', min: 0, max: 100, value: cf.profit },
-        { key: 'preset', label: t('sch_preset_fill'), type: 'select', value: 'keep', options: presetOptions(c, [{ value: 'keep', label: t('sch_preset_keep') }]) },
+        { key: 'preset', label: t('sch_preset_fill'), type: 'select', value: 'keep', options: presetOptions(c, [{ value: 'keep', label: t('sch_preset_keep') }]),
+          onChange: function (val, set, get) {
+            var sp = S.presetSplit({ misc: Number(get('misc')) || 0, overhead: Number(get('overhead')) || 0, profit: Number(get('profit')) || 0, presets: cf.presets }, val);
+            if (sp) { set('mat', sp[0]); set('lab', sp[1]); set('eq', sp[2]); }
+          } },
         { key: 'mat', label: t('sch_material') + ' % (' + t('sch_default_split') + ')', type: 'number', min: 0, max: 100, value: cf.defSplit[0] },
         { key: 'lab', label: t('sch_labour') + ' % (' + t('sch_default_split') + ')', type: 'number', min: 0, max: 100, value: cf.defSplit[1] },
         { key: 'eq', label: t('sch_equip') + ' % (' + t('sch_default_split') + ')', type: 'number', min: 0, max: 100, value: cf.defSplit[2] },
@@ -659,10 +663,6 @@
         var ind = L.round2(v.misc + v.overhead + v.profit);
         if (ind > 100) return t('sch_split_over');
         var pool = L.round2(100 - ind), sp = [v.mat, v.lab, v.eq];
-        if (v.preset !== 'keep') {
-          var tmp = { misc: v.misc, overhead: v.overhead, profit: v.profit, presets: cf.presets };
-          sp = S.presetSplit(tmp, v.preset) || sp;
-        }
         var sum = L.round2(sp[0] + sp[1] + sp[2]);
         if (Math.abs(sum - pool) > 0.01) return t('sch_split_sum', { sum: sum, pool: pool, left: L.round2(pool - sum) });
         var name = String(v.saveas || '').replace(/\s+/g, ' ').trim().slice(0, 30);
@@ -694,7 +694,11 @@
       title: x.desc.slice(0, 60),
       fields: [
         { key: 'preset', label: t('sch_preset'), type: 'select', value: 'keep',
-          options: presetOptions(c, [{ value: 'keep', label: t('sch_preset_keep') }]).concat([{ value: 'default', label: t('sch_preset_default') }]) },
+          options: presetOptions(c, [{ value: 'keep', label: t('sch_preset_keep') }]).concat([{ value: 'default', label: t('sch_preset_default') }]),
+          onChange: function (val, set) {
+            var sp = val === 'default' ? cf.defSplit : S.presetSplit(cf, val);
+            if (sp) { set('mat', sp[0]); set('lab', sp[1]); set('eq', sp[2]); }
+          } },
         { key: 'mat', label: t('sch_material') + ' %', type: 'number', min: 0, max: 100, value: x.split.mat },
         { key: 'lab', label: t('sch_labour') + ' %', type: 'number', min: 0, max: 100, value: x.split.lab },
         { key: 'eq', label: t('sch_equip') + ' %', type: 'number', min: 0, max: 100, value: x.split.eq },
@@ -703,7 +707,7 @@
       onSubmit: function (v) {
         if (v.preset === 'default') { delete task.split; }
         else {
-          var sp = v.preset !== 'keep' ? S.presetSplit(cf, v.preset) : [v.mat, v.lab, v.eq];
+          var sp = [v.mat, v.lab, v.eq];
           var sum = L.round2(sp[0] + sp[1] + sp[2]);
           if (Math.abs(sum - pool) > 0.01) return t('sch_split_sum', { sum: sum, pool: pool, left: L.round2(pool - sum) });
           task.split = sp.map(L.round2);

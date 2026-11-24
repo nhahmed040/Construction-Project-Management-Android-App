@@ -596,6 +596,12 @@
       });
     }
     Object.keys(inputs).forEach(function (k) { if (inputs[k].field.type === 'select') inputs[k].input.addEventListener('change', applyShow); });
+    Object.keys(inputs).forEach(function (k) {
+      var fd = inputs[k].field;
+      if (fd.onChange) inputs[k].input.addEventListener('change', function () {
+        fd.onChange(inputs[k].input.value, function (key, val) { if (inputs[key]) inputs[key].input.value = val; }, function (key) { return inputs[key] ? inputs[key].input.value : ''; });
+      });
+    });
     applyShow();
     $('formDelete').hidden = !opts.onDelete;
     $('formForm').onsubmit = function (ev) {
