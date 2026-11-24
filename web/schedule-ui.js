@@ -182,6 +182,7 @@
     if (noteIfEmpty(c, body)) return;
     var g = S.progress(p, sc, asOfDate());
     if (sc.count) progressPanel(c, body, g);
+    if (sc.count) criticalPanel(c, body, g);
 
     var list = c.panel(null);
     list.classList.add('schedlist');
@@ -195,6 +196,14 @@
         else meta.appendChild(c.el('span', 'muted', t('sch_set_duration')));
         if (r.amount > 0) meta.appendChild(c.el('span', null, A.money(L.round2(r.amount))));
         line.appendChild(meta);
+        if (r.sd != null) {
+          var lt = linkText(c, r), extra = [];
+          if (r.critical) { line.classList.add('crit'); extra.push('● ' + t('sch_critical')); } else extra.push(t('sch_float') + ' ' + r.tf + 'd');
+          if (r.explicit && lt) extra.push('← ' + lt);
+          if (r.manual) extra.push('📌 ' + t('sch_manual'));
+          if (r.conflict) extra.push('⚠ ' + t('sch_conflict', { n: r.conflict }));
+          line.appendChild(c.el('div', 'slinks' + (r.conflict ? ' bad' : ''), extra.join(' · ')));
+        }
         var gi = g.by[r.id];
         if (gi) { line.classList.add('st-' + gi.status); title.textContent = (STATUS_ICON[gi.status] || '') + ' ' + title.textContent; }
         if (r.amount > 0) { var bar = c.el('div', 'pbar'); var f = c.el('i'); f.style.width = Math.min(100, Math.round(r.pct)) + '%'; bar.appendChild(f); line.appendChild(bar); }
@@ -266,28 +275,100 @@
     return ' · ' + c.t('sch_basis') + ': ' + tpl.label + (tpl.per ? ' (' + S.fmtNum(per) + ' ' + (r.unit || '') + ' ' + c.t('sch_per_day') + ')' : '');
   }
 
+  function linkText(c, r) {
+    if (!r.preds || !r.preds.length) return '';
+    return r.preds.map(function (q) {
+      var pr = c.sc.byId[q.id];
+      var lag = q.lag ? (q.lag > 0 ? '+' : '') + q.lag + 'd' : '';
+      return (pr && pr.no ? pr.no : '#' + q.id) + ' ' + q.type + lag;
+    }).join(', ');
+  }
+
   function editTask(c, r) {
     var p = c.p, t = c.t, id = String(r.id);
     var task = p.sched.tasks[id] || (p.sched.tasks[id] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
-    var mode = task.start ? 'fixed' : task.par ? 'with' : 'after';
+    var mode = task.start ? 'fixed' : Array.isArray(task.pred) ? 'links' : task.par ? 'with' : 'after';
+    var opts = [{ value: '', label: '—' }];
+    c.sc.rows.forEach(function (x) {
+      if (x.level === 2 && x.sched && String(x.id) !== id) opts.push({ value: String(x.id), label: ((x.no ? x.no + ' ' : '') + x.desc).slice(0, 48) });
+    });
+    var typeOpts = S.LINK_TYPES.map(function (k) { return { value: k, label: t('sch_link_' + k) }; });
+    var cur = Array.isArray(task.pred) ? task.pred : [];
+    var show = { key: 'mode', values: ['links', 'fixed'] };
+    var fields = [
+      { key: 'dur', label: t('sch_duration'), type: 'number', min: 0, step: '0.25', value: task.dur || '', ph: '0' },
+      { key: 'mode', label: t('sch_starts'), type: 'select', value: mode,
+        options: [{ value: 'after', label: t('sch_after_prev') }, { value: 'with', label: t('sch_with_prev') }, { value: 'links', label: t('sch_links') }, { value: 'fixed', label: t('sch_fixed') }] },
+      { key: 'start', label: t('sch_start'), type: 'date', value: task.start, showFor: { key: 'mode', values: ['fixed'] } },
+      { type: 'note', text: t('sch_links_note'), showFor: show }
+    ];
+    for (var k = 0; k < 3; k++) {
+      var q = cur[k] || {};
+      fields.push({ key: 'p' + k, label: t('sch_pred') + ' ' + (k + 1), type: 'select', value: q.id ? String(q.id) : '', options: opts, showFor: show });
+      fields.push({ key: 't' + k, label: t('sch_link_type'), type: 'select', value: q.type || 'FS', options: typeOpts, showFor: show });
+      fields.push({ key: 'l' + k, label: t('sch_lag'), type: 'number', step: '1', noCalc: true, value: q.lag || 0, showFor: show });
+    }
+    fields.push({ key: 'delay', label: t('sch_delay'), type: 'number', min: 0, step: '1', noCalc: true, value: task.delay || '', ph: '0', showFor: { key: 'mode', values: ['after', 'with', 'links'] } });
+    var info = [];
+    if (r.sd != null) {
+      info.push(t('sch_now') + ' ' + c.A.fmtDate(r.start) + ' → ' + c.A.fmtDate(r.finish));
+      info.push((r.critical ? t('sch_critical') + ' · ' : '') + t('sch_float') + ' ' + r.tf + 'd · ' + t('sch_free_float') + ' ' + r.ff + 'd');
+      if (r.conflict) info.push('⚠ ' + t('sch_conflict', { n: r.conflict }));
+      if (r.cycle) info.push('⚠ ' + t('sch_loop'));
+    } else info.push(t('sch_set_duration'));
+    fields.push({ type: 'note', text: info.join('\n') + basisText(c, r, task) });
     c.A.openForm({
       title: (r.no ? r.no + ' ' : '') + r.desc.slice(0, 60),
-      fields: [
-        { key: 'dur', label: t('sch_duration'), type: 'number', min: 0, step: '0.25', value: task.dur || '', ph: '0' },
-        { key: 'mode', label: t('sch_starts'), type: 'select', value: mode,
-          options: [{ value: 'after', label: t('sch_after_prev') }, { value: 'with', label: t('sch_with_prev') }, { value: 'fixed', label: t('sch_fixed') }] },
-        { key: 'start', label: t('sch_start'), type: 'date', value: task.start, showFor: { key: 'mode', values: ['fixed'] } },
-        { type: 'note', text: (r.sd != null ? t('sch_now') + ' ' + c.A.fmtDate(r.start) + ' → ' + c.A.fmtDate(r.finish) : t('sch_set_duration')) + basisText(c, r, task) }
-      ],
+      fields: fields,
       onSubmit: function (v) {
         if (v.mode === 'fixed' && !L.isDate(v.start)) return t('required');
+        var preds = [];
+        if (v.mode === 'links' || v.mode === 'fixed') {
+          for (var k = 0; k < 3; k++) {
+            var pid = v['p' + k];
+            if (!pid) continue;
+            if (preds.some(function (x) { return x.id === pid; })) return t('sch_pred_twice');
+            if (S.wouldLoop(p, id, pid)) return t('sch_pred_loop');
+            preds.push({ id: pid, type: v['t' + k] || 'FS', lag: Math.round(Number(v['l' + k]) || 0) });
+          }
+        }
         task.dur = Math.min(9999, Math.max(0, Math.round(v.dur * 100) / 100));
         task.par = v.mode === 'with';
         task.start = v.mode === 'fixed' ? v.start : '';
+        if (v.mode === 'links' || v.mode === 'fixed') task.pred = preds; else delete task.pred;
+        if (v.mode !== 'fixed' && Number(v.delay) > 0) task.delay = Math.min(999, Math.round(Number(v.delay))); else delete task.delay;
         c.A.save(); c.A.rerender();
         return null;
       }
     });
+  }
+
+  /* ---------- critical path and delays ---------- */
+  function criticalPanel(c, body, g) {
+    var t = c.t, A = c.A, sc = c.sc;
+    var pn = c.panel(t('sch_critical_path'));
+    pn.appendChild(c.kv(t('sch_finish_date'), A.fmtDate(sc.finish)));
+    pn.appendChild(c.kv(t('sch_critical_tasks'), sc.critical.length + ' / ' + sc.count));
+    if (sc.conflicts.length) pn.appendChild(c.el('div', 'warn', t('sch_conflicts', { n: sc.conflicts.length })));
+    if (sc.cycles.length) pn.appendChild(c.el('div', 'warn', t('sch_loops', { n: sc.cycles.length })));
+    var list = sc.critical.slice(0, 12).map(function (id) { var r = sc.byId[String(id)]; return (r.no ? r.no + ' ' : '') + r.desc.slice(0, 34); });
+    if (list.length) {
+      var ul = c.el('ol', 'critlist');
+      list.forEach(function (x) { ul.appendChild(c.el('li', null, x)); });
+      if (sc.critical.length > 12) ul.appendChild(c.el('li', 'muted', '… +' + (sc.critical.length - 12)));
+      pn.appendChild(ul);
+    }
+    pn.appendChild(c.el('p', 'muted small', t('sch_critical_note')));
+    var plan = S.reschedule(c.p, g.asOf, false), n = plan.extended.length + plan.delayed.length;
+    if (n || plan.preserved.length) {
+      pn.appendChild(c.el('div', 'warn', t('sch_slip', { n: n, m: plan.preserved.length, d: A.fmtDate(g.asOf) })));
+      if (n) pn.appendChild(c.btn(t('sch_reschedule'), 'primary', function () {
+        var res = S.reschedule(c.p, g.asOf, true);
+        c.A.save(); c.A.rerender();
+        A.toast(t('sch_rescheduled', { n: res.extended.length + res.delayed.length }));
+      }));
+    }
+    body.appendChild(pn);
   }
 
   /* ---------- Manpower and Equipment ---------- */
@@ -694,6 +775,7 @@
         bx.style.left = (LABEL + (r.sd - a) * gw) + 'px';
         bx.style.width = Math.max(gw - 2, (r.fd - r.sd + 1) * gw - 2) + 'px';
         bx.title = r.desc + '\n' + A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + ' · ' + days(r.dur);
+        if (r.critical && r.level === 2) { bx.classList.add('crit'); bx.title += '\n' + t('sch_critical'); }
         var gi = g.by[r.id];
         if (gi) {
           if (gi.planned > 0) { var pl = c.el('i', 'gb-plan'); pl.style.width = Math.min(100, Math.round(gi.planned * 100)) + '%'; bx.appendChild(pl); }

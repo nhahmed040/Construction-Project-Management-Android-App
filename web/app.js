@@ -860,15 +860,42 @@
   }
 
   /* ---------- rendering: projects ---------- */
+  /* the list of projects shows when none is chosen, or when the user asked for it (header name / Project tab) */
+  function listMode() { return !ui.projectId || ui.listOpen === ui.projectId || ui.tab !== groupOf(ui.section).id && !ui.projectId; }
+  function updateTitle() {
+    var h = $('topTitle'), p = ui.view === 'projects' && ui.projectId && currentProject();
+    h.textContent = p ? p.name + ' ▾' : 'Construction PM';
+    h.classList.toggle('pick', !!p);
+  }
+  function updateTabs() {
+    var cur = ui.view === 'settings' ? '' : ui.projectId && !listMode() ? groupOf(ui.section).id : (ui.tab || 'overview');
+    Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === cur);
+    });
+  }
+  function selectTab(tab) {
+    ui.tab = tab;
+    ui.lastSec = ui.lastSec || {};
+    if (ui.projectId && currentProject()) {
+      if (tab === 'overview') { ui.listOpen = (ui.view === 'projects' && groupOf(ui.section).id === 'overview' && ui.listOpen !== ui.projectId) ? ui.projectId : ''; ui.section = 'overview'; }
+      else { ui.listOpen = ''; ui.section = ui.lastSec[tab] || groupOf(tab === 'admin' ? 'boq' : 'schedule').secs[0]; }
+    }
+    showView('projects'); renderProjects(); window.scrollTo(0, 0);
+  }
+
   function renderProjects() {
     var list = $('projList'), detail = $('projDetail');
     if (ui.projectId && !currentProject()) ui.projectId = '';
-    list.hidden = !!ui.projectId;
-    detail.hidden = !ui.projectId;
-    document.body.classList.toggle('proj-detail', !!ui.projectId);
-    if (ui.projectId) { renderProjectDetail(detail); return; }
+    var asList = listMode();
+    if (!asList) ui.tab = groupOf(ui.section).id;
+    list.hidden = !asList;
+    detail.hidden = asList;
+    document.body.classList.toggle('proj-detail', !asList);
+    updateTitle(); updateTabs();
+    if (!asList) { renderProjectDetail(detail); return; }
 
     list.textContent = '';
+    if (ui.tab && ui.tab !== 'overview') list.appendChild(el('div', 'warn', t('choose_project')));
     var topRow = el('div', 'btnrow');
     topRow.appendChild(btn('＋ ' + t('new_project'), 'primary', newProject));
     topRow.appendChild(btn('📥 ' + t('new_from_boq'), '', newProjectFromBoq));
@@ -893,7 +920,12 @@
       }
       if (s.owed > 0) card.appendChild(kv(t('owed'), money(s.owed), 'neg'));
       if (s.certified > 0 || s.costTotal > 0) { var pfc = L.profitOutlook(state, p.id); card.appendChild(kv(t('pf_profit_now'), money(pfc.profitNow), pfc.profitNow < 0 ? 'neg' : 'pos')); }
-      var open = function () { ui.projectId = p.id; ui.section = 'overview'; renderProjects(); window.scrollTo(0, 0); };
+      var open = function () {
+        ui.projectId = p.id; ui.listOpen = '';
+        ui.lastSec = ui.lastSec || {};
+        ui.section = ui.tab === 'admin' ? (ui.lastSec.admin || 'boq') : ui.tab === 'pm' ? (ui.lastSec.pm || 'schedule') : 'overview';
+        renderProjects(); window.scrollTo(0, 0);
+      };
       card.addEventListener('click', open);
       card.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } });
       list.appendChild(card);
@@ -1289,19 +1321,8 @@
   function renderProjectDetail(root) {
     var p = currentProject();
     root.textContent = '';
-    root.appendChild(btn(t('back'), 'backlink', function () { ui.projectId = ''; renderProjects(); }));
-    root.appendChild(el('h2', null, (window.__projIcon ? window.__projIcon(p) : '') + p.name));
     var grp = groupOf(ui.section);
-    var gseg = el('div', 'grpseg');
-    GROUPS.forEach(function (g) {
-      var gb = btn('', g.id === grp.id ? 'active' : '', function () {
-        ui.section = g.id === grp.id ? ui.section : g.secs[0]; renderProjects(); window.scrollTo(0, 0);
-      });
-      gb.appendChild(el('span', null, g.icon));
-      gb.appendChild(el('b', null, t('grp_' + g.id)));
-      gseg.appendChild(gb);
-    });
-    root.appendChild(gseg);
+    ui.lastSec = ui.lastSec || {}; ui.lastSec[grp.id] = ui.section;
     if (grp.secs.length > 1) {
       var seg = el('div', 'seg subseg');
       grp.secs.forEach(function (sec) {
@@ -2615,9 +2636,7 @@
   function showView(name) {
     ui.view = name;
     VIEWS.forEach(function (v) { $('view-' + v).hidden = v !== name; });
-    Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function (b) {
-      b.classList.toggle('active', b.getAttribute('data-view') === name);
-    });
+    updateTitle(); updateTabs();
     document.body.classList.remove('view-entries', 'view-projects', 'view-reports', 'view-settings');
     document.body.classList.add('view-' + name);
     applyEntriesScreen();
@@ -2737,7 +2756,7 @@
   $('fab').addEventListener('click', function () {
     if (ui.view === 'projects') {
       var p = currentProject();
-      if (!p) { newProject(); return; }
+      if (!p || listMode()) { newProject(); return; }
       ({ overview: function () { editProject(p); }, boq: function () { editRow(p, null, null, 'item'); }, budget: function () { editBudget(p); }, bills: function () { editBill(p, null); },
          client: function () { editCert(p, null); }, labour: function () { editWorker(p, null); }, books: function () { linkBookForm(p); },
          schedule: function () { editRow(p, null, null, 'item'); }, gantt: function () { editRow(p, null, null, 'item'); }, manpower: function () { editRow(p, null, null, 'item'); }, equipment: function () { editRow(p, null, null, 'item'); }, cashflow: function () { editRow(p, null, null, 'item'); } })[ui.section]();
@@ -3189,14 +3208,11 @@
 
   /* ---------- tabs ---------- */
   Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function (b) {
-    b.addEventListener('click', function () {
-      var v = b.getAttribute('data-view');
-      buzz();
-      if (v === 'entries' && ui.view === 'entries') ui.bookOpen = false;   // tapping Entries again goes back to the list of books
-      showView(v);
-      if (v === 'reports') renderReports();
-      if (v === 'projects') renderProjects();
-    });
+    b.addEventListener('click', function () { buzz(); selectTab(b.getAttribute('data-tab')); });
+  });
+  $('topTitle').addEventListener('click', function () {
+    if (!ui.projectId || ui.view !== 'projects') return;
+    buzz(); ui.tab = 'overview'; ui.section = 'overview'; ui.listOpen = ui.projectId; renderProjects(); window.scrollTo(0, 0);
   });
 
   /* ---------- books ---------- */
@@ -3285,8 +3301,8 @@
       if (guarded && (node._dirty || photosPending())) backConfirmDiscard(close); else close();
       return 'handled';
     }
-    if (ui.view === 'projects' && ui.projectId) {
-      if (ui.section && ui.section !== 'overview') ui.section = 'overview'; else ui.projectId = '';
+    if (ui.view === 'projects' && ui.projectId && !listMode()) {
+      if (ui.section && ui.section !== 'overview') ui.section = 'overview'; else ui.listOpen = ui.projectId;
       renderProjects(); window.scrollTo(0, 0);
       return 'handled';
     }

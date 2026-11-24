@@ -105,6 +105,87 @@ ok('workbook finish dates win when they span more days than the duration', funct
   assert.strictEqual(c.rows[0].finish, '2027-02-17'); assert.strictEqual(c.rows[0].dur, 2);
   assert.strictEqual(c.rows[1].finish, '2027-03-01'); assert.strictEqual(c.rows[1].dur, 0.25);
 });
+
+/* ---- dependencies, lag/lead, critical path, manual dates, delays ---- */
+function net(tasks, extra) {
+  var boq = Object.keys(tasks).map(function (k) { return { id: +k, desc: 't' + k, qty: 10, rate: 10, done: 0 }; });
+  return L.sanitizeProject(Object.assign({ name: 'N', startDate: '2027-01-04', boq: boq, boqLines: 2, sched: { tasks: tasks } }, extra || {}), 1);
+}
+function at(c, id) { return c.byId[String(id)]; }   // Mon 4 Jan 2027 is day 1, Sunday is off
+ok('FS, SS, FF and SF links', function () {
+  var q = net({ 1: { dur: 4 }, 2: { dur: 2, pred: [{ id: 1, type: 'FS', lag: 0 }] }, 3: { dur: 2, pred: [{ id: 1, type: 'SS', lag: 1 }] },
+    4: { dur: 3, pred: [{ id: 1, type: 'FF', lag: 0 }] }, 5: { dur: 2, pred: [{ id: 1, type: 'SF', lag: 0 }] } });
+  var c = S.compute(q);   // 1: 4-7 Jan
+  assert.strictEqual(at(c, 2).start, '2027-01-08');
+  assert.strictEqual(at(c, 3).start, '2027-01-05');
+  assert.strictEqual(at(c, 4).finish, '2027-01-07'); assert.strictEqual(at(c, 4).start, '2027-01-05');
+  assert.strictEqual(at(c, 5).finish, '2027-01-04'); assert.strictEqual(at(c, 5).start, '2027-01-02');
+});
+ok('lag waits and lead overlaps (working days)', function () {
+  var q = net({ 1: { dur: 4 }, 2: { dur: 2, pred: [{ id: 1, type: 'FS', lag: 2 }] }, 3: { dur: 2, pred: [{ id: 1, type: 'FS', lag: -2 }] } });
+  var c = S.compute(q);   // 1 finishes Thu 7 Jan
+  assert.strictEqual(at(c, 2).start, '2027-01-11');   // Fri 8 + Sat 9 are the 2 waiting days -> Mon 11 (Sunday skipped)
+  assert.strictEqual(at(c, 3).start, '2027-01-06');   // starts 2 days before the predecessor finishes
+});
+ok('a slipping predecessor moves what depends on it', function () {
+  var q = net({ 1: { dur: 2 }, 2: { dur: 2, pred: [{ id: 1, type: 'FS', lag: 0 }] }, 3: { dur: 2, pred: [{ id: 2, type: 'FS', lag: 0 }] } });
+  var before = S.compute(q).finish;
+  q.sched.tasks[1].dur = 5;
+  var c = S.compute(q);
+  assert.ok(c.fd > S.toDays(before)); assert.strictEqual(at(c, 2).start, '2027-01-09');
+  q.sched.tasks[1].delay = 2;
+  assert.ok(at(S.compute(q), 2).sd > at(c, 2).sd);
+});
+ok('critical path, total float and free float', function () {
+  // 1 -> 2 -> 4 is the long path, 3 is a short side path that rejoins at 4
+  var q = net({ 1: { dur: 3 }, 2: { dur: 6, pred: [{ id: 1, type: 'FS', lag: 0 }] }, 3: { dur: 2, pred: [{ id: 1, type: 'FS', lag: 0 }] },
+    4: { dur: 2, pred: [{ id: 2, type: 'FS', lag: 0 }, { id: 3, type: 'FS', lag: 0 }] } });
+  var c = S.compute(q);
+  assert.deepStrictEqual(c.critical, [1, 2, 4]);
+  assert.strictEqual(at(c, 2).tf, 0); assert.ok(at(c, 3).tf > 0 && !at(c, 3).critical);
+  assert.strictEqual(at(c, 3).tf, 4); assert.strictEqual(at(c, 3).ff, 4);
+  assert.strictEqual(c.finish, at(c, 4).finish);
+});
+ok('manual dates are kept and a clash is reported', function () {
+  var q = net({ 1: { dur: 5 }, 2: { dur: 2, start: '2027-01-05', pred: [{ id: 1, type: 'FS', lag: 0 }] }, 3: { dur: 2, pred: [{ id: 2, type: 'FS', lag: 0 }] } });
+  var c = S.compute(q);
+  assert.strictEqual(at(c, 2).start, '2027-01-05');       // not moved
+  assert.ok(at(c, 2).conflict > 0); assert.deepStrictEqual(c.conflicts, [2]);
+  assert.strictEqual(at(c, 3).start, '2027-01-07');        // the task after it follows the manual dates
+  q.sched.tasks[2].start = '2027-02-01';
+  assert.ok(!at(S.compute(q), 2).conflict);
+});
+ok('a loop of links is broken, not looped forever', function () {
+  var q = net({ 1: { dur: 2, pred: [{ id: 2, type: 'FS', lag: 0 }] }, 2: { dur: 2, pred: [{ id: 1, type: 'FS', lag: 0 }] } });
+  var c = S.compute(q);
+  assert.ok(c.cycles.length > 0); assert.ok(c.count === 2 && c.fd != null);
+  assert.ok(S.wouldLoop(q, 2, 1) || S.wouldLoop(q, 1, 2));
+});
+ok('old schedules (no links) still run in BoQ order', function () {
+  var q = net({ 1: { dur: 2 }, 2: { dur: 3, par: true }, 3: { dur: 1 } });
+  var c = S.compute(q);
+  assert.strictEqual(at(c, 2).start, '2027-01-04'); assert.strictEqual(at(c, 3).start, '2027-01-07');
+});
+ok('sanitize keeps links, delay and no-earlier-than date and drops junk', function () {
+  var q = net({ 1: { dur: 1, pred: [{ id: '2', type: 'XX', lag: '3' }, { id: 'a' }, null], delay: 2.4, snet: '2027-01-20' }, 2: { dur: 1 } });
+  var t = q.sched.tasks[1];
+  assert.deepStrictEqual(t.pred, [{ id: '2', type: 'FS', lag: 3 }]); assert.strictEqual(t.delay, 2); assert.strictEqual(t.snet, '2027-01-20');
+});
+ok('reschedule pushes late work on and leaves manual dates alone', function () {
+  var q = L.sanitizeProject({ name: 'Q', startDate: '2027-01-04', boq: [
+    { id: 1, desc: 'a', qty: 10, rate: 10, done: 5 }, { id: 2, desc: 'b', qty: 10, rate: 10, done: 0 },
+    { id: 3, desc: 'c', qty: 10, rate: 10, done: 0 }, { id: 4, desc: 'd', qty: 10, rate: 10, done: 0 }], boqLines: 2,
+    sched: { tasks: { 1: { dur: 2 }, 2: { dur: 2 }, 3: { dur: 2, start: '2027-01-05', pred: [] }, 4: { dur: 2 } } } }, 1);
+  var before = S.compute(q).fd;
+  var dry = S.reschedule(q, '2027-01-12', false);
+  assert.strictEqual(q.sched.tasks[1].dur, 2);   // nothing changed on a dry run
+  var r = S.reschedule(q, '2027-01-12', true);
+  assert.strictEqual(r.extended.length, 1); assert.strictEqual(r.extended[0].id, 1); assert.ok(q.sched.tasks[1].dur > 2);
+  assert.ok(r.preserved.indexOf(3) >= 0); assert.strictEqual(q.sched.tasks[3].start, '2027-01-05');
+  var c = S.compute(q); assert.ok(c.fd > before); assert.ok(at(c, 2).sd >= S.toDays('2027-01-12'));
+  assert.strictEqual(S.reschedule(q, '2027-01-12', true).extended.length, 0);   // idempotent
+  assert.ok(dry.delayed.length >= 1);
+});
 console.log(n + ' passed');
 
 ok('progress vs plan: planned, actual and late tasks', function () {

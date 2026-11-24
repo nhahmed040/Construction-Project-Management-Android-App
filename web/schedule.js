@@ -34,13 +34,51 @@
   }
   function workCount(a, b, off) { return workList(a, b, off).length; }
 
+  function prevWork(n, off) { var g = 0; while (off[dow(n)] && g < 8) { n -= 1; g += 1; } return n; }
+  /* move n working days from a day (n may be negative or 0) */
+  function addWork(d, n, off) {
+    if (!n) return nextWork(d, off);
+    var step = n > 0 ? 1 : -1, k = Math.abs(n);
+    d = step > 0 ? nextWork(d, off) : prevWork(d, off);
+    for (var i = 0; i < k; i++) { d += step; d = step > 0 ? nextWork(d, off) : prevWork(d, off); }
+    return d;
+  }
+  function startFromFinish(fin, dur, off) {
+    var steps = Math.max(1, Math.ceil(dur - 1e-9)), d = prevWork(fin, off);
+    for (var i = 1; i < steps; i++) d = prevWork(d - 1, off);
+    return d;
+  }
+  /* working days from a to b (negative when b is before a) */
+  function gapWork(a, b, off) { return b >= a ? workCount(a, b, off) - 1 : -(workCount(b, a, off) - 1); }
+
+  /* ---------- links between tasks ----------
+     A task keeps p.sched.tasks[id].pred = [{ id, type: FS|SS|FF|SF, lag }]. Lag is in working days; a negative lag is a lead (overlap).
+       FS  successor starts after the predecessor finishes      SS  successor starts after the predecessor starts
+       FF  successor finishes after the predecessor finishes     SF  successor finishes after the predecessor starts
+     Without a pred list a task follows the BoQ order (after the previous task, or with it when `par`). */
+  var LINK_TYPES = ['FS', 'SS', 'FF', 'SF'];
+  /* earliest start of the successor that the link allows */
+  function linkStart(type, lag, P, dur, off) {
+    if (type === 'SS') return addWork(P.sd, lag, off);
+    if (type === 'FF') return startFromFinish(addWork(P.fd, lag, off), dur, off);
+    if (type === 'SF') return startFromFinish(addWork(P.sd, lag, off), dur, off);
+    return addWork(P.fd, 1 + lag, off);
+  }
+  /* latest finish of the predecessor that the link allows, given the successor's late dates */
+  function linkLateFinish(type, lag, S, durP, off) {
+    if (type === 'SS') return finishOf(addWork(S.ls, -lag, off), durP, off);
+    if (type === 'FF') return addWork(S.lf, -lag, off);
+    if (type === 'SF') return finishOf(addWork(S.lf, -lag, off), durP, off);
+    return addWork(S.ls, -(1 + lag), off);
+  }
+
   /* ---------- schedule rows (BoQ order) ---------- */
   function levelOf(i) { return i.kind === 'group' ? 0 : i.kind === 'line' ? 1 : 2; }
 
   function compute(p) {
     var s = p.sched, off = offMap(s), rows = [];
     var projStart = toDays(s.start) != null ? toDays(s.start) : (toDays(p.startDate) != null ? toDays(p.startDate) : toDays(L.todayStr()));
-    var prevStart = null, prevFinish = null;
+    var byId = {}, prevId = null;
     p.boq.forEach(function (i) {
       if (i.kind === 'sum') return;
       var lvl = levelOf(i), amount = lvl === 2 ? i.qty * i.rate : 0;
@@ -50,40 +88,154 @@
         row.task = t; row.dur = t.dur; row.earned = i.done * i.rate;
         row.pct = i.qty > 0 ? Math.min(100, i.done / i.qty * 100) : 0;
         if (t.dur > 0) {
-          var st = t.start ? toDays(t.start) : (t.par && prevStart != null ? prevStart : (prevFinish != null ? prevFinish + 1 : projStart));
-          st = nextWork(st, off);
-          var fin = finishOf(st, t.dur, off);
-          row.sd = st; row.fd = fin; row.start = fromDays(st); row.finish = fromDays(fin);
-          prevStart = st; prevFinish = fin;
+          row.manual = !!t.start; row.sched = true; row.preds = []; row.seq = prevId;
+          byId[String(i.id)] = row; prevId = String(i.id);
         }
       }
       rows.push(row);
     });
+    var ids = Object.keys(byId);
+    // the links of every scheduled task (explicit list, or the BoQ order)
+    ids.forEach(function (id) {
+      var r = byId[id], t = r.task;
+      if (Array.isArray(t.pred)) {
+        t.pred.forEach(function (q) {
+          var pid = String(q.id);
+          if (pid !== id && byId[pid] && !r.preds.some(function (x) { return x.id === pid; })) r.preds.push({ id: pid, type: q.type, lag: q.lag || 0 });
+        });
+        r.explicit = true;
+      } else if (r.seq != null && !r.manual) {
+        r.preds.push({ id: r.seq, type: t.par ? 'SS' : 'FS', lag: 0, implicit: true });
+      }
+    });
+    // order the tasks so every predecessor comes first; a link that would close a loop is dropped
+    var state = {}, order = [];
+    function visit(id) {
+      state[id] = 1;
+      var r = byId[id];
+      r.preds = r.preds.filter(function (q) {
+        if (state[q.id] === 1) { r.cycle = true; return false; }
+        if (!state[q.id]) visit(q.id);
+        return true;
+      });
+      state[id] = 2; order.push(id);
+    }
+    ids.forEach(function (id) { if (!state[id]) visit(id); });
+    // forward pass
+    order.forEach(function (id) {
+      var r = byId[id], t = r.task, d = t.dur, wanted = null;
+      r.preds.forEach(function (q) {
+        var st = linkStart(q.type, q.lag, byId[q.id], d, off);
+        wanted = wanted == null ? st : Math.max(wanted, st);
+      });
+      var st;
+      if (r.manual) {
+        st = nextWork(toDays(t.start), off);
+        if (r.explicit && wanted != null && wanted > st) r.conflict = gapWork(st, wanted, off);
+      } else {
+        st = wanted != null ? wanted : projStart;
+        if (t.snet && toDays(t.snet) != null) st = Math.max(st, toDays(t.snet));
+        st = nextWork(st, off);
+        if (t.delay > 0) st = addWork(st, Math.round(t.delay), off);
+      }
+      r.sd = st; r.fd = finishOf(st, d, off);
+      r.start = fromDays(r.sd); r.finish = fromDays(r.fd);
+    });
+    // backward pass: late dates, total float and the critical path
+    var projFin = null;
+    ids.forEach(function (id) { projFin = projFin == null ? byId[id].fd : Math.max(projFin, byId[id].fd); });
+    var succ = {};
+    ids.forEach(function (id) { succ[id] = []; });
+    ids.forEach(function (id) { byId[id].preds.forEach(function (q) { succ[q.id].push({ id: id, type: q.type, lag: q.lag }); }); });
+    for (var k = order.length - 1; k >= 0; k--) {
+      var r2 = byId[order[k]], lf = projFin;
+      succ[order[k]].forEach(function (e) { lf = Math.min(lf, linkLateFinish(e.type, e.lag, byId[e.id], r2.task.dur, off)); });
+      r2.lf = lf; r2.ls = startFromFinish(lf, r2.task.dur, off);
+      r2.tf = gapWork(r2.sd, r2.ls, off);
+      r2.critical = r2.tf <= 0;
+      var ff = gapWork(r2.fd, projFin, off);
+      succ[order[k]].forEach(function (e) {
+        var S2 = byId[e.id], need = linkStart(e.type, e.lag, r2, S2.task.dur, off);
+        ff = Math.min(ff, gapWork(need, S2.sd, off));
+      });
+      r2.ff = Math.max(0, ff);
+      r2.lateStart = fromDays(r2.ls); r2.lateFinish = fromDays(r2.lf);
+    }
     // headings take the range, value and progress of what is under them
     rows.forEach(function (h, k) {
       if (h.level === 2) return;
-      var amt = 0, earned = 0, lo = null, hi = null;
+      var amt = 0, earned = 0, lo = null, hi = null, crit = false, tf = null;
       for (var j = k + 1; j < rows.length && rows[j].level > h.level; j++) {
         var r = rows[j];
         if (r.level !== 2) continue;
         amt += r.amount; earned += r.earned;
-        if (r.sd != null) { lo = lo == null ? r.sd : Math.min(lo, r.sd); hi = hi == null ? r.fd : Math.max(hi, r.fd); }
+        if (r.sd != null) {
+          lo = lo == null ? r.sd : Math.min(lo, r.sd); hi = hi == null ? r.fd : Math.max(hi, r.fd);
+          if (r.critical) crit = true;
+          tf = tf == null ? r.tf : Math.min(tf, r.tf);
+        }
       }
       h.amount = amt; h.earned = earned; h.pct = amt > 0 ? Math.min(100, earned / amt * 100) : 0;
-      if (lo != null) { h.sd = lo; h.fd = hi; h.start = fromDays(lo); h.finish = fromDays(hi); h.dur = workCount(lo, hi, off); }
+      if (lo != null) { h.sd = lo; h.fd = hi; h.start = fromDays(lo); h.finish = fromDays(hi); h.dur = workCount(lo, hi, off); h.critical = crit; h.tf = tf; }
     });
     var lo2 = null, hi2 = null, n = 0;
     rows.forEach(function (r) {
       if (r.level === 2 && r.sd != null) { n += 1; lo2 = lo2 == null ? r.sd : Math.min(lo2, r.sd); hi2 = hi2 == null ? r.fd : Math.max(hi2, r.fd); }
     });
-    var total = 0, earnedAll = 0;
-    rows.forEach(function (r) { if (r.level === 2) { total += r.amount; earnedAll += r.earned; } });
+    var total = 0, earnedAll = 0, critical = [], conflicts = [], cycles = [];
+    rows.forEach(function (r) {
+      if (r.level !== 2) return;
+      total += r.amount; earnedAll += r.earned;
+      if (r.sched && r.critical) critical.push(r.id);
+      if (r.conflict) conflicts.push(r.id);
+      if (r.cycle) cycles.push(r.id);
+    });
+    critical.sort(function (a, b) { return byId[String(a)].sd - byId[String(b)].sd || byId[String(a)].fd - byId[String(b)].fd; });
     return {
       rows: rows, off: off, count: n, sd: lo2, fd: hi2,
       start: lo2 == null ? '' : fromDays(lo2), finish: hi2 == null ? '' : fromDays(hi2),
       workDays: lo2 == null ? 0 : workCount(lo2, hi2, off), calDays: lo2 == null ? 0 : hi2 - lo2 + 1,
-      total: total, earned: earnedAll, pct: total > 0 ? earnedAll / total * 100 : 0
+      total: total, earned: earnedAll, pct: total > 0 ? earnedAll / total * 100 : 0,
+      critical: critical, conflicts: conflicts, cycles: cycles, byId: byId
     };
+  }
+
+  /* Would linking `id` after `predId` close a loop? (used by the editor) */
+  function wouldLoop(p, id, predId) {
+    var seen = {};
+    function reaches(from, target) {   // does `from` depend (directly or not) on `target`?
+      if (from === target) return true;
+      if (seen[from]) return false;
+      seen[from] = true;
+      var t = p.sched.tasks[from];
+      return !!(t && Array.isArray(t.pred) && t.pred.some(function (q) { return reaches(String(q.id), target); }));
+    }
+    return reaches(String(predId), String(id));
+  }
+
+  /* Delays: tasks that should have finished (or started) by `asOf` but have not are pushed on: a started task gets the
+     time it still needs from that day, a task that has not started cannot start before that day. Every task linked after
+     them moves by itself; tasks with a manually fixed date are left where they are and reported. */
+  function reschedule(p, asOfIso, apply) {
+    var asOf = toDays(asOfIso), res = { extended: [], delayed: [], preserved: [] };
+    if (asOf == null) return res;
+    var sc = compute(p), off = sc.off;
+    sc.rows.forEach(function (r) {
+      if (r.level !== 2 || !r.sched || !(r.qty > 0) || r.pct >= 100 || r.sd >= asOf) return;
+      var t = r.task, startedPct = r.pct > 0;
+      var late = r.fd < asOf || (!startedPct && r.sd < asOf);
+      if (!late) return;
+      if (r.manual) { res.preserved.push(r.id); return; }
+      if (startedPct) {
+        var elapsed = workCount(r.sd, prevWork(asOf - 1, off), off);
+        var nd = Math.round((elapsed + Math.max(0.25, r.dur * (1 - r.pct / 100))) * 4) / 4;
+        if (nd > r.dur) { res.extended.push({ id: r.id, from: r.dur, to: nd }); if (apply) t.dur = nd; }
+      } else {
+        var sn = fromDays(nextWork(asOf, off));
+        if (t.snet !== sn) { res.delayed.push({ id: r.id, from: r.start, to: sn }); if (apply) t.snet = sn; }
+      }
+    });
+    return res;
   }
 
   /* Spread the project's working days over the priced tasks by value (a quick first plan). */
@@ -642,7 +794,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

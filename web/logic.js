@@ -379,6 +379,15 @@
     t = t && typeof t === 'object' ? t : {};
     var out = { dur: Math.min(num3(t.dur, 0), 9999), start: isDate(t.start) ? t.start : '', par: !!t.par, mp: sanitizeCounts(t.mp), eq: sanitizeCounts(t.eq) };
     if (/^[a-z]{2,12}$/.test(String(t.tpl || ''))) out.tpl = t.tpl;
+    if (Array.isArray(t.pred)) {
+      out.pred = [];
+      t.pred.slice(0, 12).forEach(function (q) {
+        if (!q || typeof q !== 'object' || !/^\d+$/.test(String(q.id))) return;
+        out.pred.push({ id: String(q.id), type: ['FS', 'SS', 'FF', 'SF'].indexOf(q.type) >= 0 ? q.type : 'FS', lag: Math.round(Math.min(999, Math.max(-999, Number(q.lag) || 0))) });
+      });
+    }
+    if (Number(t.delay) > 0) out.delay = Math.min(999, Math.round(Number(t.delay)));
+    if (isDate(t.snet)) out.snet = t.snet;
     if (Array.isArray(t.split) && t.split.length >= 2) {
       var m = Math.min(num(t.split[0], 0, 100), 100), l = Math.min(num(t.split[1], 0, 100), 100);
       out.split = [m, l];

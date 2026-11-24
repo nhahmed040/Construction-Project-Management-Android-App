@@ -39,3 +39,10 @@ GitHub Actions builds the APK on every push (Actions → *Build APK* → artifac
 ## Layout
 
 `web/` the app (`schedule.js`, `schedule-excel.js`, `schedule-ui.js`, `i18n-sched.js` are the schedule module; `logic.js` data model; `app.js` UI) · `app/` Android WebView wrapper · `tests/` Node tests · `firebase-rules.json` database rules.
+
+## Scheduling rules
+
+- **Links:** each task can follow up to 3 predecessors with FS, SS, FF or SF, plus a lag (wait) or a negative lag (lead, overlap) in working days. Tasks without links follow the BoQ order.
+- **Critical path:** the forward and backward pass give each task its total float and free float. Tasks with no float are critical (marked in the list and on the Gantt) and the project completion date is shown.
+- **Delays:** a task can be delayed by working days, and "Reschedule delayed tasks" pushes late work forward from the as-of date. Everything linked after it moves by itself.
+- **Manual dates:** a task on a fixed date is never moved. If its links would need a later date, it is flagged instead.
