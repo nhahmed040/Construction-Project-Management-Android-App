@@ -273,10 +273,15 @@
     }
 
     /* online backup of one user's whole state */
+    /* Keep a verified latest backup and a dated recovery snapshot. */
     function backupPut(text) {
-      return db('PUT', 'backups/' + cfg().uid, { u: now(), data: text });
+      var ts = now(), record = { u: ts, data: text };
+      var patch = { latest: record };
+      patch['history/' + ts] = record;
+      return db('PATCH', 'backups/' + cfg().uid, patch);
     }
-    function backupGet() { return db('GET', 'backups/' + cfg().uid); }
+    function backupGet() { return db('GET', 'backups/' + cfg().uid + '/latest').then(function (b) { return b || db('GET', 'backups/' + cfg().uid); }); }
+    function backupHistory() { return db('GET', 'backups/' + cfg().uid + '/history'); }
 
     /* shared books */
     function createBook(id, name) {
@@ -365,7 +370,7 @@
       pIndexPut: pIndexPut, pIndexGet: pIndexGet, pIndexDelete: pIndexDelete, createPInvite: createPInvite, revokePInvites: revokePInvites,
       joinProject: joinProject, setPRole: setPRole, removePMember: removePMember, deleteProject: deleteProject,
       cfg: cfg, patchCfg: patchCfg, signUp: signUp, signIn: signIn, signInGoogle: signInGoogle, signOut: signOut, signedIn: signedIn,
-      backupPut: backupPut, backupGet: backupGet,
+      backupPut: backupPut, backupGet: backupGet, backupHistory: backupHistory,
       createBook: createBook, setBookName: setBookName, profilePut: profilePut, profileGet: profileGet,
       indexPut: indexPut, indexGet: indexGet, indexDelete: indexDelete, getBook: getBook, pushEntries: pushEntries,
       createInvite: createInvite, revokeInvites: revokeInvites, join: join,

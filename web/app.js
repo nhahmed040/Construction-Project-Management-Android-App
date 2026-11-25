@@ -3975,8 +3975,10 @@
       return JSON.stringify(copy);
     }
     function backupNow(quiet) {
-      return cloud.backupPut(backupText()).then(function () {
-        cloud.patchCfg({ lastBackup: Date.now() });
+      var payload = backupText();
+      return cloud.backupPut(payload).then(function () { return cloud.backupGet(); }).then(function (check) {
+        if (!check || check.data !== payload) throw new Error('backup-verification-failed');
+        cloud.patchCfg({ lastBackup: check.u || Date.now() });
         if (!quiet) toast(t('cloud_backup_done'));
         renderCloud();
       }, function (e) { if (!quiet) fail(e); });
