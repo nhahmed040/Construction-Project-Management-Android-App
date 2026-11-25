@@ -767,3 +767,8 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .chip.addchip { border-style: dashed; cursor: pointer; } .chipx { border: 0; background: none; color: var(--muted); font-size: 1rem; padding: 0 2px; cursor: pointer; }
 .pickbox { max-height: 45vh; overflow: auto; }
 .gt-handle { position: absolute; right: 0; top: 0; width: 14px; height: 100%; cursor: ew-resize; touch-action: none; background: rgba(255,255,255,.35); }
+
+/* the task ID is a chip, the BoQ item number is a separate muted label */
+.bno { display: inline-block; margin-right: 6px; color: var(--muted); font-weight: 600; font-size: .85em; }
+.srow.lv0 .sid, .gt-row.lv0 .sid { background: rgba(255,255,255,.28); color: #fff; }
+.srow.lv0 .bno { color: rgba(255,255,255,.8); }

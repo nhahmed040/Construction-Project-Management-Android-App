@@ -249,7 +249,8 @@
       var line = c.el('div', 'srow lv' + r.level + (r.level === 2 && r.kind === 'plain' ? ' plain' : ''));
       var title = c.el('div', 'stitle');
       title.appendChild(c.el('span', 'sid', String(r.n)));
-      title.appendChild(document.createTextNode((r.no ? r.no + '  ' : '') + r.desc));
+      if (r.no) title.appendChild(c.el('span', 'bno', r.no));
+      title.appendChild(document.createTextNode(r.desc));
       line.appendChild(title);
       var cols = c.el('div', 'scols');
       var q1 = c.el('div', 'scell'); q1.appendChild(c.el('small', null, t('sch_qty'))); q1.appendChild(c.el('div', 'gc', qtyText(r) || '—'));
@@ -272,7 +273,7 @@
           line.appendChild(c.el('div', 'slinks' + (r.conflict ? ' bad' : ''), extra.join(' · ')));
         }
         var gi = g.by[r.id];
-        if (gi) { line.classList.add('st-' + gi.status); title.textContent = (STATUS_ICON[gi.status] || '') + ' ' + title.textContent; }
+        if (gi) { line.classList.add('st-' + gi.status); title.insertBefore(document.createTextNode((STATUS_ICON[gi.status] || '') + ' '), title.firstChild); }
         if (r.amount > 0) { var bar = c.el('div', 'pbar'); var f = c.el('i'); f.style.width = Math.min(100, Math.round(r.pct)) + '%'; bar.appendChild(f); line.appendChild(bar); }
         line.addEventListener('click', function () { quickEdit(c, r); });
         line.tabIndex = 0;
@@ -869,7 +870,7 @@
         if (r.level !== 2 || r.kind === 'plain' && !r.dur) return;
         var line = c.el('div', 'srow lv2');
         line.tabIndex = 0; line.setAttribute('role', 'button');
-        var ti = c.el('div', 'stitle'); ti.appendChild(c.el('span', 'sid', String(r.n))); ti.appendChild(document.createTextNode((r.no ? r.no + '  ' : '') + r.desc)); line.appendChild(ti);
+        var ti = c.el('div', 'stitle'); ti.appendChild(c.el('span', 'sid', String(r.n))); if (r.no) ti.appendChild(c.el('span', 'bno', r.no)); ti.appendChild(document.createTextNode(r.desc)); line.appendChild(ti);
         var parts = [];
         list.forEach(function (x) { var n = r.task && r.task[field] ? r.task[field][String(x.id)] : 0; if (n > 0) parts.push(x.name + ' ' + n); });
         line.appendChild(c.el('div', 'smeta', parts.length ? parts.join(' · ') : t('sch_none_assigned')));
@@ -1342,7 +1343,8 @@
       rowEls[String(r.id)] = row;
       var lb = c.el('div', 'gt-label');
       lb.appendChild(c.el('span', 'sid', String(r.n)));
-      lb.appendChild(document.createTextNode((r.no ? r.no + ' ' : '') + r.desc));
+      if (r.no) lb.appendChild(c.el('span', 'bno', r.no));
+      lb.appendChild(document.createTextNode(r.desc));
       lb.title = r.desc;
       row.appendChild(lb);
       if (EXTRA) {
