@@ -99,10 +99,11 @@
   function compute(p) {
     var s = p.sched, off = offMap(s), rows = [];
     var projStart = toDays(s.start) != null ? toDays(s.start) : (toDays(p.startDate) != null ? toDays(p.startDate) : toDays(L.todayStr()));
-    var byId = {}, prevId = null;
+    var byId = {}, prevId = null, curHead = null, lastHead = null, nest = s.nest || {};
     p.boq.forEach(function (i) {
-      if (i.kind === 'sum') return;
+      if (i.kind === 'sum') { curHead = lastHead = null; return; }
       var lvl = levelOf(i), amount = lvl === 2 ? i.qty * i.rate : 0;
+      if (lvl < 2) curHead = lastHead = null;
       var row = { id: i.id, level: lvl, kind: i.kind || (amount > 0 ? 'item' : 'plain'), no: i.no || '', desc: i.desc, unit: i.unit || '', qty: i.qty, rate: i.rate, amount: amount, done: i.done || 0, dur: 0, sd: null, fd: null, start: '', finish: '', pct: 0, earned: 0 };
       if (lvl === 2) {
         var t = s.tasks[String(i.id)] || { dur: 0, mp: {}, eq: {} };
@@ -111,6 +112,16 @@
         if (t.dur > 0) {
           row.manual = !!t.start; row.sched = true; row.preds = []; row.seq = prevId;
           byId[String(i.id)] = row; prevId = String(i.id);
+        }
+      }
+      // the four levels: group 0, line 1, heading-type item 2, item 3 under a heading (or 2 straight under a line)
+      row.depth = lvl;
+      if (lvl === 2) {
+        if (L.isHeading(i)) { row.head = true; row.children = []; row.depth = 2; curHead = lastHead = row; }
+        else {
+          var nv = nest[String(i.id)], par = nv === 'in' ? lastHead : nv === 'out' ? null : (curHead && !i.no ? curHead : null);
+          if (par) { row.parent = par.id; row.depth = 3; par.children.push(row); }
+          else if (nv !== 'in') curHead = null;
         }
       }
       rows.push(row);
@@ -190,7 +201,7 @@
       for (var j = k + 1; j < rows.length && rows[j].level > h.level; j++) {
         var r = rows[j];
         if (r.level !== 2) continue;
-        amt += r.amount; earned += r.earned;
+        if (!r.head) { amt += r.amount; earned += r.earned; }
         if (r.sd != null) {
           lo = lo == null ? r.sd : Math.min(lo, r.sd); hi = hi == null ? r.fd : Math.max(hi, r.fd);
           if (r.critical) crit = true;
@@ -200,9 +211,19 @@
       h.amount = amt; h.earned = earned; h.pct = amt > 0 ? Math.min(100, earned / amt * 100) : 0;
       if (lo != null) { h.sd = lo; h.fd = hi; h.start = fromDays(lo); h.finish = fromDays(hi); h.dur = workCount(lo, hi, off); h.critical = crit; h.tf = tf; }
     });
+    rows.forEach(function (h) {   // heading-type items: the range, value and progress of their own sub-items
+      if (!h.head) return;
+      var amt = 0, earned = 0, lo = null, hi = null, crit = false, tf = null;
+      h.children.forEach(function (r) {
+        amt += r.amount; earned += r.earned;
+        if (r.sd != null) { lo = lo == null ? r.sd : Math.min(lo, r.sd); hi = hi == null ? r.fd : Math.max(hi, r.fd); if (r.critical) crit = true; tf = tf == null ? r.tf : Math.min(tf, r.tf); }
+      });
+      h.sumAmount = amt; h.sumEarned = earned; h.pct = amt > 0 ? Math.min(100, earned / amt * 100) : 0;
+      if (lo != null) { h.sd = lo; h.fd = hi; h.start = fromDays(lo); h.finish = fromDays(hi); h.dur = workCount(lo, hi, off); h.critical = crit; h.tf = tf; }
+    });
     var lo2 = null, hi2 = null, n = 0;
     rows.forEach(function (r) {
-      if (r.level === 2 && r.sd != null) { n += 1; lo2 = lo2 == null ? r.sd : Math.min(lo2, r.sd); hi2 = hi2 == null ? r.fd : Math.max(hi2, r.fd); }
+      if (r.level === 2 && !r.head && r.sd != null) { n += 1; lo2 = lo2 == null ? r.sd : Math.min(lo2, r.sd); hi2 = hi2 == null ? r.fd : Math.max(hi2, r.fd); }
     });
     var total = 0, earnedAll = 0, critical = [], conflicts = [], cycles = [];
     rows.forEach(function (r) {
@@ -221,6 +242,22 @@
       critical: critical, conflicts: conflicts, cycles: cycles, byId: byId,
       byN: rows.reduce(function (m, r) { m[r.n] = r; return m; }, {})
     };
+  }
+
+  /* the tasks that follow each task: { id: [{ id, type, lag }] } (the mirror of the predecessors) */
+  function successors(sc) {
+    var out = {};
+    sc.rows.forEach(function (r) {
+      if (!r.sched) return;
+      r.preds.forEach(function (q) { (out[q.id] = out[q.id] || []).push({ id: String(r.id), type: q.type, lag: q.lag || 0, implicit: !!q.implicit }); });
+    });
+    return out;
+  }
+
+  /* put an item under the heading-type item above it ('in'), or take it out ('out'); '' returns to the automatic rule */
+  function setNest(p, id, mode) {
+    var s = p.sched; s.nest = s.nest || {};
+    if (mode === 'in' || mode === 'out') s.nest[String(id)] = mode; else delete s.nest[String(id)];
   }
 
   /* "3, 5SS+2, 7FF-1" <-> links. Numbers are task IDs (row numbers). Returns { list, error } with the task ids stored internally. */
@@ -747,12 +784,18 @@
       if (actual > 0) started += 1;
       if (status === 'late') late.push({ row: r, info: info, gap: r.amount * (planned - actual) });
     });
+    sc.rows.forEach(function (h) {   // heading-type items: value-weighted planned / actual of their sub-items
+      if (!h.head) return;
+      var amt = 0, pv = 0, av = 0, lateN = 0;
+      h.children.forEach(function (x) { var i = by[x.id]; if (!i) return; amt += x.amount; pv += x.amount * i.planned; av += x.amount * i.actual; if (i.status === 'late') lateN += 1; });
+      by[h.id] = { planned: amt > 0 ? pv / amt : 0, actual: amt > 0 ? av / amt : 0, status: lateN ? 'late' : 'ontrack', late: lateN };
+    });
     sc.rows.forEach(function (h, k) {   // headings: value-weighted planned / actual of what is under them
       if (h.level === 2) return;
       var amt = 0, pv = 0, av = 0, lateN = 0;
       for (var j = k + 1; j < sc.rows.length && sc.rows[j].level > h.level; j++) {
         var x = sc.rows[j], i = by[x.id];
-        if (!i) continue;
+        if (!i || x.head) continue;
         amt += x.amount; pv += x.amount * i.planned; av += x.amount * i.actual;
         if (i.status === 'late') lateN += 1;
       }
@@ -1007,7 +1050,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, isOff: isOff, holidaysEthiopia: holidaysEthiopia, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, setNest: setNest, successors: successors, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

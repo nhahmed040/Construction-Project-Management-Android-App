@@ -104,7 +104,7 @@
       if (f < 0) { this.fmts.push(s.fmt); f = this.fmts.length - 1; }
       fmtId = 164 + f;
     }
-    var align = (s.h || s.v || s.wrap) ? '<alignment' + (s.h ? ' horizontal="' + s.h + '"' : '') + ' vertical="' + (s.v || 'center') + '"' + (s.wrap ? ' wrapText="1"' : '') + '/>' : '';
+    var align = (s.h || s.v || s.wrap || s.ind) ? '<alignment' + (s.h || s.ind ? ' horizontal="' + (s.h || 'left') + '"' : '') + (s.ind ? ' indent="' + s.ind + '"' : '') + ' vertical="' + (s.v || 'center') + '"' + (s.wrap ? ' wrapText="1"' : '') + '/>' : '';
     this.xfs.push('<xf numFmtId="' + fmtId + '" fontId="' + fontId + '" fillId="' + fillId + '" borderId="' + borderId + '" xfId="0"' +
       (fmtId ? ' applyNumberFormat="1"' : '') + ' applyFont="1"' + (fillId ? ' applyFill="1"' : '') + (borderId ? ' applyBorder="1"' : '') +
       (align ? ' applyAlignment="1">' + align + '</xf>' : '/>'));

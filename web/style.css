@@ -772,3 +772,14 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .bno { display: inline-block; margin-right: 6px; color: var(--muted); font-weight: 600; font-size: .85em; }
 .srow.lv0 .sid, .gt-row.lv0 .sid { background: rgba(255,255,255,.28); color: #fff; }
 .srow.lv0 .bno { color: rgba(255,255,255,.8); }
+
+/* hierarchy: indentation, heading rows, fold arrows, column menu */
+.srow > .stitle, .srow > .scols, .srow > .smeta, .srow > .slinks, .srow > .pbar { margin-left: calc(var(--d, 0) * 10px); }
+.srow.head { background: var(--bg); border-left: 3px solid var(--accent-soft); font-weight: 700; }
+.srow.head .stitle { font-weight: 700; }
+.foldbtn { display: inline-block; width: 1.3em; cursor: pointer; user-select: none; opacity: .8; }
+.foldrow { margin: 6px 0; } .foldrow button { padding: 4px 10px; font-size: .8rem; }
+.gt-row.head .gt-label { font-weight: 700; background: var(--bg); } .gt-row.head .gt-cols { background: var(--bg); font-weight: 700; }
+.colopt { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-top: 1px solid var(--border); font-size: 1rem; }
+.colopt input { width: 20px; height: 20px; }
+.gt-cols .gc.cs, .gt-cols .gc.cf, .gt-cols .gc.csu { font-size: .66rem; }

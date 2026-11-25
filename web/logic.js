@@ -461,6 +461,7 @@
       equip: mapList(s.equip, sanitizeEquip, 60),
       tasks: tasks,
       prod: sanitizeProd(s.prod),
+      nest: (function () { var o = {}, n = 0; if (s.nest && typeof s.nest === 'object') Object.keys(s.nest).forEach(function (k) { if (n < 500 && (s.nest[k] === 'in' || s.nest[k] === 'out')) { o[String(k).slice(0, 40)] = s.nest[k]; n += 1; } }); return o; })(),
       hol: hol,
       cf: {
         misc: misc, overhead: overhead, profit: profit,

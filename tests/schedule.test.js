@@ -410,3 +410,38 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   if (h.indexOf('1,244.50') < 0 || h.indexOf('<thead>') < 0 || h.indexOf('A3 landscape') < 0) throw new Error('pdf html');
   console.log('pdf html ok');
 })();
+
+(function () {
+  var S4 = require('../web/schedule.js'), L4 = require('../web/logic.js');
+  var p = L4.sanitizeProject({ name: 'H', boqLines: 2 }, 1);
+  function it(o) { return L4.sanitizeProject({ boq: [o], boqLines: 2 }, 1).boq[0]; }
+  p.boq = [it({ kind: 'group', desc: 'A. Main' }), it({ kind: 'line', desc: '1. Concrete' }),
+    it({ no: 'A', desc: 'Lean concrete', unit: 'M2', qty: 10, rate: 100 }),
+    it({ no: 'B', desc: 'Reinforced concrete', unit: '', qty: 0, rate: 0 }),
+    it({ no: '', desc: 'a) beam', unit: 'M3', qty: 7, rate: 200 }), it({ no: '', desc: 'b) slab', unit: 'M3', qty: 3, rate: 300 }),
+    it({ no: 'C', desc: 'Screed', unit: 'M2', qty: 4, rate: 50 })];
+  p.sched.start = '2026-12-01';
+  S4.generate(p, { strategy: 'boq' });
+  var sc = S4.compute(p), d = sc.rows.map(function (r) { return r.depth; }).join('');
+  if (d !== '0122332') throw new Error('depths ' + d);
+  var head = sc.rows[3];
+  if (!head.head || head.children.length !== 2 || head.sumAmount !== 7 * 200 + 3 * 300) throw new Error('head rollup');
+  if (head.sd == null || sc.count !== 4) throw new Error('head dates / count ' + sc.count);
+  S4.setNest(p, p.boq[6].id, 'in');
+  if (S4.compute(p).rows[6].depth !== 3) throw new Error('indent');
+  console.log('hierarchy tests ok');
+})();
+
+(function () {
+  var S5 = require('../web/schedule.js'), L5 = require('../web/logic.js'), X = require('../web/schedule-excel.js');
+  var p = L5.sanitizeProject({ name: 'G', boqLines: 2 }, 1);
+  function it(o) { return L5.sanitizeProject({ boq: [o], boqLines: 2 }, 1).boq[0]; }
+  p.boq = [it({ kind: 'group', desc: 'A' }), it({ no: '1', desc: 'x', unit: 'M3', qty: 10, rate: 5 }), it({ no: '2', desc: 'y', unit: 'M3', qty: 10, rate: 5 })];
+  p.sched.start = '2026-12-01'; S5.generate(p, { strategy: 'boq' });
+  var sc = S5.compute(p), su = S5.successors(sc);
+  if (!su[String(p.boq[1].id)] || su[String(p.boq[1].id)][0].id !== String(p.boq[2].id)) throw new Error('successors');
+  var wb = X.workbook(p, {}), g = wb.sheets.filter(function (s) { return s.name === 'Gantt'; })[0];
+  var hdr = g.rows.filter(function (r) { return r && r.some(function (c) { return c && c.v === 'Successors'; }); });
+  if (!hdr.length) throw new Error('gantt sheet has no Successors column');
+  console.log('successors tests ok');
+})();

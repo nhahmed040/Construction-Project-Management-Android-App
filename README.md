@@ -78,3 +78,9 @@ The Schedule list and the Gantt show Qty, Days and Predecessors for every task. 
 ## Quick edit, Gantt gestures and Undo
 
 Tap a task (list, Gantt row or bar, "This week") to open the **quick edit** sheet: − / + for days and delay, predecessors as chips (✕ removes, ＋ adds with link type and lag), *Full edit* for everything else. In the Gantt, drag the right end of a bar to change the duration, pinch to zoom, use Day / Week / Month and ⌖ Today. Every edit, drag and Generate shows **Undo**.
+
+## Hierarchy and Gantt columns
+
+The schedule shows four levels, each with its own style and indentation: **Group**, **Line**, **heading-type item** (an item with no quantity or rate, e.g. "Reinforced concrete…") and **item**. Items under a heading-type item (until the next item with a number, heading, line or group) are its sub-items; use *Put under heading / Take out of heading* in the quick-edit sheet to correct a guess. Heading levels are read-only and roll up start, finish, days, value and progress. Fold with ▾ / ▸ or *Expand all / Collapse all*; Excel and PDF indent the same way.
+
+In the Gantt, *Columns* opens a list of check boxes: Qty, Days, Start, Finish, Predecessors, Successors (Start, Finish and Successors are calculated; the choice is remembered). The Excel Gantt sheet has a Successors column too.

@@ -4,7 +4,10 @@
   'use strict';
 
   var S = window.CBSched, L = window.CBLogic;
-  var gantt = { gw: 16, asOf: '', links: true, cols: true };
+  var GCOLS = [{ k: 'qty', w: 62, h: 'sch_qty' }, { k: 'days', w: 44, h: 'sch_days_col' }, { k: 'start', w: 66, h: 'sch_start_col' }, { k: 'finish', w: 66, h: 'sch_finish_col' }, { k: 'pred', w: 78, h: 'sch_pred_col' }, { k: 'succ', w: 78, h: 'sch_succ_col' }];
+  var gantt = { gw: 16, asOf: '', links: true, colset: { qty: false, days: true, start: false, finish: false, pred: true, succ: false } };
+  try { var sv = JSON.parse(localStorage.getItem('cbs.gantt.cols') || 'null'); if (sv && typeof sv === 'object') GCOLS.forEach(function (x) { if (typeof sv[x.k] === 'boolean') gantt.colset[x.k] = sv[x.k]; }); } catch (e) {}
+  function shownCols() { return GCOLS.filter(function (x) { return gantt.colset[x.k]; }); }
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   var STD_ROLES = S.STD_ROLES, STD_EQUIP = S.STD_EQUIP;
@@ -180,7 +183,7 @@
   function weekPanel(c, body) {
     var t = c.t, sc = c.sc, A = c.A, today = S.toDays(L.todayStr()), end = today + 6;
     if (sc.sd == null || sc.fd < today) return;
-    var rows = sc.rows.filter(function (r) { return r.level === 2 && r.sd != null && r.sd <= end && r.fd >= today; });
+    var rows = sc.rows.filter(function (r) { return isTask(r) && r.sd != null && r.sd <= end && r.fd >= today; });
     var pn = c.panel(t('sch_week'));
     pn.classList.add('weekcard');
     var crit = rows.filter(function (r) { return r.critical; }).length;
@@ -243,11 +246,16 @@
     if (sc.count) progressPanel(c, body, g);
     if (sc.count) criticalPanel(c, body, g);
 
+    foldBar(c, body);
     var list = c.panel(null);
     list.classList.add('schedlist');
-    sc.rows.forEach(function (r) {
-      var line = c.el('div', 'srow lv' + r.level + (r.level === 2 && r.kind === 'plain' ? ' plain' : ''));
+    var hid = hiddenRows(sc.rows);
+    sc.rows.forEach(function (r, ri) {
+      if (hid[ri]) return;
+      var line = c.el('div', 'srow lv' + r.level + ' d' + r.depth + (r.head ? ' head' : '') + (r.level === 2 && r.kind === 'plain' ? ' plain' : ''));
+      line.style.setProperty('--d', r.depth);
       var title = c.el('div', 'stitle');
+      if (isContainer(r)) title.appendChild(foldBtn(c, r));
       title.appendChild(c.el('span', 'sid', String(r.n)));
       if (r.no) title.appendChild(c.el('span', 'bno', r.no));
       title.appendChild(document.createTextNode(r.desc));
@@ -258,7 +266,7 @@
       var q3 = c.el('div', 'scell wide'); q3.appendChild(c.el('small', null, t('sch_pred_col'))); q3.appendChild(predCell(c, r, 'gc'));
       cols.appendChild(q1); cols.appendChild(q2); cols.appendChild(q3);
       line.appendChild(cols);
-      if (r.level === 2) {
+      if (isTask(r)) {
         var meta = c.el('div', 'smeta');
         if (r.sd != null) meta.appendChild(c.el('span', null, A.fmtDate(r.start) + (r.finish !== r.start ? ' → ' + A.fmtDate(r.finish) : '') + ' · ' + days(r.dur)));
         else meta.appendChild(c.el('span', 'muted', t('sch_set_duration')));
@@ -279,7 +287,7 @@
         line.tabIndex = 0;
         line.setAttribute('role', 'button');
       } else if (r.sd != null) {
-        line.appendChild(c.el('div', 'smeta', A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + ' · ' + days(r.dur)));
+        line.appendChild(c.el('div', 'smeta', A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + ' · ' + days(r.dur) + (r.head ? ' · ' + A.money(L.round2(r.sumAmount || 0)) : '')));
         cols.classList.add('rolled');
       }
       list.appendChild(line);
@@ -569,7 +577,7 @@
   }
 
   /* ---------- inline cells: quantity, duration and predecessors straight in the list and the Gantt ---------- */
-  function qtyText(r) { return r.level === 2 && r.qty > 0 ? S.fmtNum(r.qty) + (r.unit ? ' ' + r.unit : '') : ''; }
+  function qtyText(r) { return isTask(r) && r.qty > 0 ? S.fmtNum(r.qty) + (r.unit ? ' ' + r.unit : '') : ''; }
   function linkList(r) { return r.sched && r.preds ? r.preds : (r.task && r.task.pred) || []; }
   function newTask(p, id) { return p.sched.tasks[id] || (p.sched.tasks[id] = { dur: 0, start: '', par: false, mp: {}, eq: {} }); }
 
@@ -598,8 +606,8 @@
   }
 
   function durCell(c, r, cls) {
-    var cell = c.el('div', cls + ' dur' + (r.level === 2 ? ' edit' : ''), r.dur ? S.fmtNum(r.dur) : (r.level === 2 ? '—' : ''));
-    if (r.level !== 2) return cell;
+    var cell = c.el('div', cls + ' dur' + (isTask(r) ? ' edit' : ''), r.dur ? S.fmtNum(r.dur) : (isTask(r) ? '—' : ''));
+    if (!isTask(r)) return cell;
     cell.title = c.t('sch_duration');
     cell.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -620,8 +628,8 @@
   function predCell(c, r, cls) {
     var list = linkList(r), txt = S.formatLinks(list, c.sc);
     var implicit = list.length > 0 && list.every(function (q) { return q.implicit; });
-    var cell = c.el('div', cls + ' pred' + (r.level === 2 ? ' edit' : '') + (implicit ? ' implicit' : '') + (r.conflict ? ' bad' : ''), txt);
-    if (r.level !== 2) return cell;
+    var cell = c.el('div', cls + ' pred' + (isTask(r) ? ' edit' : '') + (implicit ? ' implicit' : '') + (r.conflict ? ' bad' : ''), txt);
+    if (!isTask(r)) return cell;
     cell.title = c.t('sch_pred_ids') + ' · 3, 5SS+2, 7FF-1';
     cell.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -654,6 +662,34 @@
     build(d);
     return d;
   }
+
+  /* ---------- hierarchy: group > line > heading-type item > item ---------- */
+  var hfold = {};   // folded heading rows, by BoQ id
+  function isTask(r) { return r.level === 2 && !r.head; }
+  function isContainer(r) { return r.level < 2 || !!r.head; }
+  /* which rows are hidden because a heading above them is folded */
+  function hiddenRows(rows) {
+    var stack = [], out = [];
+    rows.forEach(function (r) {
+      while (stack.length && stack[stack.length - 1].depth >= r.depth) stack.pop();
+      out.push(stack.some(function (h) { return hfold[String(h.id)]; }));
+      if (isContainer(r)) stack.push(r);
+    });
+    return out;
+  }
+  function foldBtn(c, r) {
+    var b = c.el('span', 'foldbtn', hfold[String(r.id)] ? '▸' : '▾');
+    b.addEventListener('click', function (e) { e.stopPropagation(); hfold[String(r.id)] = !hfold[String(r.id)]; c.A.rerender(); });
+    return b;
+  }
+  function foldAll(c, on) { c.sc.rows.forEach(function (r) { if (isContainer(r)) hfold[String(r.id)] = on; }); c.A.rerender(); }
+  function foldBar(c, body) {
+    var row = c.el('div', 'btnrow foldrow');
+    row.appendChild(c.btn('▾ ' + c.t('sch_expand_all'), '', function () { foldAll(c, false); }));
+    row.appendChild(c.btn('▸ ' + c.t('sch_collapse_all'), '', function () { foldAll(c, true); }));
+    body.appendChild(row);
+  }
+  function shortDate(c, iso) { if (!iso) return ''; var q = c.A.cal().parts(iso); return (q.d < 10 ? '0' : '') + q.d + '/' + (q.m < 10 ? '0' : '') + q.m + '/' + String(q.y).slice(-2); }
 
   /* ---------- undo ---------- */
   function snapOf(c) { return JSON.stringify(c.p.sched); }
@@ -712,13 +748,21 @@
       add.addEventListener('click', function () { pickLink(); });
       chips.appendChild(add);
       m.appendChild(chips);
+      // the heading-type item this item belongs to
+      var all = s.sc.rows, idx = all.indexOf(r), hd = null;
+      for (var z = idx - 1; z >= 0 && !hd; z--) { if (all[z].level < 2) break; if (all[z].head) hd = all[z]; }
+      var nestBox = c0.el('div', 'btnrow');
+      if (r.parent != null) nestBox.appendChild(c0.btn('⇤ ' + t('sch_outdent'), '', function () { S.setNest(p, id, 'out'); touched = true; draw(); }));
+      else if (hd) nestBox.appendChild(c0.btn('⇥ ' + t('sch_indent', { x: hd.desc.slice(0, 28) }), '', function () { S.setNest(p, id, 'in'); touched = true; draw(); }));
+      if (p.sched.nest && p.sched.nest[id]) nestBox.appendChild(c0.btn('↺ ' + t('sch_nest_auto'), '', function () { S.setNest(p, id, ''); touched = true; draw(); }));
+      if (nestBox.childNodes.length) m.appendChild(nestBox);
       var br = c0.el('div', 'btnrow');
       br.appendChild(c0.btn(t('sch_full_edit'), '', function () { var rr = cur(); touched = false; close(); window.setTimeout(function () { editTask(rr.c, rr.r); }, 30); }));
       br.appendChild(c0.btn(t('close'), 'primary', close));
       m.appendChild(br);
     }
     function pickLink() {
-      var s = cur(), tasks = s.sc.rows.filter(function (q) { return q.level === 2 && String(q.id) !== id && q.dur > 0; });
+      var s = cur(), tasks = s.sc.rows.filter(function (q) { return isTask(q) && String(q.id) !== id && q.dur > 0; });
       m.textContent = '';
       m.appendChild(c0.el('h2', null, t('sch_add_link')));
       var types = c0.el('select', 'tsel');
@@ -867,7 +911,7 @@
     else {
       tp.appendChild(c.el('p', 'muted small', t('sch_tap_assign')));
       c.sc.rows.forEach(function (r) {
-        if (r.level !== 2 || r.kind === 'plain' && !r.dur) return;
+        if (!isTask(r) || r.kind === 'plain' && !r.dur) return;
         var line = c.el('div', 'srow lv2');
         line.tabIndex = 0; line.setAttribute('role', 'button');
         var ti = c.el('div', 'stitle'); ti.appendChild(c.el('span', 'sid', String(r.n))); if (r.no) ti.appendChild(c.el('span', 'bno', r.no)); ti.appendChild(document.createTextNode(r.desc)); line.appendChild(ti);
@@ -1193,8 +1237,8 @@
   function drawLinks(c, rowsBox, rowEls, a, gw, LABEL, width) {
     var sc = c.sc, items = [];
     sc.rows.forEach(function (r) {
-      if (r.level !== 2 || !r.sched || !r.explicit) return;
-      r.preds.forEach(function (q) { if (!q.implicit && sc.byId[q.id]) items.push({ P: sc.byId[q.id], Q: r, q: q }); });
+      if (!isTask(r) || !r.sched || !r.explicit || !rowEls[String(r.id)]) return;
+      r.preds.forEach(function (q) { if (!q.implicit && sc.byId[q.id] && rowEls[String(q.id)]) items.push({ P: sc.byId[q.id], Q: r, q: q }); });
     });
     if (!items.length) return;
     var svg = document.createElementNS(SVGNS, 'svg');
@@ -1276,7 +1320,9 @@
     zr.appendChild(c.el('span', 'zoomlbl', t('sch_zoom')));
     zr.appendChild(c.btn('＋', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.min(sizes.length - 1, i + 1)] || 16; A.rerender(); }));
     zr.appendChild(c.btn((gantt.links ? '☑ ' : '☐ ') + t('sch_show_links'), '', function () { gantt.links = !gantt.links; A.rerender(); }));
-    zr.appendChild(c.btn((gantt.cols ? '☑ ' : '☐ ') + t('sch_columns'), '', function () { gantt.cols = !gantt.cols; A.rerender(); }));
+    zr.appendChild(c.btn(t('sch_columns') + ' (' + shownCols().length + ') ▾', '', function () { columnsMenu(c); }));
+    zr.appendChild(c.btn('▾ ' + t('sch_expand_all'), '', function () { foldAll(c, false); }));
+    zr.appendChild(c.btn('▸ ' + t('sch_collapse_all'), '', function () { foldAll(c, true); }));
     zr.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
     bar.appendChild(zr);
     var lg = c.el('div', 'glegend');
@@ -1286,7 +1332,7 @@
     bar.appendChild(lg);
     body.appendChild(bar);
 
-    var gw = gantt.gw, NAMEW = 150, EXTRA = gantt.cols ? 176 : 0, LABEL = NAMEW + EXTRA, a = sc.sd - ((S.dow(sc.sd) + 6) % 7), b = sc.fd;   // start on a Monday
+    var gw = gantt.gw, NAMEW = 150, SC = shownCols(), EXTRA = SC.reduce(function (s, x) { return s + x.w; }, 0), LABEL = NAMEW + EXTRA, a = sc.sd - ((S.dow(sc.sd) + 6) % 7), b = sc.fd;   // start on a Monday
     var n = b - a + 1, width = LABEL + n * gw;
     var wrap = c.el('div', 'gantt'), inner = c.el('div', 'gt-inner');
     inner.style.width = width + 'px';
@@ -1295,7 +1341,7 @@
     hm.style.width = width + 'px';
     var lab = c.el('div', 'gt-label gt-corner', t('sch_task'));
     hm.appendChild(lab);
-    if (EXTRA) hm.appendChild(c.el('div', 'gt-colhead gt-corner'));
+    if (EXTRA) { var hc0 = c.el('div', 'gt-colhead gt-corner'); hc0.style.width = EXTRA + 'px'; hc0.style.flexBasis = EXTRA + 'px'; hm.appendChild(hc0); }
     var area = c.el('div', 'gt-months');
     area.style.width = (n * gw) + 'px';
     var curKey = null, seg = null, segDays = 0;
@@ -1313,7 +1359,8 @@
     hd.appendChild(c.el('div', 'gt-label gt-corner'));
     if (EXTRA) {
       var ch = c.el('div', 'gt-colhead gt-corner');
-      ch.appendChild(c.el('span', 'cq', t('sch_qty'))); ch.appendChild(c.el('span', 'cd', t('sch_days_col'))); ch.appendChild(c.el('span', 'cp', t('sch_pred_col')));
+      ch.style.width = EXTRA + 'px'; ch.style.flexBasis = EXTRA + 'px';
+      SC.forEach(function (x) { var sp = c.el('span', null, t(x.h)); sp.style.flex = '0 0 ' + x.w + 'px'; sp.style.width = x.w + 'px'; ch.appendChild(sp); });
       hd.appendChild(ch);
     }
     var dayrow = c.el('div', 'gt-dayrow');
@@ -1338,10 +1385,14 @@
     if (today >= a && today <= b) { var tl = c.el('b', 'gt-today'); tl.style.left = ((today - a) * gw + gw / 2) + 'px'; stripes.appendChild(tl); }
     rowsBox.appendChild(stripes);
     var rowEls = {};
-    sc.rows.forEach(function (r) {
-      var row = c.el('div', 'gt-row lv' + r.level);
+    var succ = S.successors(sc), hid = hiddenRows(sc.rows);
+    sc.rows.forEach(function (r, ri) {
+      if (hid[ri]) return;
+      var row = c.el('div', 'gt-row lv' + r.level + ' d' + r.depth + (r.head ? ' head' : ''));
       rowEls[String(r.id)] = row;
       var lb = c.el('div', 'gt-label');
+      lb.style.paddingLeft = (6 + r.depth * 8) + 'px';
+      if (isContainer(r)) lb.appendChild(foldBtn(c, r));
       lb.appendChild(c.el('span', 'sid', String(r.n)));
       if (r.no) lb.appendChild(c.el('span', 'bno', r.no));
       lb.appendChild(document.createTextNode(r.desc));
@@ -1349,17 +1400,26 @@
       row.appendChild(lb);
       if (EXTRA) {
         var gcs = c.el('div', 'gt-cols');
-        gcs.appendChild(c.el('div', 'gc cq', qtyText(r)));
-        gcs.appendChild(durCell(c, r, 'gc cd'));
-        gcs.appendChild(predCell(c, r, 'gc cp'));
+        gcs.style.width = EXTRA + 'px';
+        SC.forEach(function (x) {
+          var cell;
+          if (x.k === 'qty') cell = c.el('div', 'gc cq', qtyText(r));
+          else if (x.k === 'days') cell = durCell(c, r, 'gc cd');
+          else if (x.k === 'start') cell = c.el('div', 'gc cs', r.sd != null ? shortDate(c, r.start) + (r.manual ? ' 📌' : '') : '');
+          else if (x.k === 'finish') cell = c.el('div', 'gc cf', r.sd != null ? shortDate(c, r.finish) : '');
+          else if (x.k === 'pred') cell = predCell(c, r, 'gc cp');
+          else cell = c.el('div', 'gc csu', isTask(r) ? S.formatLinks(succ[String(r.id)] || [], sc) : '');
+          cell.style.flex = '0 0 ' + x.w + 'px'; cell.style.width = x.w + 'px';
+          gcs.appendChild(cell);
+        });
         row.appendChild(gcs);
       }
       if (r.sd != null) {
-        var bx = c.el('div', 'gt-bar ' + (r.level === 0 ? 'gb-group' : r.level === 1 ? 'gb-line' : 'gb-task'));
+        var bx = c.el('div', 'gt-bar ' + (r.level === 0 ? 'gb-group' : (r.level === 1 || r.head) ? 'gb-line' : 'gb-task'));
         bx.style.left = (LABEL + (r.sd - a) * gw) + 'px';
         bx.style.width = Math.max(gw - 2, (r.fd - r.sd + 1) * gw - 2) + 'px';
         bx.title = r.desc + '\n' + A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + ' · ' + days(r.dur);
-        if (r.critical && r.level === 2) { bx.classList.add('crit'); bx.title += '\n' + t('sch_critical'); }
+        if (r.critical && isTask(r)) { bx.classList.add('crit'); bx.title += '\n' + t('sch_critical'); }
         var gi = g.by[r.id];
         if (gi) {
           if (gi.planned > 0) { var pl = c.el('i', 'gb-plan'); pl.style.width = Math.min(100, Math.round(gi.planned * 100)) + '%'; bx.appendChild(pl); }
@@ -1368,10 +1428,10 @@
           bx.title += '\n' + t('sch_planned') + ' ' + pct(gi.planned) + ' · ' + t('sch_actual') + ' ' + pct(gi.actual);
         }
         if ((r.fd - r.sd + 1) * gw >= 44) bx.appendChild(c.el('span', null, days(r.dur)));
-        if (r.level === 2) dragEnd(c, bx, r, gw);
+        if (isTask(r)) dragEnd(c, bx, r, gw);
         row.appendChild(bx);
       }
-      if (r.level === 2) { row.classList.add('click'); row.addEventListener('click', function () { quickEdit(c, r); }); }
+      if (isTask(r)) { row.classList.add('click'); row.addEventListener('click', function () { quickEdit(c, r); }); }
       rowsBox.appendChild(row);
     });
     inner.appendChild(rowsBox);
@@ -1380,6 +1440,28 @@
     wrap.appendChild(inner);
     body.appendChild(wrap);
     body.appendChild(c.el('p', 'muted small', t('sch_gantt_note')));
+  }
+
+  /* which Gantt columns are visible: a drop-down list of check boxes */
+  function columnsMenu(c) {
+    var ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal menusheet');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+    m.appendChild(c.el('h2', null, c.t('sch_columns')));
+    GCOLS.forEach(function (x) {
+      var row = c.el('label', 'colopt'), cb = c.el('input'); cb.type = 'checkbox'; cb.checked = !!gantt.colset[x.k];
+      cb.addEventListener('change', function () {
+        gantt.colset[x.k] = cb.checked;
+        try { localStorage.setItem('cbs.gantt.cols', JSON.stringify(gantt.colset)); } catch (e) {}
+        c.A.rerender();
+      });
+      row.appendChild(cb); row.appendChild(c.el('span', null, c.t(x.h)));
+      m.appendChild(row);
+    });
+    m.appendChild(c.el('p', 'muted small', c.t('sch_columns_note')));
+    m.appendChild(c.btn(c.t('close'), 'primary block', close));
+    ov.appendChild(m);
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    document.body.appendChild(ov);
   }
 
   /* ---------- entry points ---------- */

@@ -32,6 +32,7 @@
     css.push('text-align:' + (s.h === 'center' ? 'center' : s.h === 'right' ? 'right' : 'left'));
     css.push('vertical-align:' + (s.v === 'top' ? 'top' : s.v === 'bottom' ? 'bottom' : 'middle'));
     if (s.border) css.push('border:0.5pt solid #777');
+    if (s.ind) css.push('padding-left:' + (2 + s.ind * 6) + 'pt');
     return css.join(';');
   }
 
