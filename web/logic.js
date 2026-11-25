@@ -394,6 +394,30 @@
     }
     return out;
   }
+  /* productivity assumptions: { hours, factor, types: { id: { per:{unit:n}, crew:{name:n}, eq:{name:n}, preset } } } */
+  function sanitizeProd(pr) {
+    pr = pr && typeof pr === 'object' ? pr : {};
+    var out = { hours: num(pr.hours == null ? 8 : pr.hours, 1, 16), factor: num(pr.factor == null ? 1 : pr.factor, 0.2, 3), types: {} };
+    function nmap(m) {
+      var r = {};
+      if (m && typeof m === 'object') Object.keys(m).slice(0, 12).forEach(function (k) {
+        var nk = String(k).replace(/\s+/g, ' ').trim().slice(0, 40), v = num(m[k], 0, 100000);
+        if (nk) r[nk] = v;
+      });
+      return r;
+    }
+    if (pr.types && typeof pr.types === 'object') Object.keys(pr.types).slice(0, 40).forEach(function (id) {
+      var o = pr.types[id];
+      if (!/^[a-z0-9_]{1,24}$/.test(id) || !o || typeof o !== 'object') return;
+      var e = {};
+      if (o.per && typeof o.per === 'object') { e.per = nmap(o.per); Object.keys(e.per).forEach(function (k) { if (!(e.per[k] > 0)) delete e.per[k]; }); }
+      if (o.crew && typeof o.crew === 'object') e.crew = nmap(o.crew);
+      if (o.eq && typeof o.eq === 'object') e.eq = nmap(o.eq);
+      if (typeof o.preset === 'string' && /^[A-Za-z0-9_ -]{1,40}$/.test(o.preset)) e.preset = o.preset;
+      if (Object.keys(e).length) out.types[id] = e;
+    });
+    return out;
+  }
   function sanitizeSched(s) {
     s = s && typeof s === 'object' ? s : {};
     var cf = s.cf && typeof s.cf === 'object' ? s.cf : {};
@@ -429,6 +453,7 @@
       roles: mapList(s.roles, sanitizeRole, 80),
       equip: mapList(s.equip, sanitizeEquip, 60),
       tasks: tasks,
+      prod: sanitizeProd(s.prod),
       cf: {
         misc: misc, overhead: overhead, profit: profit,
         defSplit: ds, presets: presets, legacy: legacy, advPct: num(cf.advPct == null ? 20 : cf.advPct, 0, 100),
@@ -565,7 +590,7 @@
     return {
       v: 3,
       current: 'main',
-      settings: { lang: 'en', currency: 'ETB', theme: 'system', calendar: 'gregorian', pinHash: '', pinSalt: '' },
+      settings: { lang: 'en', currency: 'ETB', theme: 'system', calendar: 'gregorian', pinHash: '', pinSalt: '', prodDefault: null },
       books: [{ id: 'main', name: 'Main', projectId: '', businessId: '', entries: [] }],
       projects: [],
       contacts: [],
@@ -653,6 +678,7 @@
     if (CURRENCIES.indexOf(rs.currency) >= 0) s.settings.currency = rs.currency;
     if (THEMES.indexOf(rs.theme) >= 0) s.settings.theme = rs.theme;
     if (CALENDARS.indexOf(rs.calendar) >= 0) s.settings.calendar = rs.calendar;
+    if (rs.prodDefault && typeof rs.prodDefault === 'object') s.settings.prodDefault = sanitizeProd(rs.prodDefault);
     if (keepPin && typeof rs.pinHash === 'string' && typeof rs.pinSalt === 'string' && rs.pinHash && rs.pinSalt) {
       s.settings.pinHash = rs.pinHash.slice(0, 64);
       s.settings.pinSalt = rs.pinSalt.slice(0, 64);
@@ -1769,7 +1795,7 @@
     LANGS: LANGS, CURRENCIES: CURRENCIES, THEMES: THEMES, CALENDARS: CALENDARS, CODES: CODES,
     newId: newId, todayStr: todayStr, isDate: isDate, round2: round2,
     sanitizeEntry: sanitizeEntry, sanitizeState: sanitizeState, defaultState: defaultState, migrateOld: migrateOld,
-    sanitizeSched: sanitizeSched, SCHED_OFF: SCHED_OFF, sanitizeProject: sanitizeProject, sanitizeBill: sanitizeBill, sanitizeCert: sanitizeCert,
+    sanitizeSched: sanitizeSched, sanitizeProd: sanitizeProd, SCHED_OFF: SCHED_OFF, sanitizeProject: sanitizeProject, sanitizeBill: sanitizeBill, sanitizeCert: sanitizeCert,
     sanitizeWorker: sanitizeWorker, sanitizeAttendance: sanitizeAttendance, sanitizePayment: sanitizePayment,
     hashPin: hashPin, newSalt: newSalt, validPin: validPin,
     buildCsv: buildCsv, parseCsv: parseCsv, entriesFromCsv: entriesFromCsv,

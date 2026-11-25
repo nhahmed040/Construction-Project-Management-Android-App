@@ -175,6 +175,7 @@
     var row = c.el('div', 'btnrow');
     if (p.boq.length) row.appendChild(c.btn(t('sch_generate'), 'primary', function () { openGenerate(c); }));
     row.appendChild(c.btn(t('sch_settings'), '', function () { editSettings(c); }));
+    row.appendChild(c.btn(t('sch_prod'), '', function () { openProductivity(c); }));
     row.appendChild(c.btn(t('sch_import'), '', function () { pickImport(c, false); }));
     if (p.boq.length) row.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
     pn.appendChild(row);
@@ -243,28 +244,184 @@
       { type: 'note', text: t('sch_gen_intro') },
       { key: 'only', label: t('sch_gen_scope'), type: 'select', value: planned ? 'empty' : 'all',
         options: [{ value: 'all', label: t('sch_gen_all') }, { value: 'empty', label: t('sch_gen_empty') }] },
+      { key: 'strategy', label: t('sch_gen_strategy'), type: 'select', value: 'trade',
+        options: [{ value: 'trade', label: t('sch_gen_trade') }, { value: 'boq', label: t('sch_gen_boq') }] },
       { key: 'end', label: t('sch_gen_end'), type: 'date', value: p.endDate },
       { type: 'note', text: t('sch_gen_note') }
     ];
-    if (!p.startDate && !p.sched.start) fields.splice(2, 0, { key: 'start', label: t('sch_start'), type: 'date', value: L.todayStr() });
+    if (!p.startDate && !p.sched.start) fields.splice(3, 0, { key: 'start', label: t('sch_start'), type: 'date', value: L.todayStr() });
     A.openForm({
       title: t('sch_generate'),
-      submitLabel: t('sch_generate'),
+      submitLabel: t('sch_gen_preview'),
       fields: fields,
       onSubmit: function (v) {
         if (v.start && L.isDate(v.start)) p.sched.start = v.start;
-        var r = S.generate(p, { only: v.only, end: L.isDate(v.end) ? v.end : '' });
-        if (!r.tasks) { A.toast(r.kept ? t('sch_gen_nothing') : t('sch_auto_none')); return null; }
-        if (L.isDate(v.end) && !p.endDate) p.endDate = v.end;
-        A.save(); A.rerender();
-        var msg = t('sch_gen_done', { n: r.tasks, m: r.matched });
-        if (r.general) msg += ' ' + t('sch_gen_general', { n: r.general });
-        if (r.mult > 1) msg += ' ' + t('sch_gen_crews', { n: r.mult });
-        if (r.fits === false) msg += ' ' + t('sch_gen_nofit');
-        window.setTimeout(function () { A.toast(msg); }, 50);
+        window.setTimeout(function () { openPreview(c, { only: v.only, strategy: v.strategy, end: L.isDate(v.end) ? v.end : '' }); }, 30);
         return null;
       }
     });
+  }
+
+  /* the plan before it is applied: nothing is saved until Apply */
+  function openPreview(c, base) {
+    var p = c.p, t = c.t, A = c.A, sel = {}, types = {};
+    var ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal prevmodal');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+    function opts() {
+      var skip = {}, force = {};
+      Object.keys(sel).forEach(function (k) { if (sel[k] === false) skip[k] = true; else if (sel[k] === true) force[k] = true; });
+      return { only: base.only, strategy: base.strategy, end: base.end, skip: skip, force: force, types: types };
+    }
+    function draw() {
+      var pv = S.preview(p, opts());
+      m.textContent = '';
+      m.appendChild(c.el('h2', null, t('sch_gen_preview')));
+      if (!pv.tasks) {
+        m.appendChild(c.el('p', 'muted small', pv.kept ? t('sch_gen_nothing') : t('sch_auto_none')));
+      }
+      var pn = c.panel(null);
+      pn.appendChild(c.kv(t('sch_finish'), pv.finish ? A.fmtDate(pv.finish) : '–'));
+      if (base.end) {
+        pn.appendChild(c.kv(t('sch_target'), A.fmtDate(base.end)));
+        if (pv.fits === false || (pv.finish && pv.finish > base.end)) pn.appendChild(c.el('div', 'warn', t('sch_gen_nofit')));
+      }
+      pn.appendChild(c.kv(t('sch_workdays'), String(pv.workDays)));
+      pn.appendChild(c.kv(t('sch_gen_mandays'), S.fmtNum(pv.manDays)));
+      pn.appendChild(c.kv(t('sch_gen_peak'), String(pv.peak)));
+      pn.appendChild(c.kv(t('sch_gen_critical'), String(pv.critical)));
+      if (pv.mult > 1) pn.appendChild(c.el('div', 'muted small', t('sch_gen_crews', { n: pv.mult })));
+      if (pv.general) pn.appendChild(c.el('div', 'warn', t('sch_gen_general', { n: pv.general })));
+      m.appendChild(pn);
+      var list = c.el('div', 'panel');
+      pv.rows.forEach(function (r) {
+        var key = String(r.id), row = c.el('div', 'improw prow');
+        var cb = c.el('input'); cb.type = 'checkbox'; cb.checked = r.planned;
+        cb.addEventListener('change', function () { sel[key] = cb.checked; draw(); });
+        row.appendChild(cb);
+        var tx = c.el('span', 'stext');
+        tx.appendChild(c.el('b', null, (r.n ? r.n + '. ' : '') + (r.no ? r.no + ' ' : '') + r.desc));
+        var info = r.planned
+          ? S.fmtNum(r.dur) + ' ' + t('sch_days_short') + ' · ' + (r.start ? A.fmtDate(r.start) : '') + (r.links ? ' · ← ' + r.links : '') + (r.crew.length ? ' · ' + r.crew.join(', ') : '')
+          : (r.kept === 'manual' ? t('sch_gen_kept_manual') : r.kept === 'has' ? t('sch_gen_kept_has') : r.kept === 'skip' ? t('sch_gen_kept_skip') : '');
+        tx.appendChild(c.el('small', 'muted', info));
+        if (r.planned && !r.matched) tx.appendChild(c.el('small', 'warn', t('sch_gen_general_row')));
+        if (r.planned) {
+          var sl = c.el('select', 'tsel');
+          S.TEMPLATES.concat([{ id: 'general', label: t('sch_gen_general_type') }]).forEach(function (tp) {
+            var o = c.el('option', null, tp.label); o.value = tp.id; if (tp.id === (r.matched ? r.type : 'general')) o.selected = true; sl.appendChild(o);
+          });
+          sl.addEventListener('change', function () { types[key] = sl.value; draw(); });
+          tx.appendChild(sl);
+        }
+        row.appendChild(tx);
+        list.appendChild(row);
+      });
+      m.appendChild(list);
+      var br = c.el('div', 'btnrow');
+      var ap = c.btn(t('sch_gen_apply'), 'primary', function () {
+        var r = S.generate(p, opts());
+        if (!p.endDate && base.end) p.endDate = base.end;
+        A.save(); close(); A.rerender();
+        var msg = t('sch_gen_done', { n: r.tasks, m: r.matched });
+        if (r.mult > 1) msg += ' ' + t('sch_gen_crews', { n: r.mult });
+        window.setTimeout(function () { A.toast(msg); }, 50);
+      });
+      if (!pv.tasks) ap.disabled = true;
+      br.appendChild(ap);
+      br.appendChild(c.btn(t('sch_prod'), '', function () { close(); openProductivity(c, function () { openPreview(c, base); }); }));
+      m.appendChild(br);
+      m.appendChild(c.btn(t('cancel'), 'block', close));
+    }
+    ov.appendChild(m);
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    document.body.appendChild(ov);
+    draw();
+  }
+
+  /* editable productivity assumptions for this project */
+  function parseMap(txt) {
+    var out = {};
+    String(txt || '').split(/[,;\n]+/).forEach(function (part) {
+      var m = /^\s*(.+?)\s*[:=x×]?\s*(\d+(?:\.\d+)?)\s*$/.exec(part);
+      if (m) out[m[1].trim()] = parseFloat(m[2]);
+    });
+    return out;
+  }
+  function mapText(o) { return Object.keys(o || {}).map(function (k) { return k + ' ' + o[k]; }).join(', '); }
+
+  function openProductivity(c, done) {
+    var p = c.p, t = c.t, A = c.A, s = p.sched;
+    var pr = JSON.parse(JSON.stringify(S.prodOf(p)));
+    var ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal prevmodal');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+    function num(v, d) { var x = parseFloat(v); return isFinite(x) && x > 0 ? x : d; }
+    var inputs = { types: {} };
+    function field(label, value, cls) {
+      var w = c.el('label', 'pfield'); w.appendChild(c.el('span', 'muted small', label));
+      var i = c.el('input'); i.value = value; i.type = cls === 'text' ? 'text' : 'number'; if (cls !== 'text') { i.step = 'any'; i.inputMode = 'decimal'; }
+      w.appendChild(i); return { wrap: w, input: i };
+    }
+    function build() {
+      m.textContent = '';
+      m.appendChild(c.el('h2', null, t('sch_prod')));
+      m.appendChild(c.el('p', 'muted small', t('sch_prod_intro')));
+      var g = c.panel(t('sch_prod_global'));
+      inputs.hours = field(t('sch_prod_hours'), pr.hours); inputs.factor = field(t('sch_prod_factor'), pr.factor);
+      g.appendChild(inputs.hours.wrap); g.appendChild(inputs.factor.wrap);
+      g.appendChild(c.el('p', 'muted small', t('sch_prod_global_note')));
+      m.appendChild(g);
+      var presets = S.presetList(s.cf);
+      S.TEMPLATES.forEach(function (tp) {
+        var o = (pr.types[tp.id]) || {}, eff = S.effTpl({ sched: { prod: pr } }, tp), ctl = {};
+        var d = c.el('details', 'fold'); var sm = c.el('summary', null, tp.label + (pr.types[tp.id] ? ' ✎' : '')); d.appendChild(sm);
+        ctl.per = {};
+        Object.keys(tp.per || {}).forEach(function (k) {
+          var f = field(t('sch_prod_output') + ' (' + (k === 'def' ? t('sch_prod_default_unit') : k) + ' / ' + t('sch_prod_crewday') + ')', eff.per[k]);
+          ctl.per[k] = f.input; d.appendChild(f.wrap);
+        });
+        var fc = field(t('sch_prod_crew'), mapText(eff.crew), 'text'), fe = field(t('sch_prod_equip'), mapText(eff.eq), 'text');
+        d.appendChild(fc.wrap); d.appendChild(fe.wrap);
+        ctl.crew = fc.input; ctl.eq = fe.input;
+        var pw = c.el('label', 'pfield'); pw.appendChild(c.el('span', 'muted small', t('sch_prod_preset')));
+        var sl = c.el('select');
+        var none = c.el('option', null, '—'); none.value = ''; sl.appendChild(none);
+        presets.forEach(function (q) { var op = c.el('option', null, q.name || t('sch_preset_' + q.id)); op.value = q.id; sl.appendChild(op); });
+        sl.value = eff.preset || S.TPL_PRESET && S.TPL_PRESET[tp.id] || '';
+        pw.appendChild(sl); d.appendChild(pw); ctl.preset = sl;
+        d.appendChild(c.btn(t('sch_prod_type_reset'), '', function () { delete pr.types[tp.id]; collect(); build(); }));
+        inputs.types[tp.id] = ctl;
+        m.appendChild(d);
+      });
+      var br = c.el('div', 'btnrow');
+      br.appendChild(c.btn(t('save'), 'primary', function () { collect(); s.prod = L.sanitizeProd(pr); A.save(); close(); if (done) done(); else A.rerender(); }));
+      br.appendChild(c.btn(t('sch_prod_save_default'), '', function () { collect(); s.prod = L.sanitizeProd(pr); A.setProdDefault(s.prod); A.save(); A.toast(t('sch_prod_default_saved')); }));
+      m.appendChild(br);
+      var br2 = c.el('div', 'btnrow');
+      br2.appendChild(c.btn(t('sch_prod_reset'), '', function () { pr = { hours: 8, factor: 1, types: {} }; build(); }));
+      br2.appendChild(c.btn(t('sch_prod_use_default'), '', function () { var d0 = A.getProdDefault(); if (!d0) { A.toast(t('sch_prod_no_default')); return; } pr = JSON.parse(JSON.stringify(d0)); build(); }));
+      m.appendChild(br2);
+      m.appendChild(c.btn(t('cancel'), 'block', function () { close(); if (done) done(); }));
+    }
+    /* keep only what differs from the built-in table */
+    function collect() {
+      if (!inputs.hours) return;
+      pr.hours = num(inputs.hours.input.value, 8); pr.factor = num(inputs.factor.input.value, 1);
+      S.TEMPLATES.forEach(function (tp) {
+        var ctl = inputs.types[tp.id]; if (!ctl) return;
+        var e = {}, per = {};
+        Object.keys(ctl.per).forEach(function (k) { var v = num(ctl.per[k].value, tp.per[k]); if (Math.abs(v - tp.per[k]) > 1e-9) per[k] = v; });
+        if (Object.keys(per).length) e.per = per;
+        var crew = parseMap(ctl.crew.value), eq = parseMap(ctl.eq.value);
+        if (mapText(crew) !== mapText(tp.crew)) e.crew = crew;
+        if (mapText(eq) !== mapText(tp.eq)) e.eq = eq;
+        var base = S.TPL_PRESET[tp.id] || tp.preset || '';
+        if (ctl.preset.value !== base) e.preset = ctl.preset.value || base;
+        if (Object.keys(e).length) pr.types[tp.id] = e; else delete pr.types[tp.id];
+      });
+    }
+    ov.appendChild(m);
+    document.body.appendChild(ov);
+    build();
   }
 
   function editSettings(c) {

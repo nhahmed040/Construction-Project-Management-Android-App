@@ -61,3 +61,8 @@ Every row of the schedule has an ID, its row number (1, 2, 3 ...), as in MS Proj
 ## Editing in the lists
 
 The Schedule list and the Gantt show Qty, Days and Predecessors for every task. Tap Days to change a duration, tap Predecessors to type links (`3`, `5SS+2`, `7FF-1`); they save at once and the dates, bars and link lines update. Quantity comes from the BoQ and is read-only. The page and the Gantt keep their scroll position after a save. On the Manpower and Equipment pages the tasks come first; the types, the month grid and the daily chart are sections that fold.
+
+## Smarter generation
+
+*Generate* now opens a **preview** first: tick or untick items, change the type of work per item, and see finish date, man-days, peak people and critical tasks before anything is saved. Choose **Trade logic** (real links and overlaps between trades, e.g. plaster starts at 50% of the block work) or **Follow BoQ order**. Tasks with a manual date are kept unless you tick them.
+**Productivity** (Schedule screen) lets you edit output per crew-day, crew, equipment and cost preset per type of work, plus hours per day (8 = table) and a site-difficulty factor. *Save as my default* makes new projects start with your set.

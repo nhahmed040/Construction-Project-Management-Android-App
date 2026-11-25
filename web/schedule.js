@@ -102,7 +102,7 @@
       if (Array.isArray(t.pred)) {
         t.pred.forEach(function (q) {
           var pid = String(q.id);
-          if (pid !== id && byId[pid] && !r.preds.some(function (x) { return x.id === pid; })) r.preds.push({ id: pid, type: q.type, lag: q.lag || 0 });
+          if (pid !== id && byId[pid] && !r.preds.some(function (x) { return x.id === pid && x.type === q.type; })) r.preds.push({ id: pid, type: q.type, lag: q.lag || 0 });
         });
         r.explicit = true;
       } else if (r.seq != null && !r.manual) {
@@ -213,7 +213,8 @@
       var row = sc.byN[+m[1]];
       if (!row || !row.sched) { bad = { part: part, why: 'task' }; return; }
       if (String(row.id) === String(selfId)) { bad = { part: part, why: 'self' }; return; }
-      if (out.some(function (q) { return q.id === String(row.id); })) { bad = { part: part, why: 'twice' }; return; }
+      var ty = (m[2] || 'FS').toUpperCase();
+      if (out.some(function (q) { return q.id === String(row.id) && q.type === ty; })) { bad = { part: part, why: 'twice' }; return; }
       out.push({ id: String(row.id), type: (m[2] || 'FS').toUpperCase(), lag: Math.round(Number((m[3] || '0').replace(/\s+/g, '')) || 0) });
     });
     return { list: out, error: bad };
@@ -223,6 +224,32 @@
       var r = sc.byId[String(q.id)];
       return (r ? r.n : '?') + (q.type !== 'FS' || q.lag ? q.type : '') + (q.lag ? (q.lag > 0 ? '+' : '') + q.lag : '');
     }).join(', ');
+  }
+
+  /* What generate would do, worked out on a copy: nothing is changed. Returns the rows to show and a summary. */
+  function preview(p, opts) {
+    var copy = JSON.parse(JSON.stringify(p)), before = compute(p), was = {};
+    before.rows.forEach(function (r) { if (r.level === 2) was[String(r.id)] = (r.dur || 0) + '|' + (r.start || '') + '|' + formatLinks(r.sched ? r.preds : (r.task && r.task.pred) || [], before); });
+    var res = generate(copy, opts), sc = compute(copy), rows = [], typeOf = {}, keptWhy = {};
+    (res.plan || []).forEach(function (x) { typeOf[String(x.id)] = x; });
+    (res.keptList || []).forEach(function (x) { keptWhy[String(x.id)] = x.why; });
+    var changed = 0, manDays = 0, byKey = function (iso) { return iso.slice(0, 7); };
+    sc.rows.forEach(function (r) {
+      if (r.level !== 2) return;
+      var key = String(r.id), x = typeOf[key], tk = copy.sched.tasks[key] || {};
+      var crew = Object.keys(tk.mp || {}).map(function (rid) {
+        var role = copy.sched.roles.filter(function (q) { return String(q.id) === rid; })[0];
+        return role ? role.name + ' ' + tk.mp[rid] : '';
+      }).filter(Boolean);
+      var row = { id: r.id, n: r.n, no: r.no, desc: r.desc, unit: r.unit, qty: r.qty, planned: !!x, kept: keptWhy[key] || '', type: x ? x.type : (tk.tpl || ''), label: x ? x.label : '',
+        matched: x ? x.matched : true, per: x ? x.per : 0, dur: r.dur, start: r.start, finish: r.finish, crew: crew,
+        links: formatLinks(r.sched ? r.preds : tk.pred || [], sc), split: tk.split || null };
+      if (x && was[key] !== (r.dur || 0) + '|' + (r.start || '') + '|' + formatLinks(r.sched ? r.preds : tk.pred || [], sc)) changed += 1;
+      rows.push(row);
+    });
+    var mp = manpower(copy, sc, byKey);
+    return { rows: rows, finish: sc.finish, start: sc.start, workDays: sc.workDays, critical: sc.critical.length, count: sc.count, manDays: mp.totalDays, peak: mp.peak,
+      tasks: res.tasks || 0, matched: res.matched || 0, general: res.general || 0, kept: res.kept || 0, mult: res.mult || 1, fits: res.fits, end: res.end || '', strategy: res.strategy || 'boq', changed: changed };
   }
 
   /* Would linking `id` after `predId` close a loop? (used by the editor) */
@@ -515,44 +542,153 @@
     var x = make(); list.push(x); return x;
   }
 
+  /* ---------- productivity assumptions ----------
+     p.sched.prod = { hours, factor, types: { <type id>: { per:{unit:output}, crew:{role:n}, eq:{machine:n}, preset } } }
+     Only what you changed is stored; everything else comes from TEMPLATES. */
+  function prodOf(p) { return p.sched.prod || { hours: 8, factor: 1, types: {} }; }
+  function effTpl(p, tpl) {
+    var o = prodOf(p).types[tpl.id];
+    if (!o) return tpl;
+    var e = {};
+    Object.keys(tpl).forEach(function (k) { e[k] = tpl[k]; });
+    if (o.per) { e.per = {}; Object.keys(tpl.per || {}).forEach(function (k) { e.per[k] = tpl.per[k]; }); Object.keys(o.per).forEach(function (k) { e.per[k] = o.per[k]; }); }
+    if (o.crew) e.crew = o.crew;
+    if (o.eq) e.eq = o.eq;
+    if (o.preset != null) e.preset = o.preset;
+    return e;
+  }
+  /* the output per crew-day the generator uses: 8 hours and a factor of 1 give the table figure */
+  function speedOf(p) { var pr = prodOf(p); return (pr.hours / 8) * pr.factor; }
+
+  /* ---------- trade logic ----------
+     For each type of work: which other types it follows, with what kind of link. f = overlap as a part of the predecessor's
+     duration (an SS link waits f * its duration); lag is in working days. Every link points to a type that comes earlier in
+     the building order, so the links cannot loop. Items of one type are chained in BoQ order (one crew). */
+  var TRADE = {
+    cart: [{ t: ['excav'], type: 'SS', lag: 1 }, { t: ['excav'], type: 'FF', lag: 1 }],
+    masonry: [{ t: ['excav', 'mobil'], type: 'FS' }],
+    backfill: [{ t: ['masonry', 'excav', 'mobil'], type: 'FS' }],
+    hardcore: [{ t: ['backfill', 'masonry', 'excav', 'mobil'], type: 'FS' }],
+    lean: [{ t: ['hardcore', 'backfill', 'masonry', 'excav', 'mobil'], type: 'FS' }],
+    formwork: [{ t: ['lean', 'hardcore', 'backfill', 'masonry', 'excav', 'mobil'], type: 'FS' }],
+    rebar: [{ t: ['formwork'], type: 'SS', lag: 1 }, { t: ['lean', 'hardcore', 'backfill', 'masonry', 'excav', 'mobil'], type: 'FS' }],
+    concrete: [{ t: ['formwork'], type: 'FS' }, { t: ['rebar'], type: 'FS' }],
+    hcb: [{ t: ['concrete'], type: 'SS', f: 0.5 }, { t: ['concrete'], type: 'FF', lag: 1 }],
+    roof: [{ t: ['hcb', 'concrete'], type: 'SS', f: 0.7 }, { t: ['hcb', 'concrete'], type: 'FF', lag: 1 }],
+    carp: [{ t: ['roof', 'hcb', 'concrete'], type: 'FS' }],
+    plaster: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.5 }, { t: ['hcb', 'masonry', 'concrete'], type: 'FF', lag: 1 }],
+    pointing: [{ t: ['masonry', 'hcb'], type: 'FS' }],
+    plumb: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.4 }],
+    elec: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.4 }],
+    metal: [{ t: ['plaster', 'hcb'], type: 'FS' }],
+    glaze: [{ t: ['metal', 'plaster', 'hcb'], type: 'FS' }],
+    tile: [{ t: ['plaster', 'hcb', 'concrete'], type: 'FS' }],
+    paint: [{ t: ['plaster', 'carp', 'roof', 'hcb'], type: 'FS' }]
+  };
+
+  /* links for the items in `list` ([{ id, type, dur, g0, g1 }] in BoQ order); returns { id: [links] } */
+  function tradeLinks(list) {
+    var out = {};
+    function nearest(cands, k) {   // the candidate closest to position k, the earlier one when equal
+      var best = null, bd = 1e9;
+      cands.forEach(function (c) { var d = Math.abs(c.k - k) + (c.k > k ? 0.5 : 0); if (d < bd) { bd = d; best = c; } });
+      return best;
+    }
+    list.forEach(function (x, k) {
+      var links = [];
+      function add(target, type, lag) {
+        if (!target || target.id === x.id) return;
+        if (links.some(function (q) { return q.id === target.id && q.type === type; })) return;
+        links.push({ id: target.id, type: type, lag: lag });
+      }
+      var rules = TRADE[x.type] || [];
+      rules.forEach(function (rule) {
+        var hit = null;
+        for (var i = 0; i < rule.t.length && !hit; i++) {
+          var cands = list.filter(function (y) { return y.type === rule.t[i] && y.id !== x.id; });
+          var scopes = [cands.filter(function (y) { return y.g1 === x.g1; }), cands.filter(function (y) { return y.g0 === x.g0; }), cands.filter(function (y) { return y.k < k; })];
+          for (var sc = 0; sc < scopes.length && !hit; sc++) if (scopes[sc].length) hit = nearest(scopes[sc], k);
+        }
+        if (!hit) return;
+        var lag = rule.lag || 0;
+        if (rule.f) lag = Math.round(rule.f * hit.dur);
+        add(hit, rule.type, lag);
+      });
+      // the same kind of work follows the one before it (one crew)
+      var prevSame = null;
+      for (var j = k - 1; j >= 0; j--) if (list[j].type === x.type) { prevSame = list[j]; break; }
+      add(prevSame, 'FS', 0);
+      // nothing to follow: go after the item before it, except the very first
+      if (!links.length && k > 0) add(list[k - 1], 'FS', 0);
+      out[x.id] = links;
+    });
+    return out;
+  }
+
   /* opts: { only: 'all' | 'empty', end: 'YYYY-MM-DD' }. Fills p.sched in place. Returns a summary. */
   function generate(p, opts) {
     opts = opts || {};
     var s = p.sched, only = opts.only === 'empty' ? 'empty' : 'all', off = offMap(s);
+    var strategy = opts.strategy === 'trade' ? 'trade' : 'boq', skip = opts.skip || {}, types = opts.types || {};
     var items = p.boq.filter(function (i) { return L.isItemRow(i) && !L.isHeading(i); });
     if (!items.length) return { tasks: 0 };
     if (!s.roles.length) STD_ROLES.forEach(function (r) { if (r[1] === 'permanent') s.roles.push({ id: L.newId(), name: r[0], type: 'permanent', person: '', count: 1 }); });
-    var plan = [], matched = 0, general = 0, general_names = [];
+    var plan = [], matched = 0, general = 0, general_names = [], kept = [];
     items.forEach(function (it) {
-      var cur = s.tasks[String(it.id)];
-      if (only === 'empty' && cur && cur.dur > 0) return;
-      var tpl = templateOf(it), per = outputOf(tpl, it.unit);
+      var key = String(it.id), cur = s.tasks[key];
+      if (skip[key]) { kept.push({ id: it.id, why: 'skip' }); return; }
+      var forced = opts.force && opts.force[key];
+      if (cur && cur.dur > 0 && cur.start && !forced) { kept.push({ id: it.id, why: 'manual' }); return; }   // a manual date is not overwritten
+      if (only === 'empty' && cur && cur.dur > 0 && !forced) { kept.push({ id: it.id, why: 'has' }); return; }
+      var base = types[key] ? templateById(types[key]) : templateOf(it), tpl = base;
       if (!tpl) { tpl = DEFAULT_TPL; general += 1; if (general_names.length < 5) general_names.push((it.no ? it.no + ' ' : '') + it.desc.slice(0, 40)); } else matched += 1;
-      plan.push({ it: it, tpl: tpl, per: per });
+      var eff = effTpl(p, tpl), per = outputOf(eff, it.unit) * speedOf(p);
+      plan.push({ it: it, tpl: eff, base: tpl, per: per, matched: !!base });
     });
-    if (!plan.length) return { tasks: 0, kept: items.length };
+    if (!plan.length) return { tasks: 0, kept: items.length, keptList: kept };
+    // the position of every item in the BoQ and the headings above it (for the trade links)
+    var info = {}, g0 = -1, g1 = -1, pos = 0;
+    p.boq.forEach(function (i, idx) {
+      if (i.kind === 'group') { g0 = idx; g1 = -1; return; }
+      if (i.kind === 'line') { g1 = idx; return; }
+      if (L.isItemRow(i) && !L.isHeading(i)) info[String(i.id)] = { k: pos++, g0: g0, g1: g1 };
+    });
+    var planById = {};
+    plan.forEach(function (x) { planById[String(x.it.id)] = x; });
     var endDay = opts.end && L.isDate(opts.end) ? toDays(opts.end) : null, mult = 1, finishDay = null, fits = null;
     function apply(m) {
       plan.forEach(function (x) {
         var key = String(x.it.id), t = s.tasks[key] || (s.tasks[key] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
-        t.dur = roundDur(x.it.qty / (x.per * m)); t.start = ''; t.par = false; t.tpl = x.tpl.id;
+        t.dur = roundDur(x.it.qty / (x.per * m)); t.start = ''; t.par = false; t.tpl = x.base.id;
         t.mp = {}; t.eq = {};
         Object.keys(x.tpl.crew || {}).forEach(function (n) {
           var perm = STD_ROLES.filter(function (r) { return r[0] === n; })[0];
           var role = ensure(s.roles, n, function () { return { id: L.newId(), name: n, type: perm ? perm[1] : 'temporary', person: '', count: perm && perm[1] === 'permanent' ? 1 : 0 }; });
           var c = x.tpl.crew[n];
-          t.mp[String(role.id)] = role.type === 'permanent' ? c : c * m;
+          if (c > 0) t.mp[String(role.id)] = role.type === 'permanent' ? c : c * m;
         });
         Object.keys(x.tpl.eq || {}).forEach(function (n) {
           var src = STD_EQUIP.filter(function (e) { return e[0] === n; })[0];
           var eq = ensure(s.equip, n, function () { return { id: L.newId(), name: n, source: src ? src[1] : 'Rental' }; });
-          t.eq[String(eq.id)] = x.tpl.eq[n];
+          if (x.tpl.eq[n] > 0) t.eq[String(eq.id)] = x.tpl.eq[n];
         });
         var pid = x.tpl.preset || TPL_PRESET[x.tpl.id];
         if (pid === 'earth_mach' && /trench|manual|by hand|hand dug/i.test(x.it.desc || '')) pid = 'earth_lab';
         var sp = pid ? presetSplit(s.cf, pid) : null, def = s.cf.defSplit;
         if (sp && !(Math.abs(sp[0] - def[0]) < 0.01 && Math.abs(sp[1] - def[1]) < 0.01 && Math.abs(sp[2] - def[2]) < 0.01)) t.split = sp; else delete t.split;
+        delete t.pred; delete t.delay; delete t.snet;
       });
+      if (strategy === 'trade') {
+        var list = [];
+        items.forEach(function (it) {
+          var key = String(it.id), tk = s.tasks[key];
+          if (!tk || !(tk.dur > 0)) return;
+          var pl = planById[key], inf = info[key];
+          list.push({ id: key, type: pl ? pl.base.id : (tk.tpl || (templateOf(it) || DEFAULT_TPL).id), dur: tk.dur, k: list.length, g0: inf.g0, g1: inf.g1 });
+        });
+        var links = tradeLinks(list);
+        plan.forEach(function (x) { var key = String(x.it.id); if (links[key]) s.tasks[key].pred = links[key]; });
+      }
     }
     for (mult = 1; mult <= 10; mult++) {
       apply(mult);
@@ -562,7 +698,7 @@
     }
     if (mult > 10) mult = 10;
     if (endDay != null && finishDay != null) fits = finishDay <= endDay;
-    return { tasks: plan.length, matched: matched, general: general, generalNames: general_names, mult: mult, finish: finishDay == null ? '' : fromDays(finishDay), end: opts.end || '', fits: fits };
+    return { tasks: plan.length, matched: matched, general: general, generalNames: general_names, kept: kept.length, keptList: kept, plan: plan.map(function (x) { return { id: x.it.id, type: x.base.id, label: x.base.label, per: x.per, matched: x.matched }; }), strategy: strategy, mult: mult, finish: finishDay == null ? '' : fromDays(finishDay), end: opts.end || '', fits: fits };
   }
 
   /* ---------- progress against the plan ----------
@@ -850,7 +986,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

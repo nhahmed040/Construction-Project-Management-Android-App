@@ -365,3 +365,29 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
     console.log('done');
   }).catch(function (e) { console.log('FAIL excel read ' + e.message); process.exitCode = 1; });
 })();
+
+/* ---- smarter generation: trade logic, productivity, preview ---- */
+(function () {
+  var S2 = require('../web/schedule.js'), L2 = require('../web/logic.js');
+  function mk() {
+    var p = L2.sanitizeProject({ name: 'T', boqLines: 2 }, 1);
+    p.boq = [
+      { id: 1, kind: 'item', no: '1', desc: 'Excavation for foundation', unit: 'M³', qty: 96, rate: 100 },
+      { id: 2, kind: 'item', no: '2', desc: 'Hollow block wall 20cm', unit: 'M²', qty: 400, rate: 100 },
+      { id: 3, kind: 'item', no: '3', desc: 'Plastering to walls', unit: 'M²', qty: 900, rate: 100 }
+    ].map(function (i) { return L2.sanitizeProject({ boq: [i] }, 1).boq[0] || i; });
+    p.sched.start = '2026-12-01';
+    return p;
+  }
+  var p = mk();
+  if (!p.boq.length || !S2.generate) { console.log('skip new tests'); return; }
+  var pv = S2.preview(p, { strategy: 'trade' });
+  if (Object.keys(p.sched.tasks).length) throw new Error('preview changed the project');
+  S2.generate(p, { strategy: 'trade' });
+  var plast = p.sched.tasks[String(p.boq[2].id)];
+  if (!plast.pred || !plast.pred.length) throw new Error('trade logic made no links');
+  var p2 = mk(); p2.sched.prod = L2.sanitizeProd({ hours: 10, factor: 1, types: {} });
+  S2.generate(p2, { strategy: 'boq' }); S2.generate(p, { strategy: 'boq' });
+  if (!(p2.sched.tasks[String(p2.boq[0].id)].dur <= p.sched.tasks[String(p.boq[0].id)].dur)) throw new Error('hours/day did not speed up');
+  console.log('new generation tests ok');
+})();

@@ -1314,6 +1314,8 @@
         function back() { window.scrollTo(0, y); var g2 = document.querySelector('.gantt'); if (g2) { g2.scrollLeft = gl; g2.scrollTop = gt; } }
         back(); requestAnimationFrame(back);
       },
+      getProdDefault: function () { return state.settings.prodDefault; },
+      setProdDefault: function (v) { state.settings.prodDefault = v; },
       goSection: function (sec) { ui.section = sec; renderProjects(); window.scrollTo(0, 0); },
       addProject: function (np) { state.projects.push(np); ui.projectId = np.id; ui.section = 'schedule'; showView('projects'); save(); renderAll(); window.scrollTo(0, 0); }
     };
@@ -1723,7 +1725,7 @@
 
   /* New project from a BoQ file: the project is created from the file name and only kept when the import goes through */
   function newProjectFromBoq() {
-    var np = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50 }, state.projects.length + 1);
+    var np = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50, sched: { prod: state.settings.prodDefault || undefined } }, state.projects.length + 1);
     boqNew = np; boqTarget = np;
     $('boqFile').click();
   }
@@ -1867,7 +1869,7 @@
   }
   function newProject() {
     // VAT 15%, retention 5%, withholding 3% and advance 20% are starting values only: set them to what your contract says.
-    var p = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50 }, state.projects.length + 1);
+    var p = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50, sched: { prod: state.settings.prodDefault || undefined } }, state.projects.length + 1);
     p.name = '';
     openForm({
       title: t('new_project'),
