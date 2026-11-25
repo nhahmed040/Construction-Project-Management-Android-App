@@ -19,8 +19,29 @@
   }
   function fromDays(n) { return new Date(n * DAY).toISOString().slice(0, 10); }
   function dow(n) { return ((n + 4) % 7 + 7) % 7; } // 0 = Sunday (1970-01-01 was a Thursday)
-  function offMap(s) { var o = {}; ((s && s.off) || [0]).forEach(function (d) { o[d] = true; }); return o; }
-  function nextWork(n, off) { var g = 0; while (off[dow(n)] && g < 8) { n += 1; g += 1; } return n; }
+  function offMap(s) {
+    var o = {}, h = {}, any = false;
+    ((s && s.off) || [0]).forEach(function (d) { o[d] = true; });
+    ((s && s.hol) || []).forEach(function (x) {   // holidays and other days nobody works: { from, to, name }
+      var a = toDays(x.from), b = toDays(x.to || x.from);
+      if (a == null || b == null) return;
+      for (var d = a; d <= Math.max(a, b) && d - a < 400; d++) { h[d] = true; any = true; }
+    });
+    if (any) Object.defineProperty(o, 'h', { value: h, enumerable: false });
+    return o;
+  }
+  function isOff(off, n) { return !!(off[dow(n)] || (off.h && off.h[n])); }
+  /* the fixed public holidays of Ethiopia in one Gregorian year (Easter, Eid and other moving days are added by hand) */
+  function holidaysEthiopia(y) {
+    var leapNext = ((y + 1) % 4 === 0 && ((y + 1) % 100 !== 0 || (y + 1) % 400 === 0)), leap = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0));
+    function d(m, day) { return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day; }
+    return [
+      { from: d(1, 7), name: 'Genna (Christmas)' }, { from: d(1, leap ? 20 : 19), name: 'Timkat (Epiphany)' }, { from: d(3, 2), name: 'Victory of Adwa' },
+      { from: d(5, 1), name: 'International Labour Day' }, { from: d(5, 5), name: 'Patriots\' Victory Day' }, { from: d(5, 28), name: 'Downfall of the Derg' },
+      { from: d(9, leapNext ? 12 : 11), name: 'Enkutatash (New Year)' }, { from: d(9, leapNext ? 28 : 27), name: 'Meskel (Finding of the True Cross)' }
+    ];
+  }
+  function nextWork(n, off) { var g = 0; while (isOff(off, n) && g < 400) { n += 1; g += 1; } return n; }
   /* finish day of a task: dur working days from start (a part of a day still uses that day) */
   function finishOf(start, dur, off) {
     var steps = Math.max(1, Math.ceil(dur - 1e-9)), d = nextWork(start, off);
@@ -29,12 +50,12 @@
   }
   function workList(a, b, off) {
     var out = [];
-    for (var d = a; d <= b; d++) if (!off[dow(d)]) out.push(d);
+    for (var d = a; d <= b; d++) if (!isOff(off, d)) out.push(d);
     return out.length ? out : [a];
   }
   function workCount(a, b, off) { return workList(a, b, off).length; }
 
-  function prevWork(n, off) { var g = 0; while (off[dow(n)] && g < 8) { n -= 1; g += 1; } return n; }
+  function prevWork(n, off) { var g = 0; while (isOff(off, n) && g < 400) { n -= 1; g += 1; } return n; }
   /* move n working days from a day (n may be negative or 0) */
   function addWork(d, n, off) {
     if (!n) return nextWork(d, off);
@@ -985,7 +1006,7 @@
   function fmtNum(n) { return (Math.round(n * 100) / 100).toLocaleString('en', { maximumFractionDigits: 2 }); }
 
   return {
-    toDays: toDays, fromDays: fromDays, dow: dow, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
+    toDays: toDays, fromDays: fromDays, dow: dow, isOff: isOff, holidaysEthiopia: holidaysEthiopia, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
     compute: compute, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum

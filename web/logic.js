@@ -436,6 +436,13 @@
       var nm = String(q.name || '').replace(/\s+/g, ' ').trim().slice(0, 30);
       if (nm) presets.push({ name: nm, split: [num(q.split[0], 0, 100), num(q.split[1], 0, 100), num(q.split[2], 0, 100)] });
     });
+    var hol = [];
+    (Array.isArray(s.hol) ? s.hol : []).slice(0, 150).forEach(function (h) {
+      if (!h || !isDate(h.from)) return;
+      var to = isDate(h.to) && h.to > h.from ? h.to : '';
+      hol.push({ from: h.from, to: to, name: String(h.name || '').replace(/\s+/g, ' ').trim().slice(0, 40) });
+    });
+    hol.sort(function (a, b) { return a.from < b.from ? -1 : a.from > b.from ? 1 : 0; });
     var cuts = [];
     (Array.isArray(cf.cuts) ? cf.cuts : []).slice(0, 24).forEach(function (d) { if (isDate(d) && cuts.indexOf(d) < 0) cuts.push(d); });
     cuts.sort();
@@ -454,6 +461,7 @@
       equip: mapList(s.equip, sanitizeEquip, 60),
       tasks: tasks,
       prod: sanitizeProd(s.prod),
+      hol: hol,
       cf: {
         misc: misc, overhead: overhead, profit: profit,
         defSplit: ds, presets: presets, legacy: legacy, advPct: num(cf.advPct == null ? 20 : cf.advPct, 0, 100),

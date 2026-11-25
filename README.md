@@ -66,3 +66,7 @@ The Schedule list and the Gantt show Qty, Days and Predecessors for every task. 
 
 *Generate* now opens a **preview** first: tick or untick items, change the type of work per item, and see finish date, man-days, peak people and critical tasks before anything is saved. Choose **Trade logic** (real links and overlaps between trades, e.g. plaster starts at 50% of the block work) or **Follow BoQ order**. Tasks with a manual date are kept unless you tick them.
 **Productivity** (Schedule screen) lets you edit output per crew-day, crew, equipment and cost preset per type of work, plus hours per day (8 = table) and a site-difficulty factor. *Save as my default* makes new projects start with your set.
+
+## Holidays
+
+*Holidays* (Schedule screen) lists days off, single days or ranges. The schedule, Gantt and cash flow skip them like a rest day. One tap adds Ethiopia's fixed public holidays for the project years; Easter (Fasika), Eid and other moving days are added by hand.

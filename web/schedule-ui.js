@@ -176,6 +176,7 @@
     if (p.boq.length) row.appendChild(c.btn(t('sch_generate'), 'primary', function () { openGenerate(c); }));
     row.appendChild(c.btn(t('sch_settings'), '', function () { editSettings(c); }));
     row.appendChild(c.btn(t('sch_prod'), '', function () { openProductivity(c); }));
+    row.appendChild(c.btn(t('sch_hol') + (p.sched.hol.length ? ' (' + p.sched.hol.length + ')' : ''), '', function () { openHolidays(c); }));
     row.appendChild(c.btn(t('sch_import'), '', function () { pickImport(c, false); }));
     if (p.boq.length) row.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
     pn.appendChild(row);
@@ -422,6 +423,65 @@
     ov.appendChild(m);
     document.body.appendChild(ov);
     build();
+  }
+
+  /* holidays and other days off: the schedule skips them like a Sunday */
+  function openHolidays(c) {
+    var p = c.p, t = c.t, A = c.A, s = p.sched;
+    var ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+    function changed() { A.save(); A.rerender(); draw(); }
+    function draw() {
+      m.textContent = '';
+      m.appendChild(c.el('h2', null, t('sch_hol')));
+      m.appendChild(c.el('p', 'muted small', t('sch_hol_note')));
+      var pn = c.panel(null);
+      if (!s.hol.length) pn.appendChild(c.el('p', 'muted small', t('sch_hol_none')));
+      s.hol.forEach(function (h, i) {
+        var row = c.el('div', 'improw'), tx = c.el('span', 'stext');
+        tx.appendChild(c.el('b', null, h.name || t('sch_hol_day')));
+        tx.appendChild(c.el('small', 'muted', A.fmtDate(h.from) + (h.to ? ' – ' + A.fmtDate(h.to) : '')));
+        row.appendChild(tx);
+        var del = c.btn('✕', '', function () { s.hol.splice(i, 1); changed(); }); row.appendChild(del);
+        pn.appendChild(row);
+      });
+      m.appendChild(pn);
+      var br = c.el('div', 'btnrow');
+      br.appendChild(c.btn(t('sch_hol_add'), 'primary', function () {
+        A.openForm({
+          title: t('sch_hol_add'),
+          fields: [
+            { key: 'name', label: t('sch_hol_name'), type: 'text', value: '' },
+            { key: 'from', label: t('sch_hol_from'), type: 'date', value: s.start || L.todayStr() },
+            { key: 'to', label: t('sch_hol_to'), type: 'date', value: '' }
+          ],
+          onSubmit: function (v) {
+            if (!L.isDate(v.from)) return t('sch_hol_bad');
+            s.hol.push({ from: v.from, to: L.isDate(v.to) && v.to > v.from ? v.to : '', name: String(v.name || '').trim().slice(0, 40) });
+            s.hol = L.sanitizeSched({ hol: s.hol }).hol;
+            A.save(); A.rerender(); window.setTimeout(function () { if (ov.parentNode) draw(); }, 30);
+            return null;
+          }
+        });
+      }));
+      br.appendChild(c.btn(t('sch_hol_eth'), '', function () {
+        var y0 = parseInt((s.start || p.startDate || L.todayStr()).slice(0, 4), 10), y1 = parseInt((p.endDate || s.start || L.todayStr()).slice(0, 4), 10);
+        if (!(y1 >= y0) || y1 - y0 > 6) y1 = y0 + 1;
+        var n = 0;
+        for (var y = y0; y <= y1; y++) S.holidaysEthiopia(y).forEach(function (h) {
+          if (!s.hol.some(function (x) { return x.from === h.from; })) { s.hol.push({ from: h.from, to: '', name: h.name }); n += 1; }
+        });
+        s.hol = L.sanitizeSched({ hol: s.hol }).hol;
+        A.toast(t('sch_hol_added', { n: n })); changed();
+      }));
+      m.appendChild(br);
+      if (s.hol.length) m.appendChild(c.btn(t('sch_hol_clear'), 'block', function () { s.hol = []; changed(); }));
+      m.appendChild(c.btn(t('close'), 'block', close));
+    }
+    ov.appendChild(m);
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    document.body.appendChild(ov);
+    draw();
   }
 
   function editSettings(c) {
@@ -1085,7 +1145,7 @@
     var dayrow = c.el('div', 'gt-dayrow');
     dayrow.style.width = (n * gw) + 'px';
     for (var d2 = a; d2 <= b; d2++) {
-      var cell = c.el('div', 'gt-day' + (sc.off[S.dow(d2)] ? ' off' : ''));
+      var cell = c.el('div', 'gt-day' + (S.isOff(sc.off, d2) ? ' off' : ''));
       cell.style.width = gw + 'px';
       if (gw >= 16) cell.textContent = String(A.cal().parts(S.fromDays(d2)).d);
       else if (S.dow(d2) === 1 && gw >= 9) cell.textContent = String(A.cal().parts(S.fromDays(d2)).d);
@@ -1099,7 +1159,7 @@
     // rest-day stripes and today line, drawn once behind the bars
     var stripes = c.el('div', 'gt-stripes');
     stripes.style.left = LABEL + 'px'; stripes.style.width = (n * gw) + 'px';
-    for (var d3 = a; d3 <= b; d3++) if (sc.off[S.dow(d3)]) { var sx = c.el('i'); sx.style.left = (d3 - a) * gw + 'px'; sx.style.width = gw + 'px'; stripes.appendChild(sx); }
+    for (var d3 = a; d3 <= b; d3++) if (S.isOff(sc.off, d3)) { var sx = c.el('i'); sx.style.left = (d3 - a) * gw + 'px'; sx.style.width = gw + 'px'; stripes.appendChild(sx); }
     var today = S.toDays(g.asOf);
     if (today >= a && today <= b) { var tl = c.el('b', 'gt-today'); tl.style.left = ((today - a) * gw + gw / 2) + 'px'; stripes.appendChild(tl); }
     rowsBox.appendChild(stripes);

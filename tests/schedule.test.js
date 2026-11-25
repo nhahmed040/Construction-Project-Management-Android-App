@@ -391,3 +391,14 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   if (!(p2.sched.tasks[String(p2.boq[0].id)].dur <= p.sched.tasks[String(p.boq[0].id)].dur)) throw new Error('hours/day did not speed up');
   console.log('new generation tests ok');
 })();
+
+(function () {
+  var S3 = require('../web/schedule.js'), L3 = require('../web/logic.js');
+  var s = L3.sanitizeSched({ start: '2026-12-01', hol: [{ from: '2026-12-02', to: '2026-12-03', name: 'x' }, { from: 'bad' }] });
+  if (s.hol.length !== 1) throw new Error('holiday sanitize');
+  var off = S3.offMap(s), a = S3.toDays('2026-12-01');   // Tuesday
+  if (!S3.isOff(off, a + 1) || !S3.isOff(off, a + 2) || S3.isOff(off, a)) throw new Error('isOff');
+  if (S3.fromDays(S3.finishOf(a, 2, off)) !== '2026-12-04') throw new Error('finish skips holidays: ' + S3.fromDays(S3.finishOf(a, 2, off)));
+  var h = S3.holidaysEthiopia(2026); if (h[6].from !== '2026-09-11' || S3.holidaysEthiopia(2027)[6].from !== '2027-09-12') throw new Error('eth dates');
+  console.log('holiday tests ok');
+})();
