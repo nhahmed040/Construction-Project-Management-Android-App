@@ -191,7 +191,7 @@
       var tx = c.el('span', 'stext'); tx.appendChild(c.el('b', null, r.desc));
       tx.appendChild(c.el('small', 'muted', A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + (r.critical ? ' · ● ' + t('sch_critical') : '')));
       line.appendChild(tx);
-      line.addEventListener('click', function () { editTask(c, r); });
+      line.addEventListener('click', function () { quickEdit(c, r); });
       pn.appendChild(line);
     });
     if (rows.length > 6) pn.appendChild(c.el('p', 'muted small', t('sch_week_more', { n: rows.length - 6 })));
@@ -274,7 +274,7 @@
         var gi = g.by[r.id];
         if (gi) { line.classList.add('st-' + gi.status); title.textContent = (STATUS_ICON[gi.status] || '') + ' ' + title.textContent; }
         if (r.amount > 0) { var bar = c.el('div', 'pbar'); var f = c.el('i'); f.style.width = Math.min(100, Math.round(r.pct)) + '%'; bar.appendChild(f); line.appendChild(bar); }
-        line.addEventListener('click', function () { editTask(c, r); });
+        line.addEventListener('click', function () { quickEdit(c, r); });
         line.tabIndex = 0;
         line.setAttribute('role', 'button');
       } else if (r.sd != null) {
@@ -368,12 +368,12 @@
       m.appendChild(list);
       var br = c.el('div', 'btnrow stickybar');
       var ap = c.btn(t('sch_gen_apply'), 'primary', function () {
-        var r = S.generate(p, opts());
+        var snap = snapOf(c), r = S.generate(p, opts());
         if (!p.endDate && base.end) p.endDate = base.end;
         A.save(); close(); A.rerender();
         var msg = t('sch_gen_done', { n: r.tasks, m: r.matched });
         if (r.mult > 1) msg += ' ' + t('sch_gen_crews', { n: r.mult });
-        window.setTimeout(function () { A.toast(msg); }, 50);
+        undoToast(c, snap, msg);
       });
       if (!pv.tasks) ap.disabled = true;
       br.appendChild(ap);
@@ -545,7 +545,7 @@
       onSubmit: function (v) {
         s.start = L.isDate(v.start) ? v.start : '';
         s.off = v.rest === 'none' ? [] : v.rest === 'satsun' ? [0, 6] : [0];
-        c.A.save(); c.A.rerender();
+        c.A.save(); c.A.rerender(); undoToast(c, snap, t('sch_saved'));
         return null;
       }
     });
@@ -654,8 +654,101 @@
     return d;
   }
 
+  /* ---------- undo ---------- */
+  function snapOf(c) { return JSON.stringify(c.p.sched); }
+  function undoToast(c, snap, msg) {
+    window.setTimeout(function () {
+      c.A.toast(msg, { label: c.t('undo'), run: function () {
+        var o = JSON.parse(snap), s = c.p.sched;
+        Object.keys(s).forEach(function (k) { delete s[k]; });
+        Object.keys(o).forEach(function (k) { s[k] = o[k]; });
+        c.A.save(); c.A.rerender();
+      } });
+    }, 60);
+  }
+
+  /* ---------- quick edit sheet: days, delay, links as chips ---------- */
+  function quickEdit(c0, r0) {
+    var p = c0.p, t = c0.t, A = c0.A, id = String(r0.id), snap = snapOf(c0), touched = false;
+    var task = p.sched.tasks[id] || (p.sched.tasks[id] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
+    var ov = c0.el('div', 'overlay open sheetov'), m = c0.el('div', 'modal importmodal quick');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); if (touched) { A.save(); A.rerender(); undoToast(c0, snap, t('sch_saved')); } }
+    function cur() { var sc = S.compute(p); return { sc: sc, r: sc.byId[id] || r0, c: { p: p, t: t, A: A, el: c0.el, btn: c0.btn, panel: c0.panel, sc: sc, keyFn: c0.keyFn, monthLabel: c0.monthLabel } }; }
+    function stepper(label, val, onMinus, onPlus, unit) {
+      var row = c0.el('div', 'stepper'); row.appendChild(c0.el('span', 'muted', label));
+      var box = c0.el('span', 'stepbox');
+      box.appendChild(c0.btn('−', '', function () { onMinus(); touched = true; draw(); }));
+      box.appendChild(c0.el('b', null, val + (unit ? ' ' + unit : '')));
+      box.appendChild(c0.btn('+', '', function () { onPlus(); touched = true; draw(); }));
+      row.appendChild(box); return row;
+    }
+    function draw() {
+      var s = cur(), r = s.r;
+      m.textContent = '';
+      m.appendChild(c0.el('h2', null, r.n + ' · ' + (r.no ? r.no + ' ' : '') + r.desc.slice(0, 70)));
+      if (r.sd != null) m.appendChild(c0.el('p', 'muted small', A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + ' · ' + (r.critical ? '● ' + t('sch_critical') : t('sch_float') + ' ' + r.tf + 'd')));
+      m.appendChild(stepper(t('sch_duration'), S.fmtNum(task.dur || 0), function () { var st = (task.dur || 0) > 3 ? 1 : 0.5; task.dur = Math.max(0, Math.round(((task.dur || 0) - st) * 100) / 100); },
+        function () { var st = (task.dur || 0) >= 3 ? 1 : 0.5; task.dur = Math.min(9999, Math.round(((task.dur || 0) + st) * 100) / 100); }, t('sch_days_short')));
+      if (!task.start) m.appendChild(stepper(t('sch_delay'), String(task.delay || 0), function () { var d = Math.max(0, (task.delay || 0) - 1); if (d) task.delay = d; else delete task.delay; },
+        function () { task.delay = Math.min(999, (task.delay || 0) + 1); }, t('sch_days_short')));
+      else {
+        var pr = c0.el('div', 'stepper'); pr.appendChild(c0.el('span', 'muted', '📌 ' + t('sch_manual') + ' ' + A.fmtDate(task.start)));
+        pr.appendChild(c0.btn(t('sch_unpin'), '', function () { task.start = ''; touched = true; draw(); })); m.appendChild(pr);
+      }
+      // links as chips
+      m.appendChild(c0.el('div', 'muted small qhead', t('sch_pred_col')));
+      var chips = c0.el('div', 'chips');
+      var list = Array.isArray(task.pred) ? task.pred : [];
+      if (!list.length) chips.appendChild(c0.el('span', 'chip auto', task.par ? t('sch_with_prev') : t('sch_after_prev')));
+      list.forEach(function (q, i) {
+        var ch = c0.el('span', 'chip linkchip');
+        ch.appendChild(document.createTextNode(S.formatLinks([q], s.sc)));
+        var x = c0.el('button', 'chipx', '✕'); x.type = 'button';
+        x.addEventListener('click', function () { task.pred.splice(i, 1); if (!task.pred.length) delete task.pred; touched = true; draw(); });
+        ch.appendChild(x); chips.appendChild(ch);
+      });
+      var add = c0.el('button', 'chip addchip', '＋ ' + t('sch_add_link')); add.type = 'button';
+      add.addEventListener('click', function () { pickLink(); });
+      chips.appendChild(add);
+      m.appendChild(chips);
+      var br = c0.el('div', 'btnrow');
+      br.appendChild(c0.btn(t('sch_full_edit'), '', function () { var rr = cur(); touched = false; close(); window.setTimeout(function () { editTask(rr.c, rr.r); }, 30); }));
+      br.appendChild(c0.btn(t('close'), 'primary', close));
+      m.appendChild(br);
+    }
+    function pickLink() {
+      var s = cur(), tasks = s.sc.rows.filter(function (q) { return q.level === 2 && String(q.id) !== id && q.dur > 0; });
+      m.textContent = '';
+      m.appendChild(c0.el('h2', null, t('sch_add_link')));
+      var types = c0.el('select', 'tsel');
+      ['FS', 'SS', 'FF', 'SF'].forEach(function (k) { var o = c0.el('option', null, k + ' · ' + t('sch_link_' + k.toLowerCase())); o.value = k; types.appendChild(o); });
+      var lag = c0.el('input'); lag.type = 'number'; lag.step = '1'; lag.value = '0'; lag.placeholder = t('sch_lag');
+      var row = c0.el('div', 'stepper'); row.appendChild(types); row.appendChild(lag); m.appendChild(row);
+      var box = c0.el('div', 'panel pickbox');
+      tasks.forEach(function (q) {
+        var it = c0.el('div', 'improw weekrow'); it.appendChild(c0.el('span', 'sid', String(q.n)));
+        var tx = c0.el('span', 'stext'); tx.appendChild(c0.el('b', null, q.desc)); it.appendChild(tx);
+        it.addEventListener('click', function () {
+          if (S.wouldLoop(p, id, q.id)) { A.toast(t('sch_pred_loop')); return; }
+          if (!Array.isArray(task.pred)) task.pred = [];
+          var ty = types.value, lg = Math.round(Number(lag.value) || 0);
+          if (task.pred.some(function (z) { return String(z.id) === String(q.id) && z.type === ty; })) { A.toast(t('sch_pred_err_twice', { x: q.n })); return; }
+          task.pred.push({ id: String(q.id), type: ty, lag: lg });
+          touched = true; draw();
+        });
+        box.appendChild(it);
+      });
+      m.appendChild(box);
+      m.appendChild(c0.btn(t('cancel'), 'block', draw));
+    }
+    ov.appendChild(m);
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    document.body.appendChild(ov);
+    draw();
+  }
+
   function editTask(c, r) {
-    var p = c.p, t = c.t, id = String(r.id);
+    var p = c.p, t = c.t, id = String(r.id), snap = snapOf(c);
     var task = p.sched.tasks[id] || (p.sched.tasks[id] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
     var mode = task.start ? 'fixed' : Array.isArray(task.pred) ? 'links' : task.par ? 'with' : 'after';
     var cur = Array.isArray(task.pred) ? task.pred : [];
@@ -1136,6 +1229,36 @@
     });
   }
 
+  /* drag the right end of a bar to change the duration (whole days) */
+  function dragEnd(c, bx, r, gw) {
+    var h = c.el('i', 'gt-handle'), x0 = 0, w0 = 0, k = 0, on = false;
+    h.addEventListener('click', function (e) { e.stopPropagation(); });
+    h.addEventListener('pointerdown', function (e) { e.stopPropagation(); on = true; x0 = e.clientX; w0 = bx.offsetWidth; k = 0; try { h.setPointerCapture(e.pointerId); } catch (x) {} });
+    h.addEventListener('pointermove', function (e) { if (!on) return; k = Math.round((e.clientX - x0) / gw); bx.style.width = Math.max(gw - 2, w0 + k * gw) + 'px'; });
+    function up() {
+      if (!on) return; on = false;
+      if (!k) return;
+      var snap = snapOf(c), task = c.p.sched.tasks[String(r.id)];
+      if (!task) return;
+      task.dur = Math.max(0.25, Math.round(((task.dur || 0) + k) * 100) / 100);
+      c.A.save(); c.A.rerender(); undoToast(c, snap, c.t('sch_dur_now', { n: S.fmtNum(task.dur) }));
+    }
+    h.addEventListener('pointerup', up); h.addEventListener('pointercancel', function () { on = false; bx.style.width = ''; });
+    bx.appendChild(h);
+  }
+  /* two-finger pinch on the chart: out = zoom in, in = zoom out */
+  function pinch(el, cb) {
+    var d0 = 0;
+    function dist(e) { var a = e.touches[0], b = e.touches[1]; return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+    el.addEventListener('touchstart', function (e) { d0 = e.touches.length === 2 ? dist(e) : 0; }, { passive: true });
+    el.addEventListener('touchend', function (e) { if (d0 && e.touches.length < 2 && e.changedTouches.length) { d0 = d0; } }, { passive: true });
+    el.addEventListener('touchmove', function (e) {
+      if (!d0 || e.touches.length !== 2) return;
+      var r = dist(e) / d0;
+      if (r > 1.35) { d0 = 0; cb(1); } else if (r < 0.7) { d0 = 0; cb(-1); }
+    }, { passive: true });
+  }
+
   function secGantt(body, p, A) {
     var c = ctx(p, A), t = c.t, sc = c.sc;
     if (noteIfEmpty(c, body)) return;
@@ -1146,6 +1269,8 @@
     bar.appendChild(c.kv(t('sch_period'), range(c)));
     var zr = c.el('div', 'btnrow');
     var sizes = [5, 9, 16, 26, 40];
+    [[t('sch_scale_day'), 26], [t('sch_scale_week'), 9], [t('sch_scale_month'), 5]].forEach(function (x) { zr.appendChild(c.btn((gantt.gw === x[1] ? '● ' : '') + x[0], '', function () { gantt.gw = x[1]; A.rerender(); })); });
+    zr.appendChild(c.btn('⌖ ' + t('sch_today'), '', function () { var w = document.querySelector('.gantt'); if (!w) return; var tn = S.toDays(L.todayStr()), aa = sc.sd - ((S.dow(sc.sd) + 6) % 7); w.scrollLeft = Math.max(0, (tn - aa) * gantt.gw - w.clientWidth / 2 + 150); }));
     zr.appendChild(c.btn('－', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.max(0, i - 1)] || 16; A.rerender(); }));
     zr.appendChild(c.el('span', 'zoomlbl', t('sch_zoom')));
     zr.appendChild(c.btn('＋', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.min(sizes.length - 1, i + 1)] || 16; A.rerender(); }));
@@ -1241,12 +1366,14 @@
           bx.title += '\n' + t('sch_planned') + ' ' + pct(gi.planned) + ' · ' + t('sch_actual') + ' ' + pct(gi.actual);
         }
         if ((r.fd - r.sd + 1) * gw >= 44) bx.appendChild(c.el('span', null, days(r.dur)));
+        if (r.level === 2) dragEnd(c, bx, r, gw);
         row.appendChild(bx);
       }
-      if (r.level === 2) { row.classList.add('click'); row.addEventListener('click', function () { editTask(c, r); }); }
+      if (r.level === 2) { row.classList.add('click'); row.addEventListener('click', function () { quickEdit(c, r); }); }
       rowsBox.appendChild(row);
     });
     inner.appendChild(rowsBox);
+    pinch(wrap, function (dir) { var i = sizes.indexOf(gantt.gw); var j = Math.max(0, Math.min(sizes.length - 1, i + dir)); if (j !== i) { gantt.gw = sizes[j]; A.rerender(); } });
     if (gantt.links && gw >= 9) setTimeout(function () { if (rowsBox.isConnected) drawLinks(c, rowsBox, rowEls, a, gw, LABEL, width); }, 0);
     wrap.appendChild(inner);
     body.appendChild(wrap);

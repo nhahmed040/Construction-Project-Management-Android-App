@@ -758,3 +758,12 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .prevsum .chip small { font-size: 11px; opacity: .7; } .prevsum .warnchip { background: #fde8e8; } .prevsum .wide { flex: 1 0 100%; }
 .stickybar { position: sticky; bottom: 0; background: var(--surface); padding: 8px 0; z-index: 2; }
 .btnrow .wide { flex: 1 0 100%; }
+
+/* quick edit sheet, chart handle */
+.quick .stepper { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); }
+.quick .stepbox { display: flex; align-items: center; gap: 12px; } .quick .stepbox button { min-width: 44px; font-size: 1.2rem; }
+.quick .qhead { margin-top: 6px; } .quick .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0; }
+.chip.linkchip, .chip.addchip, .chip.auto { display: inline-flex; align-items: center; gap: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 6px 12px; font: inherit; color: var(--text); }
+.chip.addchip { border-style: dashed; cursor: pointer; } .chipx { border: 0; background: none; color: var(--muted); font-size: 1rem; padding: 0 2px; cursor: pointer; }
+.pickbox { max-height: 45vh; overflow: auto; }
+.gt-handle { position: absolute; right: 0; top: 0; width: 14px; height: 100%; cursor: ew-resize; touch-action: none; background: rgba(255,255,255,.35); }

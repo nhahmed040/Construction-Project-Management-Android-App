@@ -74,3 +74,7 @@ The Schedule list and the Gantt show Qty, Days and Predecessors for every task. 
 ## PDF export
 
 *Export PDF* (Schedule screen) prints every sheet of the Excel export on A3 landscape: Schedule, Man Power, Man Power Schedule, Equipment, Equipment Schedule, Cash Flow, Cash Flow Summary and Gantt. Same layout, fills and equal row heights as the Excel file; header rows repeat on every page. On Android it uses the system print dialog (Save as PDF).
+
+## Quick edit, Gantt gestures and Undo
+
+Tap a task (list, Gantt row or bar, "This week") to open the **quick edit** sheet: − / + for days and delay, predecessors as chips (✕ removes, ＋ adds with link type and lag), *Full edit* for everything else. In the Gantt, drag the right end of a bar to change the duration, pinch to zoom, use Day / Week / Month and ⌖ Today. Every edit, drag and Generate shows **Undo**.
