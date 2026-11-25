@@ -159,6 +159,46 @@
   }
 
   /* ---------- Schedule ---------- */
+  /* a small list of actions in a sheet over the page */
+  function menuSheet(c, title, items) {
+    var ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal menusheet');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+    m.appendChild(c.el('h2', null, title));
+    items.forEach(function (it) { m.appendChild(c.btn(it[0], 'block menuitem', function () { close(); window.setTimeout(it[1], 30); })); });
+    m.appendChild(c.btn(c.t('cancel'), 'block', close));
+    ov.appendChild(m);
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    document.body.appendChild(ov);
+  }
+  function goTypes(c, key, section) {
+    folds[key + '-types'] = true;
+    c.A.goSection(section);
+    setTimeout(function () { var d = document.querySelector('.fold[data-key="' + key + '-types"]'); if (d) d.scrollIntoView({ block: 'start' }); }, 60);
+  }
+
+  /* what is on site in the next seven days */
+  function weekPanel(c, body) {
+    var t = c.t, sc = c.sc, A = c.A, today = S.toDays(L.todayStr()), end = today + 6;
+    if (sc.sd == null || sc.fd < today) return;
+    var rows = sc.rows.filter(function (r) { return r.level === 2 && r.sd != null && r.sd <= end && r.fd >= today; });
+    var pn = c.panel(t('sch_week'));
+    pn.classList.add('weekcard');
+    var crit = rows.filter(function (r) { return r.critical; }).length;
+    pn.appendChild(c.el('p', 'muted small', t('sch_week_sum', { n: rows.length, c: crit, d: A.fmtDate(sc.finish) })));
+    rows.slice(0, 6).forEach(function (r) {
+      var line = c.el('div', 'improw weekrow');
+      line.appendChild(c.el('span', 'sid', String(r.n)));
+      var tx = c.el('span', 'stext'); tx.appendChild(c.el('b', null, r.desc));
+      tx.appendChild(c.el('small', 'muted', A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + (r.critical ? ' · ● ' + t('sch_critical') : '')));
+      line.appendChild(tx);
+      line.addEventListener('click', function () { editTask(c, r); });
+      pn.appendChild(line);
+    });
+    if (rows.length > 6) pn.appendChild(c.el('p', 'muted small', t('sch_week_more', { n: rows.length - 6 })));
+    if (!rows.length) pn.appendChild(c.el('p', 'muted small', t('sch_week_none')));
+    body.appendChild(pn);
+  }
+
   function secSchedule(body, p, A) {
     var c = ctx(p, A), t = c.t, sc = c.sc;
     var pn = c.panel(t('sch_summary'));
@@ -180,26 +220,26 @@
     var off = p.sched.off.length === 0 ? t('sch_rest_none') : p.sched.off.length === 1 ? t('sch_rest_sun') : t('sch_rest_sat_sun');
     pn.appendChild(c.kv(t('sch_rest'), off));
     var row = c.el('div', 'btnrow');
-    if (p.boq.length) row.appendChild(c.btn(t('sch_generate'), 'primary', function () { openGenerate(c); }));
-    row.appendChild(c.btn(t('sch_settings'), '', function () { editSettings(c); }));
-    row.appendChild(c.btn(t('sch_prod'), '', function () { openProductivity(c); }));
-    row.appendChild(c.btn(t('sch_hol') + (p.sched.hol.length ? ' (' + p.sched.hol.length + ')' : ''), '', function () { openHolidays(c); }));
-    row.appendChild(c.btn(t('sch_import'), '', function () { pickImport(c, false); }));
-    if (p.boq.length) row.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
-    if (p.boq.length) row.appendChild(c.btn(t('sch_export_pdf'), '', function () { exportPdf(c); }));
+    if (p.boq.length) row.appendChild(c.btn(t('sch_generate'), 'primary wide', function () { openGenerate(c); }));
+    row.appendChild(c.btn(t('sch_menu_setup') + ' ▾', '', function () {
+      menuSheet(c, t('sch_menu_setup'), [
+        ['⚙️ ' + t('sch_settings'), function () { editSettings(c); }],
+        ['📈 ' + t('sch_prod'), function () { openProductivity(c); }],
+        ['📅 ' + t('sch_hol') + (p.sched.hol.length ? ' (' + p.sched.hol.length + ')' : ''), function () { openHolidays(c); }],
+        ['👷 ' + t('sch_roles'), function () { goTypes(c, 'mp', 'manpower'); }],
+        ['🚜 ' + t('sch_machines'), function () { goTypes(c, 'eq', 'equipment'); }]
+      ]);
+    }));
+    row.appendChild(c.btn(t('sch_menu_io') + ' ▾', '', function () {
+      var items = [['⬆️ ' + t('sch_import'), function () { pickImport(c, false); }]];
+      if (p.boq.length) { items.push(['📗 ' + t('sch_export'), function () { exportExcel(c); }]); items.push(['📄 ' + t('sch_export_pdf'), function () { exportPdf(c); }]); }
+      menuSheet(c, t('sch_menu_io'), items);
+    }));
     pn.appendChild(row);
-    var trow = c.el('div', 'btnrow');
-    [['mp', '👷 ' + t('sch_roles'), 'manpower'], ['eq', '🚜 ' + t('sch_machines'), 'equipment']].forEach(function (x) {
-      trow.appendChild(c.btn(x[1], '', function () {
-        folds[x[0] + '-types'] = true;
-        A.goSection(x[2]);
-        setTimeout(function () { var d = document.querySelector('.fold[data-key="' + x[0] + '-types"]'); if (d) d.scrollIntoView({ block: 'start' }); }, 60);
-      }));
-    });
-    pn.appendChild(trow);
     body.appendChild(pn);
     if (noteIfEmpty(c, body)) return;
     var g = S.progress(p, sc, asOfDate());
+    if (sc.count) weekPanel(c, body);
     if (sc.count) progressPanel(c, body, g);
     if (sc.count) criticalPanel(c, body, g);
 
@@ -288,18 +328,18 @@
       if (!pv.tasks) {
         m.appendChild(c.el('p', 'muted small', pv.kept ? t('sch_gen_nothing') : t('sch_auto_none')));
       }
-      var pn = c.panel(null);
-      pn.appendChild(c.kv(t('sch_finish'), pv.finish ? A.fmtDate(pv.finish) : '–'));
-      if (base.end) {
-        pn.appendChild(c.kv(t('sch_target'), A.fmtDate(base.end)));
-        if (pv.fits === false || (pv.finish && pv.finish > base.end)) pn.appendChild(c.el('div', 'warn', t('sch_gen_nofit')));
-      }
-      pn.appendChild(c.kv(t('sch_workdays'), String(pv.workDays)));
-      pn.appendChild(c.kv(t('sch_gen_mandays'), S.fmtNum(pv.manDays)));
-      pn.appendChild(c.kv(t('sch_gen_peak'), String(pv.peak)));
-      pn.appendChild(c.kv(t('sch_gen_critical'), String(pv.critical)));
-      if (pv.mult > 1) pn.appendChild(c.el('div', 'muted small', t('sch_gen_crews', { n: pv.mult })));
-      if (pv.general) pn.appendChild(c.el('div', 'warn', t('sch_gen_general', { n: pv.general })));
+      var pn = c.el('div', 'prevsum');
+      function chip(label, val, warn) { var s = c.el('span', 'chip' + (warn ? ' warnchip' : '')); s.appendChild(c.el('small', null, label)); s.appendChild(c.el('b', null, val)); pn.appendChild(s); }
+      var late = base.end && (pv.fits === false || (pv.finish && pv.finish > base.end));
+      chip(t('sch_finish'), pv.finish ? A.fmtDate(pv.finish) : '–', late);
+      if (base.end) chip(t('sch_target'), A.fmtDate(base.end));
+      chip(t('sch_workdays'), String(pv.workDays));
+      chip(t('sch_gen_mandays'), S.fmtNum(pv.manDays));
+      chip(t('sch_gen_peak'), String(pv.peak));
+      chip(t('sch_gen_critical'), String(pv.critical));
+      if (late) pn.appendChild(c.el('div', 'warn wide', t('sch_gen_nofit')));
+      if (pv.mult > 1) pn.appendChild(c.el('div', 'muted small wide', t('sch_gen_crews', { n: pv.mult })));
+      if (pv.general) pn.appendChild(c.el('div', 'warn wide', t('sch_gen_general', { n: pv.general })));
       m.appendChild(pn);
       var list = c.el('div', 'panel');
       pv.rows.forEach(function (r) {
@@ -326,7 +366,7 @@
         list.appendChild(row);
       });
       m.appendChild(list);
-      var br = c.el('div', 'btnrow');
+      var br = c.el('div', 'btnrow stickybar');
       var ap = c.btn(t('sch_gen_apply'), 'primary', function () {
         var r = S.generate(p, opts());
         if (!p.endDate && base.end) p.endDate = base.end;
@@ -339,7 +379,7 @@
       br.appendChild(ap);
       br.appendChild(c.btn(t('sch_prod'), '', function () { close(); openProductivity(c, function () { openPreview(c, base); }); }));
       m.appendChild(br);
-      m.appendChild(c.btn(t('cancel'), 'block', close));
+      br.appendChild(c.btn(t('cancel'), '', close));
     }
     ov.appendChild(m);
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });

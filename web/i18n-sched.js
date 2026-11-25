@@ -53,6 +53,7 @@
     sch_hol_none: 'No holidays added yet.', sch_hol_day: 'Day off', sch_hol_add: 'Add day off', sch_hol_eth: 'Add Ethiopian holidays', sch_hol_name: 'Name (optional)', sch_hol_from: 'From', sch_hol_to: 'To (leave empty for one day)',
     sch_hol_bad: 'Choose the date.', sch_hol_added: '{n} holidays added.', sch_hol_clear: 'Remove all',
     sch_export_pdf: 'Export PDF', sch_unit: 'Unit',
+    sch_menu_setup: 'Setup', sch_menu_io: 'Import / Export', sch_week: 'This week', sch_week_sum: '{n} tasks on site, {c} critical. Finish {d}.', sch_week_more: '+{n} more tasks', sch_week_none: 'No tasks planned this week.',
     sch_gen_note: 'If you give a finish date and the plan is too long, the crews are made bigger (and the durations shorter) until it fits. Tasks run one after another in BoQ order. Everything can be changed afterwards by tapping a task.',
     sch_gen_nothing: 'All tasks already have a duration.', sch_gen_done: '{n} tasks planned from the BoQ ({m} matched to a type of work).',
     sch_gen_general: '{n} used the general rate, check their durations.', sch_gen_crews: 'Crews were multiplied by {n} to meet the finish date.',

@@ -749,3 +749,12 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .fold > summary .foldcount { margin-left: auto; font-size: .75rem; background: var(--accent-soft); color: var(--accent); border-radius: 10px; padding: 1px 8px; }
 .fold[open] > summary { margin-bottom: 8px; }
 .fold { scroll-margin-top: 90px; }
+
+/* menus, this-week card, preview summary */
+.menusheet { max-width: 420px; } .menusheet .menuitem { text-align: left; margin-top: 6px; }
+.weekcard .weekrow { cursor: pointer; display: flex; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+.prevsum { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 6px 0; }
+.prevsum .chip { display: flex; flex-direction: column; background: var(--bg); border-radius: 10px; padding: 4px 10px; min-width: 70px; }
+.prevsum .chip small { font-size: 11px; opacity: .7; } .prevsum .warnchip { background: #fde8e8; } .prevsum .wide { flex: 1 0 100%; }
+.stickybar { position: sticky; bottom: 0; background: var(--surface); padding: 8px 0; z-index: 2; }
+.btnrow .wide { flex: 1 0 100%; }
