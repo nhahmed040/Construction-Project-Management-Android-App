@@ -1314,6 +1314,7 @@
         function back() { window.scrollTo(0, y); var g2 = document.querySelector('.gantt'); if (g2) { g2.scrollLeft = gl; g2.scrollTop = gt; } }
         back(); requestAnimationFrame(back);
       },
+      printDoc: printDoc,
       getProdDefault: function () { return state.settings.prodDefault; },
       setProdDefault: function (v) { state.settings.prodDefault = v; },
       goSection: function (sec) { ui.section = sec; renderProjects(); window.scrollTo(0, 0); },

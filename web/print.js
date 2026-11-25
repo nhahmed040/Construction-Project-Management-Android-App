@@ -289,5 +289,7 @@
     return page(d.title, d.lang, h);
   }
 
-  return { esc: esc, certificateHtml: certificateHtml, advanceHtml: advanceHtml, retentionHtml: retentionHtml, statementHtml: statementHtml, reportHtml: reportHtml, tableHtml: tableHtml };
+  function pageHtml(title, lang, body, css) { return page(title, lang, body).replace('</style>', (css || '') + '</style>'); }
+
+  return { esc: esc, pageHtml: pageHtml, certificateHtml: certificateHtml, advanceHtml: advanceHtml, retentionHtml: retentionHtml, statementHtml: statementHtml, reportHtml: reportHtml, tableHtml: tableHtml };
 });

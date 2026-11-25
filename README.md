@@ -70,3 +70,7 @@ The Schedule list and the Gantt show Qty, Days and Predecessors for every task. 
 ## Holidays
 
 *Holidays* (Schedule screen) lists days off, single days or ranges. The schedule, Gantt and cash flow skip them like a rest day. One tap adds Ethiopia's fixed public holidays for the project years; Easter (Fasika), Eid and other moving days are added by hand.
+
+## PDF export
+
+*Export PDF* (Schedule screen) prints a landscape A4 report: task table (ID, quantity, days, dates, predecessors, float; critical tasks in red), Gantt chart, manpower by role and the cost split. On Android it uses the system print dialog (Save as PDF).

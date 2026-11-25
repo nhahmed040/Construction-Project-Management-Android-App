@@ -92,6 +92,54 @@
     c.A.saveWorkbook('Schedule-' + c.A.safeName(p.name), window.CBSchedExcel.workbook(p, { keyFn: c.keyFn, monthLabel: c.monthLabel }));
   }
 
+  /* PDF (print) of the schedule: task table, Gantt chart, manpower and cost split */
+  function exportPdf(c) {
+    var p = c.p, t = c.t, A = c.A, sc = S.compute(p), esc = window.CBPrint.esc, D = function (d) { return d ? A.fmtDate(d) : ''; };
+    if (!sc.count) { A.toast(t('sch_not_planned')); return; }
+    var h = '<h1>' + esc(p.name || t('sec_schedule')) + '</h1><p class="sub">' + esc(t('sec_schedule')) + ' · ' + D(sc.start) + ' → ' + D(sc.finish) + ' · ' + sc.workDays + ' ' + t('sch_workdays') + ' · ' + sc.count + ' ' + t('sch_tasks') + '</p>';
+    h += '<table><thead><tr><th>ID</th><th>' + esc(t('sch_task')) + '</th><th class="n">' + esc(t('sch_qty')) + '</th><th>' + esc(t('sch_unit')) + '</th><th class="n">' + esc(t('sch_days_col')) + '</th><th>' + esc(t('sch_start')) + '</th><th>' + esc(t('sch_finish')) + '</th><th>' + esc(t('sch_pred')) + '</th><th class="n">' + esc(t('sch_float')) + '</th></tr></thead><tbody>';
+    sc.rows.forEach(function (r) {
+      if (r.level === 2) {
+        var links = r.preds && r.preds.length ? S.formatLinks(r.preds, sc) : '';
+        h += '<tr' + (r.critical ? ' class="crit"' : '') + '><td>' + esc(r.n) + '</td><td>' + esc((r.no ? r.no + ' ' : '') + r.desc) + '</td><td class="n">' + esc(S.fmtNum(r.qty || 0)) + '</td><td>' + esc(r.unit || '') + '</td><td class="n">' + esc(S.fmtNum(r.dur || 0)) + '</td><td>' + esc(D(r.start)) + '</td><td>' + esc(D(r.finish)) + '</td><td>' + esc(links) + '</td><td class="n">' + (r.tf != null ? esc(String(r.tf)) : '') + '</td></tr>';
+      } else h += '<tr class="head"><td colspan="9"><b>' + esc((r.no ? r.no + ' ' : '') + r.desc) + '</b></td></tr>';
+    });
+    h += '</tbody></table>';
+    // Gantt
+    var a = S.toDays(sc.start), b = S.toDays(sc.finish), span = Math.max(1, b - a + 1);
+    h += '<h2 class="pb">' + esc(t('sec_gantt')) + '</h2><div class="gt">';
+    var ticks = '';
+    for (var d = a; d <= b; d += Math.max(7, Math.ceil(span / 14 / 7) * 7)) ticks += '<i style="left:' + ((d - a) / span * 100) + '%">' + esc(D(S.fromDays(d))) + '</i>';
+    h += '<div class="gr"><span class="gl"></span><span class="gb ticks">' + ticks + '</span></div>';
+    sc.rows.forEach(function (r) {
+      if (r.level !== 2) { h += '<div class="gr hd"><span class="gl"><b>' + esc((r.no ? r.no + ' ' : '') + r.desc) + '</b></span></div>'; return; }
+      if (r.sd == null) return;
+      h += '<div class="gr"><span class="gl">' + esc(r.n + '  ' + r.desc) + '</span><span class="gb"><u class="' + (r.critical ? 'c' : '') + '" style="left:' + ((r.sd - a) / span * 100) + '%;width:' + Math.max(0.4, (r.fd - r.sd + 1) / span * 100) + '%"></u></span></div>';
+    });
+    h += '</div>';
+    // manpower by role
+    var mp = S.manpower(p, sc, c.keyFn);
+    if (mp.rows.length) {
+      h += '<h2 class="pb">' + esc(t('sec_manpower')) + '</h2><table><thead><tr><th>' + esc(t('sch_role')) + '</th><th class="n">' + esc(t('sch_peak')) + '</th><th class="n">' + esc(t('sch_mandays')) + '</th></tr></thead><tbody>';
+      mp.rows.forEach(function (r) { h += '<tr><td>' + esc(r.item.name) + '</td><td class="n">' + r.peak + '</td><td class="n">' + esc(S.fmtNum(r.days)) + '</td></tr>'; });
+      h += '</tbody></table>';
+    }
+    // cost split
+    var cf = S.cashflow(p), tt = cf.totals;
+    h += '<h2>' + esc(t('sec_cashflow')) + '</h2><table><tbody>';
+    [['sch_material', tt.mat], ['sch_labour', tt.lab], ['sch_equipment', tt.eq], ['sch_misc', tt.misc], ['sch_overhead', tt.oh], ['sch_profit', tt.profit]].forEach(function (x) {
+      h += '<tr><td>' + esc(t(x[0])) + '</td><td class="n">' + esc(A.money(L.round2(x[1]))) + '</td><td class="n">' + (tt.amount ? Math.round(x[1] / tt.amount * 1000) / 10 + '%' : '') + '</td></tr>';
+    });
+    h += '<tr><td><b>' + esc(t('sch_value')) + '</b></td><td class="n"><b>' + esc(A.money(L.round2(tt.amount))) + '</b></td><td></td></tr></tbody></table>';
+    var css = '@page { size: A4 landscape; margin: 10mm; } body { font-size: 9pt; } tr.crit td:nth-child(2) { color: #b00020; } tr.head td { background: #f7f7f7; }' +
+      '.gr { display: flex; align-items: center; height: 13pt; border-bottom: 1px solid #eee; page-break-inside: avoid; } .gr.hd { background: #f7f7f7; }' +
+      '.gl { width: 34%; flex: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 8pt; padding-right: 4pt; } ' +
+      '.gb { position: relative; flex: 1; height: 100%; } .gb u { position: absolute; top: 3pt; height: 0; border-top: 7pt solid #2a6fdb; text-decoration: none; box-sizing: content-box; } .gb u.c { border-top-color: #d32f2f; }' +
+      '.ticks i { position: absolute; top: 2pt; font-size: 6.5pt; font-style: normal; color: #555; border-left: 1px solid #bbb; padding-left: 1pt; white-space: nowrap; } .ticks { height: 12pt; }';
+    var html = window.CBPrint.pageHtml(p.name || 'Schedule', A.lang(), h, css);
+    A.printDoc(t('sec_schedule') + ' - ' + (p.name || ''), html);
+  }
+
   /* ---------- progress against the plan ---------- */
   function asOfDate() { return gantt.asOf && L.isDate(gantt.asOf) ? gantt.asOf : L.todayStr(); }
   function pct(n) { return (Math.round(n * 1000) / 10) + '%'; }
@@ -179,6 +227,7 @@
     row.appendChild(c.btn(t('sch_hol') + (p.sched.hol.length ? ' (' + p.sched.hol.length + ')' : ''), '', function () { openHolidays(c); }));
     row.appendChild(c.btn(t('sch_import'), '', function () { pickImport(c, false); }));
     if (p.boq.length) row.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
+    if (p.boq.length) row.appendChild(c.btn(t('sch_export_pdf'), '', function () { exportPdf(c); }));
     pn.appendChild(row);
     var trow = c.el('div', 'btnrow');
     [['mp', '👷 ' + t('sch_roles'), 'manpower'], ['eq', '🚜 ' + t('sch_machines'), 'equipment']].forEach(function (x) {
