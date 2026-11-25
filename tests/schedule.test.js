@@ -402,3 +402,11 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   var h = S3.holidaysEthiopia(2026); if (h[6].from !== '2026-09-11' || S3.holidaysEthiopia(2027)[6].from !== '2027-09-12') throw new Error('eth dates');
   console.log('holiday tests ok');
 })();
+
+(function () {
+  var P = require('../web/schedule-pdf.js');
+  var wb = { sheets: [{ name: 'T', cols: [6, 20], rows: [[{ v: 'No', s: { b: true, fill: 'D9D9D9', border: 'thin' } }, { v: 'Amt', s: { fill: 'D9D9D9' } }], [{ v: 1 }, { v: 1234.5, s: { fmt: '#,##0.00' } }], [{ v: 2 }, { v: 10, s: { fmt: '#,##0.00' } }], [{ v: '' }, { v: 0, f: 'SUM(B2:B3)', s: { fmt: '#,##0.00' } }]], merges: [], printTitles: [1, 1] }] };
+  var h = P.html(wb, 't');
+  if (h.indexOf('1,244.50') < 0 || h.indexOf('<thead>') < 0 || h.indexOf('A3 landscape') < 0) throw new Error('pdf html');
+  console.log('pdf html ok');
+})();

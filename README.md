@@ -73,4 +73,4 @@ The Schedule list and the Gantt show Qty, Days and Predecessors for every task. 
 
 ## PDF export
 
-*Export PDF* (Schedule screen) prints a landscape A4 report: task table (ID, quantity, days, dates, predecessors, float; critical tasks in red), Gantt chart, manpower by role and the cost split. On Android it uses the system print dialog (Save as PDF).
+*Export PDF* (Schedule screen) prints every sheet of the Excel export on A3 landscape: Schedule, Man Power, Man Power Schedule, Equipment, Equipment Schedule, Cash Flow, Cash Flow Summary and Gantt. Same layout, fills and equal row heights as the Excel file; header rows repeat on every page. On Android it uses the system print dialog (Save as PDF).
