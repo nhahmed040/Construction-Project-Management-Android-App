@@ -176,7 +176,18 @@
     r += 1;
     sh.put(r, 1, { v: 'Total', s: TOTAL }); sh.put(r, 2, { v: '', s: TOTAL });
     for (var c = 3; c < 14; c++) { var col = require_col(c); sh.put(r, c, { v: 0, f: 'SUM(' + col + first + ':' + col + last + ')', s: st({ fmt: MONEY, h: 'right' }, TOTAL) }); }
+    // the share of each payment that goes to every cost (as in the contractor's summary sheet)
+    r += 1;
+    var PCT = st({ fmt: '0.00%', h: 'right' }, CELL), amt = pay.totals.amount || 1;
+    sh.put(r, 1, { v: 'Share of payment (%)', s: TOTAL }); sh.put(r, 2, { v: '', s: TOTAL }); sh.put(r, 3, { v: 1, s: st({ fmt: '0.00%', h: 'right' }, TOTAL) });
+    [pay.shares.mat, pay.shares.lab, pay.shares.eq, pay.shares.misc, pay.shares.oh, pay.shares.profit, pay.totals.wht / amt, p.vat / 100].forEach(function (n, k) { sh.put(r, 4 + k, { v: n, s: st({ fmt: '0.00%', h: 'right' }, TOTAL) }); });
     r += 2;
+    sh.put(r, 1, { v: 'Summary', s: { b: true, font: F } });
+    var tt = pay.totals, direct = tt.mat + tt.lab + tt.eq, indirect = tt.misc + tt.oh;
+    [['Direct Cost', direct], ['Indirect Cost', indirect], ['Direct Cost + Indirect Cost', direct + indirect],
+      ['Profit', tt.profit], ['Total Amount', tt.amount], ['VAT', tt.vat], ['Total with VAT', tt.total], ['Withholding Tax (deducted)', tt.wht], ['Net after withholding', tt.net]]
+      .forEach(function (x, i) { sh.put(r + 1 + i, 1, { v: x[0], s: i === 4 || i === 6 ? TOTAL : CELL }); sh.put(r + 1 + i, 2, { v: '', s: i === 4 || i === 6 ? TOTAL : CELL }); sh.put(r + 1 + i, 3, { v: L.round2(x[1]), s: i === 4 || i === 6 ? st({ fmt: MONEY, h: 'right' }, TOTAL) : NUM }); });
+    r += 11;
     sh.put(r, 1, { v: 'Cost shares', s: { b: true, font: F } });
     [['Material', pay.shares.mat], ['Labor', pay.shares.lab], ['Equipment and tools', pay.shares.eq], ['Miscellaneous', pay.shares.misc], ['Over head', pay.shares.oh], ['Profit', pay.shares.profit]]
       .forEach(function (x, i) { sh.put(r + 1 + i, 1, { v: x[0], s: CELL }); sh.put(r + 1 + i, 2, { v: x[1], s: st({ fmt: '0.00%', h: 'right' }, CELL) }); });
