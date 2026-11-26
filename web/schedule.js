@@ -549,7 +549,7 @@
   var LAB = 'Daily Labour', FM = 'Foreman';
   /* per: output per crew-day (a number, or { def, 'M³': n, ... } by unit). units: only for these units. Order matters: first match wins. */
   var TEMPLATES = [
-    { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away )?(the )?(site|shrub|bush|vegetation)|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
+    { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away |of )?(the )?(site|shrub|bush|vegetation)|site clearing|removing of the top|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
     { id: 'kerb', label: 'Kerb / edge stone', re: /kerb|curb\s?stone|edge stone|channel stone/, units: ['M'], per: { def: 60 }, crew: { Foreman: 1, 'Daily Labour': 3, Mason: 2, Helper: 2 }, eq: {} },
     { id: 'drain', label: 'Drainage pipes / culverts', re: /^(?!.*excavat)(?=.*((drain|sewer|culvert|hume)\w*[ -]?(pipe|line)?|(lay|laying|supply).{0,30}(drain|sewer)))/, units: ['M', 'Nº', 'PCS', 'LS'], per: { def: 25, 'Nº': 2 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 1, Plumber: 1 }, eq: {} },
@@ -571,17 +571,17 @@
     { id: 'pointing', label: 'Pointing', re: /pointing/, per: { def: 16 }, crew: { Foreman: 1, 'Daily Labour': 1, Mason: 1, Helper: 1 }, eq: {} },
     { id: 'masonry', label: 'Stone masonry', re: /masonry|stone wall|foundation wall/, per: { def: 6 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 1, Helper: 1 }, eq: {} },
     { id: 'paint', label: 'Painting', re: /paint|emulsion|varnish|enamel|thermoplastic|marking/, per: { def: 100 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 2 }, eq: {} },
-    { id: 'skirting', label: 'Skirting / wall tile fixing', re: /skirting|dado|adhesive/, units: ['M', 'M²'], per: { def: 50, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 2, Tiler: 2, Helper: 2 }, eq: {} },
+    { id: 'skirting', label: 'Skirting / wall tile fixing', re: /skirting|dado/, units: ['M', 'M²'], per: { def: 50, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 2, Tiler: 2, Helper: 2 }, eq: {} },
     { id: 'tile', label: 'Tiling / paving', re: /\btile|tiling|ceramic|terrazzo|terrazo|paving|marble|granite|flooring/, per: { def: 43 }, crew: { Foreman: 1, 'Daily Labour': 12, Tiler: 5, Helper: 5 }, eq: {} },
     { id: 'lean', label: 'Lean concrete / screed', re: /lean concrete|screed|\bc-?7\b|blinding concrete/, per: { def: 25 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 2, Helper: 2, 'Mixer Operator': 1 }, eq: { 'Concrete Mixer': 1 } },
     { id: 'concrete', label: 'Concrete', re: /concrete|\bc-?\d{2}\b|\brcc?\b|mass concrete|cast in situ/, per: { def: 10, 'M²': 7 }, crew: { Foreman: 1, 'Daily Labour': 12, Mason: 2, Helper: 2, 'Mixer Operator': 1, 'Vibrator Operator': 1 }, eq: { 'Concrete Mixer': 1, Vibrator: 1 } },
     { id: 'roof', label: 'Roofing', re: /roof|corrugated|iron sheet|polycarbonate|gutter|down\s?pipe|flashing|ridge cap|fascia/, per: { def: 35, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 1, Carpenter: 1, Helper: 1 }, eq: {} },
-    { id: 'ceiling', label: 'Ceiling boards / gypsum', re: /ceiling|gypsum board|suspended|cornice/, units: ['M²', 'M'], per: { def: 40, M: 60 }, crew: { Foreman: 1, 'Daily Labour': 1, Carpenter: 2, Helper: 2 }, eq: {} },
-    { id: 'carp', label: 'Carpentry / timber', re: /morale|timber|purlin|truss|eucalyptus|zigba|carpent|batten|joiner|ceiling|pile\b/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2, Helper: 2 }, eq: {} },
-    { id: 'metal', label: 'Metal doors and windows', re: /door|window|grill|steel frame|metal (door|window|frame)|railing|handrail/, per: { def: 10 }, crew: { Foreman: 1, 'Daily Labour': 1, Welder: 1, Helper: 1 }, eq: { 'Welding Machine': 1, Grinder: 1 } },
+    { id: 'ceiling', label: 'Ceiling boards / gypsum', re: /^(?!.*(light|lamp|\bled\b|fitting)).*(ceiling|gypsum board|cornice)/, units: ['M²', 'M'], per: { def: 40, M: 60 }, crew: { Foreman: 1, 'Daily Labour': 1, Carpenter: 2, Helper: 2 }, eq: {} },
+    { id: 'carp', label: 'Carpentry / timber', re: /morale|timber|purlin|truss|eucalyptus|zigba|carpent|batten|joiner|pile\b|cabinet|cupboard|wardrobe/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2, Helper: 2 }, eq: {} },
+    { id: 'metal', label: 'Metal doors and windows', re: /\bdoors?\b|\bwindows?\b|grill|steel frame|metal (door|window|frame)|railing|handrail/, per: { def: 10 }, crew: { Foreman: 1, 'Daily Labour': 1, Welder: 1, Helper: 1 }, eq: { 'Welding Machine': 1, Grinder: 1 } },
     { id: 'glaze', label: 'Glazing', re: /glaz|glass/, per: { def: 12 }, crew: { Foreman: 1, Glazier: 1 }, eq: {} },
-    { id: 'plumb', label: 'Plumbing / sanitary', re: /pipe|plumb|valve|toilet|\bwash|sanitary|\bwc\b|basin|\btap\b|elbow|\bppr\b/, per: { def: 50, 'Nº': 4, PCS: 4, M: 74 }, crew: { Foreman: 1, 'Daily Labour': 2, Plumber: 2 }, eq: {} },
-    { id: 'elec', label: 'Electrical', re: /electric|wire|cable|conduit|socket|switch|\blight|lamp|breaker|distribution|\bdb\b|fitting|\bpoints?\b|earthing|\bpanel/, per: { def: 8, M: 300 }, crew: { Foreman: 1, Electrician: 1, 'Daily Labour': 1 }, eq: {} }
+    { id: 'plumb', label: 'Plumbing / sanitary', re: /pipe|plumb|valve|toilet|\bwash|sanitary|\bwc\b|basin|\btap\b|elbow|\bppr\b|\bsink\b|towel|soap|toilet paper|mirror|shower/, per: { def: 50, 'Nº': 4, PCS: 4, M: 74 }, crew: { Foreman: 1, 'Daily Labour': 2, Plumber: 2 }, eq: {} },
+    { id: 'elec', label: 'Electrical', re: /electric|wire|cable|conduit|socket|switch|\blight|lamp|breaker|distribution|\bdb\b|fitting|\bpoints?\b|earthing|\bpanel|outlet|\brj ?45\b|\bdata\b/, per: { def: 8, M: 300 }, crew: { Foreman: 1, Electrician: 1, 'Daily Labour': 1 }, eq: {} }
   ];
   var DEFAULTS = { 'M³': 10, 'M²': 40, M: 50, KG: 250, PCS: 4, 'Nº': 4, LS: 0.34, SET: 1 };
   var DEFAULT_TPL = { id: 'general', label: 'General work', crew: { Foreman: 1, 'Daily Labour': 4 }, eq: {} };
@@ -601,13 +601,16 @@
   }
   // heading text above each sub-item (same nesting rule as the schedule rows)
   function headsOf(p) {
-    var out = {}, cur = null, last = null, nest = (p.sched && p.sched.nest) || {};
+    var out = {}, cur = null, last = null, prevItem = null, nest = (p.sched && p.sched.nest) || {};
     p.boq.forEach(function (i) {
       if (i.kind === 'sum') { cur = last = null; return; }
       if (L.isHeading(i)) { cur = last = i; return; }
       if (!L.isItemRow(i)) { cur = last = null; return; }
+      var isDitto = /^\s*(ditto|do\b|same as)/i.test(String(i.desc || '')), isLetter = /^[a-z][.)]?$/.test(String(i.no || '').trim());
       var nv = nest[String(i.id)], par = nv === 'in' ? last : nv === 'out' ? null : (cur && (!i.no || /^[a-z][.)]?$/.test(String(i.no).trim())) ? cur : null);
       if (par) out[String(i.id)] = par.desc; else if (nv !== 'in') cur = null;
+      if (!par && (isDitto || isLetter) && prevItem) out[String(i.id)] = prevItem.desc;
+      if (!isDitto && !isLetter) prevItem = i;
     });
     return out;
   }

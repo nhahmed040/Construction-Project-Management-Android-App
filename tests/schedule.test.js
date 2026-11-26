@@ -542,3 +542,18 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   assert.ok(p.sched.equip.some(function (e) { return e.name === 'Road Roller'; }));
   console.log('ok   road bundle');
 })();
+(function () {
+  var L = require('../web/logic.js'), S = require('../web/schedule.js'), assert = require('assert');
+  var p = L.sanitizeProject({ name: 'D', boqLines: 2, boq: [
+    { id: 1, no: '1.02', desc: 'Bulk excavation in ordinary soil to a depth of 1500 mm', unit: 'M³', qty: 80, rate: 348 },
+    { id: 2, no: 'a)', desc: 'Ditto, but in soft rock', unit: 'M³', qty: 10, rate: 700 },
+    { id: 3, no: '2.2', desc: 'Ditto but 15cm thick', unit: 'M³', qty: 10, rate: 700 }] });
+  var h = S.headsOf(p);
+  assert.ok(/excavation/.test(h['2']) && /excavation/.test(h['3']), 'ditto items take the item above');
+  assert.strictEqual(S.templateOf(p.boq[1], h['2']).id, 'excav');
+  assert.strictEqual(S.templateOf({ desc: 'Supply and fix 7x5cm wood purlins', unit: 'M' }).id, 'carp');
+  assert.strictEqual(S.templateOf({ desc: 'Gypsum Lighting LED Linear Light for ceilings', unit: 'M' }).id, 'elec');
+  assert.strictEqual(S.templateOf({ desc: 'TYPE-4 OUTDOOR WALL LIGHT', unit: 'Nº' }).id, 'elec');
+  assert.strictEqual(S.templateOf({ desc: 'Site clearing and removing of the top 20 cm thick soil', unit: 'M²' }).id, 'clear');
+  console.log('ok   ditto and building BoQ matching');
+})();
