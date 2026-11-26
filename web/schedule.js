@@ -600,6 +600,88 @@
     var x = make(); list.push(x); return x;
   }
 
+  /* ---------- presets: the setup of a project as a named, re-usable set of parts ---------- */
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  var BUILTIN_PRESETS = [
+    { id: 'b_building', name: 'Building', builtin: true, note: 'Houses, offices, health posts, schools', parts: {
+      prod: { hours: 8, factor: 1, types: {} },
+      mp: STD_ROLES.map(function (r) { return { name: r[0], type: r[1], person: '', count: r[1] === 'permanent' ? 1 : 0 }; }),
+      eq: STD_EQUIP.map(function (e) { return { name: e[0], source: e[1] }; }),
+      cf: { misc: 2, overhead: 7.5, profit: 7.5, defSplit: [65, 15, 3], presets: [], advPct: 20, interim: 3 } } },
+    { id: 'b_rainy', name: 'Rainy season (slower)', builtin: true, note: 'Output about 20% lower on all work', parts: { prod: { hours: 8, factor: 0.8, types: {}, keepTypes: true } } },
+    { id: 'b_remote', name: 'Remote site (slower)', builtin: true, note: 'Poor access: output about 15% lower', parts: { prod: { hours: 8, factor: 0.85, types: {}, keepTypes: true } } },
+    { id: 'b_fast', name: 'Fast crews', builtin: true, note: 'Experienced crews: output about 15% higher', parts: { prod: { hours: 8, factor: 1.15, types: {}, keepTypes: true } } }
+  ];
+  var PRESET_PARTS = ['prod', 'mp', 'eq', 'cf'];
+  /* built-in presets (not hidden) first, then the user's own */
+  function presetLibrary(user, hidden) {
+    hidden = hidden || [];
+    return BUILTIN_PRESETS.filter(function (b) { return hidden.indexOf(b.id) < 0; }).concat((user || []).map(function (u) { return { id: u.id, name: u.name, parts: u.parts }; }));
+  }
+  /* a preset from the project's present setup; `want` lists the parts to keep */
+  function presetFromProject(p, name, want) {
+    var s = p.sched, parts = {};
+    want = want || PRESET_PARTS;
+    if (want.indexOf('prod') >= 0) parts.prod = clone(prodOf(p));
+    if (want.indexOf('mp') >= 0 && s.roles.length) parts.mp = s.roles.map(function (r) { return { name: r.name, type: r.type, person: r.person || '', count: r.count || 0 }; });
+    if (want.indexOf('eq') >= 0 && s.equip.length) parts.eq = s.equip.map(function (e) { return { name: e.name, source: e.source }; });
+    if (want.indexOf('cf') >= 0) { var c = s.cf; parts.cf = clone({ misc: c.misc, overhead: c.overhead, profit: c.profit, defSplit: c.defSplit, presets: c.presets || [], advPct: c.advPct, interim: c.interim }); }
+    return L.sanitizePreset({ name: name, parts: parts });
+  }
+  var DEFAULT_MODES = { prod: 'replace', mp: 'merge', eq: 'merge', cf: 'replace' };
+  /* apply the chosen parts. modes: { prod|mp|eq|cf: 'replace' | 'merge' } (a part left out is not applied). Returns counts. */
+  function applyPreset(p, pre, modes) {
+    var s = p.sched, pa = pre.parts || {}, out = { prod: 0, mp: 0, eq: 0, cf: 0, removed: 0 };
+    if (modes.prod && pa.prod) {
+      var cur = clone(prodOf(p)), src = pa.prod;
+      if (modes.prod === 'replace') {
+        cur.hours = src.hours; cur.factor = src.factor;
+        if (!src.keepTypes) cur.types = clone(src.types || {});
+        else Object.keys(src.types || {}).forEach(function (k) { cur.types[k] = clone(src.types[k]); });
+      } else {
+        if (cur.hours === 8) cur.hours = src.hours;
+        if (cur.factor === 1) cur.factor = src.factor;
+        Object.keys(src.types || {}).forEach(function (k) { if (!cur.types[k]) cur.types[k] = clone(src.types[k]); });
+      }
+      s.prod = L.sanitizeProd(cur); out.prod = 1;
+    }
+    function sync(list, items, mode, make, copy, usedIds) {
+      var seen = {};
+      items.forEach(function (it) {
+        var ex = null, k = nkey(it.name);
+        for (var i = 0; i < list.length; i++) if (nkey(list[i].name) === k || (k === 'foreman' && nkey(list[i].name) === 'forman')) { ex = list[i]; break; }
+        seen[ex ? ex.id : 'new' + k] = true;
+        if (ex) { if (mode === 'replace') copy(ex, it); }
+        else { list.push(make(it)); out[list === s.roles ? 'mp' : 'eq'] += 1; }
+        if (ex) seen[ex.id] = true;
+      });
+      if (mode === 'replace') {   // drop what the preset does not have, unless a task uses it
+        for (var j = list.length - 1; j >= 0; j--) {
+          var keep = false, x = list[j];
+          items.forEach(function (it) { if (nkey(it.name) === nkey(x.name)) keep = true; });
+          if (!keep && !usedIds[String(x.id)]) { list.splice(j, 1); out.removed += 1; }
+        }
+      }
+    }
+    var usedR = {}, usedE = {};
+    Object.keys(s.tasks).forEach(function (k) { Object.keys(s.tasks[k].mp || {}).forEach(function (r) { usedR[r] = true; }); Object.keys(s.tasks[k].eq || {}).forEach(function (r) { usedE[r] = true; }); });
+    if (modes.mp && pa.mp) sync(s.roles, pa.mp, modes.mp, function (it) { return { id: L.newId(), name: it.name, type: it.type, person: it.person || '', count: it.count || 0 }; }, function (ex, it) { ex.type = it.type; ex.person = it.person || ex.person; ex.count = it.count; }, usedR);
+    if (modes.eq && pa.eq) sync(s.equip, pa.eq, modes.eq, function (it) { return { id: L.newId(), name: it.name, source: it.source }; }, function (ex, it) { ex.source = it.source; }, usedE);
+    if (modes.cf && pa.cf) {
+      var cf = s.cf, sc = pa.cf;
+      if (modes.cf === 'replace') { cf.misc = sc.misc; cf.overhead = sc.overhead; cf.profit = sc.profit; cf.defSplit = sc.defSplit.slice(); cf.advPct = sc.advPct; cf.interim = sc.interim; cf.legacy = false; cf.presets = clone(sc.presets || []); }
+      else {
+        cf.presets = cf.presets || [];
+        (sc.presets || []).forEach(function (q) {
+          if (cf.presets.length >= 8 || cf.presets.some(function (z) { return nkey(z.name) === nkey(q.name); })) return;
+          var c2 = clone(q); if (cf.presets.some(function (z) { return z.id === c2.id; })) c2.id = L.newId(); cf.presets.push(c2);
+        });
+      }
+      out.cf = 1;
+    }
+    return out;
+  }
+
   /* ---------- productivity assumptions ----------
      p.sched.prod = { hours, factor, types: { <type id>: { per:{unit:output}, crew:{role:n}, eq:{machine:n}, preset } } }
      Only what you changed is stored; everything else comes from TEMPLATES. */
@@ -1050,7 +1132,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, isOff: isOff, holidaysEthiopia: holidaysEthiopia, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, setNest: setNest, successors: successors, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, setNest: setNest, successors: successors, BUILTIN_PRESETS: BUILTIN_PRESETS, PRESET_PARTS: PRESET_PARTS, DEFAULT_MODES: DEFAULT_MODES, presetLibrary: presetLibrary, presetFromProject: presetFromProject, applyPreset: applyPreset, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

@@ -84,3 +84,7 @@ Tap a task (list, Gantt row or bar, "This week") to open the **quick edit** shee
 The schedule shows four levels, each with its own style and indentation: **Group**, **Line**, **heading-type item** (an item with no quantity or rate, e.g. "Reinforced concrete…") and **item**. Items under a heading-type item (until the next item with a number, heading, line or group) are its sub-items; use *Put under heading / Take out of heading* in the quick-edit sheet to correct a guess. Heading levels are read-only and roll up start, finish, days, value and progress. Fold with ▾ / ▸ or *Expand all / Collapse all*; Excel and PDF indent the same way.
 
 In the Gantt, *Columns* opens a list of check boxes: Qty, Days, Start, Finish, Predecessors, Successors (Start, Finish and Successors are calculated; the choice is remembered). The Excel Gantt sheet has a Successors column too.
+
+### Presets
+
+Setup ▾ → Presets (also a Presets button on Productivity, Manpower, Equipment and Cash flow). A preset bundles productivity, manpower, equipment and cash-flow set-ups. Apply per part with Replace or Merge (Undo available), optionally regenerate the schedule. Save the project's set-up as your own preset; rename, duplicate, delete (built-ins can be hidden). Presets are copied into the project and kept in settings/backup.

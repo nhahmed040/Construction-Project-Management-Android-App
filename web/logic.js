@@ -418,6 +418,29 @@
     });
     return out;
   }
+  /* a preset: a named set of setup parts that can be applied to a project.
+     parts: { prod: {hours,factor,types,keepTypes}, mp: [{name,type,person,count}], eq: [{name,source}], cf: {misc,overhead,profit,defSplit,presets,advPct,interim} } */
+  function sanitizePreset(q) {
+    if (!q || typeof q !== 'object') return null;
+    var name = String(q.name || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (!name) return null;
+    var id = typeof q.id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(q.id) ? q.id : 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var parts = {}, pp = q.parts && typeof q.parts === 'object' ? q.parts : {};
+    if (pp.prod && typeof pp.prod === 'object') { parts.prod = sanitizeProd(pp.prod); if (pp.prod.keepTypes) parts.prod.keepTypes = true; }
+    if (Array.isArray(pp.mp) && pp.mp.length) parts.mp = sanitizeSched({ roles: pp.mp }).roles.map(function (r) { return { name: r.name, type: r.type, person: r.person, count: r.count }; });
+    if (Array.isArray(pp.eq) && pp.eq.length) parts.eq = sanitizeSched({ equip: pp.eq }).equip.map(function (e) { return { name: e.name, source: e.source }; });
+    if (pp.cf && typeof pp.cf === 'object') {
+      var c = sanitizeSched({ cf: pp.cf }).cf;
+      parts.cf = { misc: c.misc, overhead: c.overhead, profit: c.profit, defSplit: c.defSplit, presets: c.presets, advPct: c.advPct, interim: c.interim };
+    }
+    if (!Object.keys(parts).length) return null;
+    return { id: id, name: name, parts: parts };
+  }
+  function sanitizePresetList(list) {
+    var out = [], seen = {};
+    (Array.isArray(list) ? list : []).slice(0, 60).forEach(function (q) { var x = sanitizePreset(q); if (x && !seen[x.id]) { seen[x.id] = true; out.push(x); } });
+    return out;
+  }
   function sanitizeSched(s) {
     s = s && typeof s === 'object' ? s : {};
     var cf = s.cf && typeof s.cf === 'object' ? s.cf : {};
@@ -599,7 +622,7 @@
     return {
       v: 3,
       current: 'main',
-      settings: { lang: 'en', currency: 'ETB', theme: 'system', calendar: 'gregorian', pinHash: '', pinSalt: '', prodDefault: null },
+      settings: { lang: 'en', currency: 'ETB', theme: 'system', calendar: 'gregorian', pinHash: '', pinSalt: '', prodDefault: null, presets: [], hiddenPresets: [] },
       books: [{ id: 'main', name: 'Main', projectId: '', businessId: '', entries: [] }],
       projects: [],
       contacts: [],
@@ -688,6 +711,8 @@
     if (THEMES.indexOf(rs.theme) >= 0) s.settings.theme = rs.theme;
     if (CALENDARS.indexOf(rs.calendar) >= 0) s.settings.calendar = rs.calendar;
     if (rs.prodDefault && typeof rs.prodDefault === 'object') s.settings.prodDefault = sanitizeProd(rs.prodDefault);
+    s.settings.presets = sanitizePresetList(rs.presets);
+    s.settings.hiddenPresets = (Array.isArray(rs.hiddenPresets) ? rs.hiddenPresets : []).filter(function (x) { return typeof x === 'string' && x.length < 41; }).slice(0, 30);
     if (keepPin && typeof rs.pinHash === 'string' && typeof rs.pinSalt === 'string' && rs.pinHash && rs.pinSalt) {
       s.settings.pinHash = rs.pinHash.slice(0, 64);
       s.settings.pinSalt = rs.pinSalt.slice(0, 64);
@@ -1804,7 +1829,7 @@
     LANGS: LANGS, CURRENCIES: CURRENCIES, THEMES: THEMES, CALENDARS: CALENDARS, CODES: CODES,
     newId: newId, todayStr: todayStr, isDate: isDate, round2: round2,
     sanitizeEntry: sanitizeEntry, sanitizeState: sanitizeState, defaultState: defaultState, migrateOld: migrateOld,
-    sanitizeSched: sanitizeSched, sanitizeProd: sanitizeProd, SCHED_OFF: SCHED_OFF, sanitizeProject: sanitizeProject, sanitizeBill: sanitizeBill, sanitizeCert: sanitizeCert,
+    sanitizeSched: sanitizeSched, sanitizeProd: sanitizeProd, sanitizePreset: sanitizePreset, sanitizePresetList: sanitizePresetList, SCHED_OFF: SCHED_OFF, sanitizeProject: sanitizeProject, sanitizeBill: sanitizeBill, sanitizeCert: sanitizeCert,
     sanitizeWorker: sanitizeWorker, sanitizeAttendance: sanitizeAttendance, sanitizePayment: sanitizePayment,
     hashPin: hashPin, newSalt: newSalt, validPin: validPin,
     buildCsv: buildCsv, parseCsv: parseCsv, entriesFromCsv: entriesFromCsv,

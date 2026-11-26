@@ -456,3 +456,29 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   if (d !== '12332') throw new Error('lowercase letters are sub-items: ' + d);
   console.log('sub-item letter tests ok');
 })();
+
+(function () {
+  var S7 = require('../web/schedule.js'), L7 = require('../web/logic.js');
+  var p = L7.sanitizeProject({ name: 'P', boqLines: 2 }, 1);
+  var lib = S7.presetLibrary([], ['b_fast']);
+  if (lib.some(function (x) { return x.id === 'b_fast'; }) || !lib.some(function (x) { return x.id === 'b_rainy'; })) throw new Error('library hidden');
+  // rainy: replace productivity but keep trade changes
+  p.sched.prod = L7.sanitizeProd({ hours: 8, factor: 1, types: { masonry: { per: { def: 9 } } } });
+  S7.applyPreset(p, S7.BUILTIN_PRESETS[1], { prod: 'replace' });
+  if (p.sched.prod.factor !== 0.8 || !p.sched.prod.types.masonry) throw new Error('rainy keeps trade changes');
+  // building, merge roles: adds standard roles, keeps ours
+  p.sched.roles = [{ id: 1, name: 'Mason', type: 'temporary', person: '', count: 7 }];
+  S7.applyPreset(p, S7.BUILTIN_PRESETS[0], { mp: 'merge', eq: 'merge' });
+  var mason = p.sched.roles.filter(function (r) { return r.name === 'Mason'; });
+  if (mason.length !== 1 || mason[0].count !== 7 || p.sched.roles.length < 20 || p.sched.equip.length !== 12) throw new Error('merge roles');
+  // replace removes unused roles not in the preset, keeps used
+  p.sched.roles.push({ id: 99, name: 'Spare', type: 'temporary', person: '', count: 1 });
+  S7.applyPreset(p, { parts: { mp: [{ name: 'Mason', type: 'temporary', person: '', count: 2 }] } }, { mp: 'replace' });
+  if (p.sched.roles.length !== 1 || p.sched.roles[0].count !== 2) throw new Error('replace roles: ' + p.sched.roles.length);
+  // save from project and sanitize round trip
+  var q = S7.presetFromProject(p, 'Mine', ['prod', 'mp']);
+  if (!q || !q.parts.prod || !q.parts.mp || q.parts.eq) throw new Error('preset from project');
+  var list = L7.sanitizePresetList([q, { name: '', parts: { prod: {} } }, { name: 'x', parts: {} }]);
+  if (list.length !== 1) throw new Error('preset list sanitize');
+  console.log('preset engine tests ok');
+})();

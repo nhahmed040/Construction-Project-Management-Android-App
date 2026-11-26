@@ -228,6 +228,7 @@
       menuSheet(c, t('sch_menu_setup'), [
         ['⚙️ ' + t('sch_settings'), function () { editSettings(c); }],
         ['📈 ' + t('sch_prod'), function () { openProductivity(c); }],
+        ['📦 ' + t('sch_presets'), function () { openPresets(c); }],
         ['📅 ' + t('sch_hol') + (p.sched.hol.length ? ' (' + p.sched.hol.length + ')' : ''), function () { openHolidays(c); }],
         ['👷 ' + t('sch_roles'), function () { goTypes(c, 'mp', 'manpower'); }],
         ['🚜 ' + t('sch_machines'), function () { goTypes(c, 'eq', 'equipment'); }]
@@ -396,6 +397,112 @@
     draw();
   }
 
+  /* ---------- presets: a library of set-ups to apply to this project ---------- */
+  var PART_LABEL = { prod: 'sch_part_prod', mp: 'sch_part_mp', eq: 'sch_part_eq', cf: 'sch_part_cf' };
+  function partsText(c, pre) { return S.PRESET_PARTS.filter(function (k) { return pre.parts[k]; }).map(function (k) { return c.t(PART_LABEL[k]); }).join(' · '); }
+
+  function openPresets(c, only, done) {
+    var A = c.A, t = c.t, ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal prevmodal');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); if (done) done(); }
+    function lib() { return S.presetLibrary(A.getPresets(), A.getHiddenPresets()).filter(function (x) { return !only || x.parts[only]; }); }
+    function draw() {
+      m.textContent = '';
+      m.appendChild(c.el('h2', null, t('sch_presets') + (only ? ' · ' + t(PART_LABEL[only]) : '')));
+      m.appendChild(c.el('p', 'muted small', t('sch_presets_note')));
+      var pn = c.el('div', 'panel'), items = lib();
+      if (!items.length) pn.appendChild(c.el('p', 'muted small', t('sch_presets_none')));
+      items.forEach(function (pre) {
+        var user = !pre.builtin || false, row = c.el('div', 'improw prow');
+        var tx = c.el('span', 'stext');
+        tx.appendChild(c.el('b', null, pre.name + (pre.builtin ? '  ·  ' + t('sch_preset_builtin') : '')));
+        tx.appendChild(c.el('small', 'muted', (pre.note ? pre.note + ' — ' : '') + partsText(c, pre)));
+        row.appendChild(tx);
+        row.appendChild(c.btn(t('sch_apply'), 'primary', function () { close0(); applySheet(c, pre, only, function () { openPresets(c, only, done); }); }));
+        row.appendChild(c.btn('⋯', '', function () {
+          var acts = [];
+          acts.push(['⧉ ' + t('sch_preset_dup'), function () { var cp = JSON.parse(JSON.stringify(pre)); cp.id = ''; cp.name = pre.name + ' (2)'; var q = L.sanitizePreset(cp); if (q) { A.setPresets(A.getPresets().concat([q])); A.save(); } draw(); }]);
+          if (!pre.builtin) {
+            acts.push(['✎ ' + t('sch_preset_rename'), function () {
+              A.openForm({ title: t('sch_preset_rename'), fields: [{ key: 'name', label: t('sch_preset_name'), type: 'text', value: pre.name, required: true }],
+                onSubmit: function (v) { var nm = String(v.name || '').trim().slice(0, 40); if (!nm) return t('required'); A.setPresets(A.getPresets().map(function (z) { if (z.id === pre.id) z.name = nm; return z; })); A.save(); window.setTimeout(draw, 30); return null; } });
+            }]);
+            acts.push(['🗑 ' + t('sch_preset_delete'), function () { if (!window.confirm(t('sch_preset_delete_ask', { x: pre.name }))) return; A.setPresets(A.getPresets().filter(function (z) { return z.id !== pre.id; })); A.save(); draw(); }]);
+          } else acts.push(['🙈 ' + t('sch_preset_hide'), function () { A.setHiddenPresets(A.getHiddenPresets().concat([pre.id])); A.save(); draw(); }]);
+          menuSheet(c, pre.name, acts);
+        }));
+        pn.appendChild(row);
+      });
+      m.appendChild(pn);
+      var br = c.el('div', 'btnrow');
+      br.appendChild(c.btn('💾 ' + t('sch_preset_save'), 'primary', function () { close0(); saveSheet(c, only, function () { openPresets(c, only, done); }); }));
+      if (A.getHiddenPresets().length) br.appendChild(c.btn(t('sch_preset_unhide'), '', function () { A.setHiddenPresets([]); A.save(); draw(); }));
+      m.appendChild(br);
+      m.appendChild(c.btn(t('close'), 'block', close));
+    }
+    function close0() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
+    ov.appendChild(m);
+    document.body.appendChild(ov);
+    draw();
+  }
+
+  /* save the project's present set-up as a preset: choose the parts */
+  function saveSheet(c, only, back) {
+    var A = c.A, t = c.t, p = c.p, ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); if (back) back(); }
+    m.appendChild(c.el('h2', null, t('sch_preset_save')));
+    var name = c.el('input'); name.type = 'text'; name.placeholder = t('sch_preset_name'); name.maxLength = 40; m.appendChild(name);
+    var boxes = {};
+    S.PRESET_PARTS.forEach(function (k) {
+      var lab = c.el('label', 'colopt'), cb = c.el('input'); cb.type = 'checkbox'; cb.checked = only ? k === only : true; boxes[k] = cb;
+      lab.appendChild(cb); lab.appendChild(c.el('span', null, t(PART_LABEL[k]))); m.appendChild(lab);
+    });
+    var br = c.el('div', 'btnrow');
+    br.appendChild(c.btn(t('save'), 'primary', function () {
+      var nm = name.value.trim();
+      if (!nm) { A.toast(t('required')); return; }
+      var want = S.PRESET_PARTS.filter(function (k) { return boxes[k].checked; });
+      var q = S.presetFromProject(p, nm, want);
+      if (!q) { A.toast(t('sch_preset_empty')); return; }
+      A.setPresets(A.getPresets().filter(function (z) { return z.name.toLowerCase() !== nm.toLowerCase(); }).concat([q]));
+      A.save(); A.toast(t('sch_preset_saved')); close();
+    }));
+    br.appendChild(c.btn(t('cancel'), '', close));
+    m.appendChild(br);
+    ov.appendChild(m); document.body.appendChild(ov);
+  }
+
+  /* apply a preset: per part, Replace or Merge */
+  function applySheet(c, pre, only, back) {
+    var A = c.A, t = c.t, p = c.p, ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal');
+    function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); if (back) back(); }
+    m.appendChild(c.el('h2', null, t('sch_apply') + ': ' + pre.name));
+    var ctl = {};
+    S.PRESET_PARTS.forEach(function (k) {
+      if (!pre.parts[k]) return;
+      var row = c.el('div', 'stepper'), cb = c.el('input'); cb.type = 'checkbox'; cb.checked = only ? k === only : true;
+      var lab = c.el('label', 'colopt'); lab.style.border = '0'; lab.appendChild(cb); lab.appendChild(c.el('span', null, t(PART_LABEL[k])));
+      var sel = c.el('select', 'tsel');
+      [['replace', t('sch_mode_replace')], ['merge', t('sch_mode_merge')]].forEach(function (x) { var o = c.el('option', null, x[1]); o.value = x[0]; if (x[0] === S.DEFAULT_MODES[k]) o.selected = true; sel.appendChild(o); });
+      row.appendChild(lab); row.appendChild(sel); m.appendChild(row); ctl[k] = { cb: cb, sel: sel };
+    });
+    m.appendChild(c.el('p', 'muted small', t('sch_mode_note')));
+    var rg = c.el('label', 'colopt'), rcb = c.el('input'); rcb.type = 'checkbox';
+    rg.appendChild(rcb); rg.appendChild(c.el('span', null, t('sch_preset_regen'))); if (p.boq.length) m.appendChild(rg);
+    var br = c.el('div', 'btnrow');
+    br.appendChild(c.btn(t('sch_apply'), 'primary', function () {
+      var modes = {}, any = false;
+      Object.keys(ctl).forEach(function (k) { if (ctl[k].cb.checked) { modes[k] = ctl[k].sel.value; any = true; } });
+      if (!any) { A.toast(t('sch_preset_pick')); return; }
+      var snap = snapOf(c), r = S.applyPreset(p, pre, modes);
+      if (rcb.checked) S.generate(p, { only: 'all', strategy: 'trade', end: p.endDate && L.isDate(p.endDate) ? p.endDate : '' });
+      A.save(); if (ov.parentNode) ov.parentNode.removeChild(ov); A.rerender();
+      undoToast(c, snap, t('sch_preset_applied', { x: pre.name }));
+    }));
+    br.appendChild(c.btn(t('cancel'), '', close));
+    m.appendChild(br);
+    ov.appendChild(m); document.body.appendChild(ov);
+  }
+
   /* editable productivity assumptions for this project */
   function parseMap(txt) {
     var out = {};
@@ -456,6 +563,7 @@
       m.appendChild(br);
       var br2 = c.el('div', 'btnrow');
       br2.appendChild(c.btn(t('sch_prod_reset'), '', function () { pr = { hours: 8, factor: 1, types: {} }; build(); }));
+      br2.appendChild(c.btn('📦 ' + t('sch_presets'), '', function () { collect(); close(); openPresets(c, 'prod', function () { openProductivity(c, done); }); }));
       br2.appendChild(c.btn(t('sch_prod_use_default'), '', function () { var d0 = A.getProdDefault(); if (!d0) { A.toast(t('sch_prod_no_default')); return; } pr = JSON.parse(JSON.stringify(d0)); build(); }));
       m.appendChild(br2);
       m.appendChild(c.btn(t('cancel'), 'block', function () { close(); if (done) done(); }));
@@ -877,6 +985,7 @@
       sum.appendChild(c.kv(isMp ? t('sch_manday_total') : t('sch_machday_total'), num(usage.totalDays)));
     }
     if (!list.length) sum.appendChild(c.el('p', 'muted small', isMp ? t('sch_no_roles') : t('sch_no_machines')));
+    sum.appendChild(c.btn('📦 ' + t('sch_presets'), 'block', function () { openPresets(c, isMp ? 'mp' : 'eq'); }));
     var pn = fold(c, kind + '-types', isMp ? t('sch_roles') : t('sch_machines'), list.length, function (d) {
       usage.rows.forEach(function (u) {
         var r = c.el('div', 'urow');
@@ -1047,6 +1156,7 @@
     st.appendChild(c.kv(t('sch_adv'), cf.advPct + '%'));
     st.appendChild(c.kv(t('sch_interim'), String(cf.cuts.length || cf.interim)));
     st.appendChild(c.btn(t('sch_edit'), 'block', function () { editCf(c); }));
+    st.appendChild(c.btn('📦 ' + t('sch_presets'), 'block', function () { openPresets(c, 'cf'); }));
     body.appendChild(st);
 
     var tp = c.panel(t('sch_cost_summary'));

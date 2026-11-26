@@ -1315,6 +1315,10 @@
         back(); requestAnimationFrame(back);
       },
       printDoc: printDoc,
+      getPresets: function () { return state.settings.presets || []; },
+      setPresets: function (v) { state.settings.presets = v; },
+      getHiddenPresets: function () { return state.settings.hiddenPresets || []; },
+      setHiddenPresets: function (v) { state.settings.hiddenPresets = v; },
       getProdDefault: function () { return state.settings.prodDefault; },
       setProdDefault: function (v) { state.settings.prodDefault = v; },
       goSection: function (sec) { ui.section = sec; renderProjects(); window.scrollTo(0, 0); },
