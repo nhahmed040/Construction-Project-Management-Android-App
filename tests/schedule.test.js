@@ -283,7 +283,7 @@ function boqOnly(extra) {
   var rows = [['trench excavation for curb concrete depth 30cm', 'M³', 96, 550], ['backfill and compact selected material', 'M³', 82, 1370], ['Cartaway Removal of trench excavated soil', 'M³', 96, 346.56],
     ['30*15cm terrazzo pavement for walk way', 'M²', 1073, 1596.96], ['Reinforced concrete C-25 filled into formwork and vibrated around reinforcement bars', 'M³', 80, 18523.93],
     ['dia 8mm deformed bar for curb concrete beam', 'KG', 1291.1, 342.91], ['Apply two coats of cement mortar plastering 1:3 to all internal HCB walls', 'M²', 85.6, 584.88],
-    ['1/2mm metal water pipe installation with elbow', 'M', 148, 600], ['Turkish toilet seat with elbow and gate valve', 'Nº', 1, 6400], ['something unusual here', 'M²', 10, 100]];
+    ['1/2mm metal water pipe installation with elbow', 'M', 148, 600], ['Turkish toilet seat with elbow and gate valve', 'Nº', 1, 6400], ['Unusual special architectural feature of the main entrance', 'M²', 10, 100]];
   return L.sanitizeProject(Object.assign({ name: 'B', startDate: '2026-12-01', boqLines: 2, boq: rows.map(function (r, i) { return { id: i + 1, desc: r[0], unit: r[1], qty: r[2], rate: r[3] }; }) }, extra || {}), 1);
 }
 ok('generate: durations, crews, equipment and splits from the BoQ', function () {
@@ -556,4 +556,17 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   assert.strictEqual(S.templateOf({ desc: 'TYPE-4 OUTDOOR WALL LIGHT', unit: 'Nº' }).id, 'elec');
   assert.strictEqual(S.templateOf({ desc: 'Site clearing and removing of the top 20 cm thick soil', unit: 'M²' }).id, 'clear');
   console.log('ok   ditto and building BoQ matching');
+})();
+(function () {
+  var L = require('../web/logic.js'), S = require('../web/schedule.js'), assert = require('assert');
+  var p = L.sanitizeProject({ name: 'V', boqLines: 2, boq: [
+    { id: 1, no: '', desc: 'Supply and fix approved quality floor clean outs', unit: '', qty: 0, rate: 0 },
+    { id: 2, no: '', desc: 'as where shown on the drawing. Price shall', unit: '', qty: 0, rate: 0 },
+    { id: 3, no: '', desc: 'Dia. 110 mm', unit: 'Nº', qty: 3, rate: 400 },
+    { id: 4, no: '', desc: 'Dia. 80 mm', unit: 'Nº', qty: 2, rate: 300 }] });
+  var h = S.headsOf(p);
+  assert.ok(/clean outs/.test(h['3']) && /Dia\. 110/.test(h['4']), 'description lines above, then the item above');
+  assert.strictEqual(S.templateOf(p.boq[2], h['3']).id, 'drain');
+  assert.strictEqual(S.templateOf(p.boq[3], h['4']).id, 'drain');
+  console.log('ok   continuation lines and fragments take the description above');
 })();

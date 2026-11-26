@@ -119,7 +119,7 @@
       if (lvl === 2) {
         if (L.isHeading(i)) { row.head = true; row.children = []; row.depth = 2; curHead = lastHead = row; }
         else {
-          var nv = nest[String(i.id)], par = nv === 'in' ? lastHead : nv === 'out' ? null : (curHead && (!i.no || /^[a-z][.)]?$/.test(String(i.no).trim())) ? curHead : null);
+          var nv = nest[String(i.id)], par = nv === 'in' ? lastHead : nv === 'out' ? null : (curHead && (!i.no || /^[a-z]\s?[.)]?$/.test(String(i.no).trim())) ? curHead : null);
           if (par) { row.parent = par.id; row.depth = 3; par.children.push(row); }
           else if (nv !== 'in') curHead = null;
         }
@@ -552,7 +552,7 @@
     { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away |of )?(the )?(site|shrub|bush|vegetation)|site clearing|removing of the top|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
     { id: 'kerb', label: 'Kerb / edge stone', re: /kerb|curb\s?stone|edge stone|channel stone/, units: ['M'], per: { def: 60 }, crew: { Foreman: 1, 'Daily Labour': 3, Mason: 2, Helper: 2 }, eq: {} },
-    { id: 'drain', label: 'Drainage pipes / culverts', re: /^(?!.*excavat)(?=.*((drain|sewer|culvert|hume)\w*[ -]?(pipe|line)?|(lay|laying|supply).{0,30}(drain|sewer)))/, units: ['M', 'Nº', 'PCS', 'LS'], per: { def: 25, 'Nº': 2 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 1, Plumber: 1 }, eq: {} },
+    { id: 'drain', label: 'Drainage pipes / culverts', re: /^(?!.*excavat)(?=.*(clean\s?outs?|vent\s?caps?|(drain|sewer|culvert|hume)\w*[ -]?(pipe|line)?|(lay|laying|supply).{0,30}(drain|sewer)))/, units: ['M', 'Nº', 'PCS', 'LS'], per: { def: 25, 'Nº': 2 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 1, Plumber: 1 }, eq: {} },
     { id: 'cobble', label: 'Cobblestone paving', re: /cobble/, per: { def: 35 }, crew: { Foreman: 1, 'Daily Labour': 4, Mason: 4, Helper: 4 }, eq: {} },
     { id: 'asphalt', label: 'Asphalt / bituminous surfacing', re: /asphalt|tack coat|prime coat|wearing course|bituminous (surface|course)/, units: ['M²', 'M³', 'M'], per: { def: 300, 'M³': 60 }, crew: { Foreman: 1, 'Daily Labour': 10, 'Roller Operator': 1 }, eq: { 'Road Roller': 1 } },
     { id: 'termite', label: 'Termite / soil treatment', re: /termite|soil poison|anti[- ]?termite/, units: ['M²', 'M', 'LS'], per: { def: 300 }, crew: { Foreman: 1, 'Daily Labour': 3 }, eq: {} },
@@ -601,16 +601,27 @@
   }
   // heading text above each sub-item (same nesting rule as the schedule rows)
   function headsOf(p) {
-    var out = {}, cur = null, last = null, prevItem = null, nest = (p.sched && p.sched.nest) || {};
+    var out = {}, cur = null, last = null, prevItem = null, run = [], open = false, text = '', nest = (p.sched && p.sched.nest) || {};
+    function reset() { cur = last = prevItem = null; run = []; open = false; text = ''; }
     p.boq.forEach(function (i) {
-      if (i.kind === 'sum') { cur = last = null; return; }
-      if (L.isHeading(i)) { cur = last = i; return; }
-      if (!L.isItemRow(i)) { cur = last = null; return; }
-      var isDitto = /^\s*(ditto|do\b|same as)/i.test(String(i.desc || '')), isLetter = /^[a-z][.)]?$/.test(String(i.no || '').trim());
-      var nv = nest[String(i.id)], par = nv === 'in' ? last : nv === 'out' ? null : (cur && (!i.no || /^[a-z][.)]?$/.test(String(i.no).trim())) ? cur : null);
-      if (par) out[String(i.id)] = par.desc; else if (nv !== 'in') cur = null;
-      if (!par && (isDitto || isLetter) && prevItem) out[String(i.id)] = prevItem.desc;
-      if (!isDitto && !isLetter) prevItem = i;
+      if (i.kind === 'sum') { reset(); return; }
+      if (L.isHeading(i)) {   // a block of description lines (qty 0, no rate) belongs to the item that follows it
+        if (!open) { run = []; open = true; }
+        run.push(String(i.desc || '')); text = run.join(' ').slice(0, 400); cur = last = i; prevItem = null; return;
+      }
+      if (!L.isItemRow(i)) { reset(); return; }
+      var immediate = open; open = false;
+      var isDitto = /^\s*(ditto|do\b|same as)/i.test(String(i.desc || '')), isLetter = /^[a-z]\s?[.)]?$/.test(String(i.no || '').trim()), noNo = !String(i.no || '').trim();
+      var fragment = String(i.desc || '').length <= 40 || /^[a-z(]/.test(String(i.desc || '')) || /^(dia|size|approx)/i.test(String(i.desc || ''));
+      var nv = nest[String(i.id)], par = nv === 'in' ? last : nv === 'out' ? null : (cur && (noNo || isLetter) ? cur : null);
+      if (par) out[String(i.id)] = text; else if (nv !== 'in') cur = null;
+      if (!par) {
+        // no words of its own for a work type: the block of lines just above, else the item above (fragments, ditto, a) b) c)), else the heading it sits under
+        if (noNo && immediate && text) out[String(i.id)] = text;
+        else if ((isDitto || isLetter || (noNo && fragment)) && prevItem) out[String(i.id)] = prevItem.desc;
+        else if (text) out[String(i.id)] = text;
+      }
+      if (!isDitto && !isLetter && (!noNo || matchText(String(i.desc || '').toLowerCase(), i.unit))) prevItem = i;
     });
     return out;
   }
