@@ -540,7 +540,7 @@
     ['Project Manager', 'permanent'], ['Store Keeper', 'permanent'], ['Surveyor', 'permanent'], ['Foreman', 'permanent'], ['Accountant', 'permanent'], ['Cashier', 'permanent'],
     ['Daily Labour', 'temporary'], ['Mason', 'temporary'], ['Carpenter', 'temporary'], ['Helper', 'temporary'], ['Plasterer', 'temporary'], ['Bar Bender', 'temporary'], ['Tiler', 'temporary'],
     ['Chiseler', 'temporary'], ['Welder', 'temporary'], ['Painter', 'temporary'], ['Glazier', 'temporary'], ['Electrician', 'temporary'], ['Plumber', 'temporary'],
-    ['Mixer Operator', 'temporary'], ['Vibrator Operator', 'temporary'], ['Compactor Operator', 'temporary'], ['Truck Driver', 'temporary'], ['Backhoe Loader Operator', 'temporary'], ['Pick Up Driver', 'temporary']
+    ['Mixer Operator', 'temporary'], ['Vibrator Operator', 'temporary'], ['Compactor Operator', 'temporary'], ['Truck Driver', 'temporary'], ['Backhoe Loader Operator', 'temporary'], ['Loader Operator', 'temporary'], ['Excavator Operator', 'temporary'], ['Grader Operator', 'temporary'], ['Roller Operator', 'temporary'], ['Pick Up Driver', 'temporary']
   ];
   var STD_EQUIP = [
     ['Concrete Mixer', 'Rental'], ['Vibrator', 'Rental'], ['Plate Compactor', 'Rental'], ['Pick Up Vehicle', 'Rental'], ['Dump Truck', 'Rental'], ['Backhoe Loader', 'Rental'],
@@ -671,7 +671,7 @@
         asphalt: { per: { def: 600, 'M³': 100 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Roller Operator': 2, 'Truck Driver': 2 }, eq: { 'Road Roller': 2, 'Dump Truck': 2 } },
         paint: { per: { def: 150, M: 400 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 3 }, eq: {} }
       } },
-      mp: STD_ROLES.map(function (r) { return { name: r[0], type: r[1], person: '', count: r[1] === 'permanent' ? 1 : 0 }; }).concat([{ name: 'Roller Operator', type: 'temporary', person: '', count: 0 }]),
+      mp: STD_ROLES.map(function (r) { return { name: r[0], type: r[1], person: '', count: r[1] === 'permanent' ? 1 : 0 }; }),
       eq: STD_EQUIP.map(function (e) { return { name: e[0], source: e[1] }; }).concat([{ name: 'Road Roller', source: 'Rental' }]),
       cf: { misc: 2, overhead: 7.5, profit: 7.5, defSplit: [50, 15, 12], presets: [], advPct: 15, interim: 3 } } },
     { id: 'b_rainy', name: 'Rainy season (slower)', builtin: true, note: 'Output about 20% lower on all work', parts: { prod: { hours: 8, factor: 0.8, types: {}, keepTypes: true } } },
