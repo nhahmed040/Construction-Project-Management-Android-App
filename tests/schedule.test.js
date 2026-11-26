@@ -507,3 +507,26 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   var names = p.sched.roles.filter(function (x) { return mp[x.id] > 0; }).map(function (x) { return x.name; });
   console.log(names.indexOf('Carpenter') >= 0 && !r.general ? 'ok   generated sub-item gets formwork crew' : 'FAIL sub-item crew ' + JSON.stringify(names) + ' general=' + r.general);
 })();
+(function () {
+  var S = require('../web/schedule.js');
+  var cases = [
+    ['Clear off the site shrubs and organic soil for an average depth of 20cm.', 'M²', 'clear'],
+    ['Precast concrete kerb stone 15x30', 'M', 'kerb'],
+    ['Supply and lay 300mm dia concrete culvert pipe', 'M', 'drain'],
+    ['Excavation for drain pipe', 'M³', 'excav'],
+    ['Asphalt wearing course 5cm', 'M²', 'asphalt'],
+    ['Cobblestone paving 10cm', 'M²', 'cobble'],
+    ['Anti-termite treatment to foundation', 'M²', 'termite'],
+    ['Chain link fence 2m high', 'M', 'fence'],
+    ['Bituminous waterproofing to slab', 'M²', 'waterproof'],
+    ['Septic tank 3x2m', 'Nº', 'septic'],
+    ['Water tank 5000 litre', 'Nº', 'tank'],
+    ['Gypsum board ceiling', 'M²', 'ceiling'],
+    ['Paint to ceiling', 'M²', 'paint'],
+    ['Ceramic skirting 10cm', 'M', 'skirting'],
+    ['Ridge cap and flashing', 'M', 'roof'],
+    ['Light point wiring', 'Nº', 'elec']
+  ], bad = [];
+  cases.forEach(function (c) { var t = S.templateOf({ desc: c[0], unit: c[1] }); if (!t || t.id !== c[2]) bad.push(c[0] + ' -> ' + (t && t.id)); });
+  console.log(bad.length ? 'FAIL new types: ' + bad.join('; ') : 'ok   new work types match');
+})();
