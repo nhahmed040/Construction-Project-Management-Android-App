@@ -464,7 +464,7 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   if (lib.some(function (x) { return x.id === 'b_fast'; }) || !lib.some(function (x) { return x.id === 'b_rainy'; })) throw new Error('library hidden');
   // rainy: replace productivity but keep trade changes
   p.sched.prod = L7.sanitizeProd({ hours: 8, factor: 1, types: { masonry: { per: { def: 9 } } } });
-  S7.applyPreset(p, S7.BUILTIN_PRESETS[1], { prod: 'replace' });
+  S7.applyPreset(p, S7.BUILTIN_PRESETS.filter(function (x) { return x.id === 'b_rainy'; })[0], { prod: 'replace' });
   if (p.sched.prod.factor !== 0.8 || !p.sched.prod.types.masonry) throw new Error('rainy keeps trade changes');
   // building, merge roles: adds standard roles, keeps ours
   p.sched.roles = [{ id: 1, name: 'Mason', type: 'temporary', person: '', count: 7 }];
@@ -529,4 +529,16 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   ], bad = [];
   cases.forEach(function (c) { var t = S.templateOf({ desc: c[0], unit: c[1] }); if (!t || t.id !== c[2]) bad.push(c[0] + ' -> ' + (t && t.id)); });
   console.log(bad.length ? 'FAIL new types: ' + bad.join('; ') : 'ok   new work types match');
+})();
+(function () {
+  var L = require('../web/logic.js'), S = require('../web/schedule.js'), assert = require('assert');
+  var road = S.presetLibrary([], []).filter(function (x) { return x.id === 'b_road'; })[0];
+  assert.ok(road && road.parts.prod && road.parts.mp && road.parts.eq && road.parts.cf, 'road bundle has all parts');
+  var q = L.sanitizePreset(JSON.parse(JSON.stringify(road)));
+  assert.ok(q && Object.keys(q.parts.prod.types).length === 8, 'road productivity survives sanitizing');
+  var p = L.sanitizeProject({ name: 'R', boqLines: 2, boq: [{ id: 1, no: '1', desc: 'Precast concrete kerb stone', unit: 'M', qty: 400, rate: 500 }] });
+  S.applyPreset(p, road, { prod: 'replace', mp: 'merge', eq: 'merge', cf: 'replace' }); S.generate(p, { only: 'all', strategy: 'trade' });
+  assert.strictEqual(p.sched.tasks['1'].dur, 5, '400 m kerb at 80 m/day');
+  assert.ok(p.sched.equip.some(function (e) { return e.name === 'Road Roller'; }));
+  console.log('ok   road bundle');
 })();

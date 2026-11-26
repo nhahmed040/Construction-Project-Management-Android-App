@@ -636,6 +636,20 @@
       mp: STD_ROLES.map(function (r) { return { name: r[0], type: r[1], person: '', count: r[1] === 'permanent' ? 1 : 0 }; }),
       eq: STD_EQUIP.map(function (e) { return { name: e[0], source: e[1] }; }),
       cf: { misc: 2, overhead: 7.5, profit: 7.5, defSplit: [65, 15, 3], presets: [], advPct: 20, interim: 3 } } },
+    { id: 'b_road', name: 'Road / corridor', builtin: true, note: 'Kerb, cobble, terrazzo, asphalt, hardcore, road marking. Starting figures: adjust to your crews', parts: {
+      prod: { hours: 8, factor: 1, types: {
+        clear: { per: { def: 600, 'M³': 120 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Truck Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Dump Truck': 1 } },
+        excav: { per: { def: 200 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Truck Driver': 2 }, eq: { 'Backhoe Loader': 1, 'Dump Truck': 2 } },
+        hardcore: { per: { def: 150, 'M³': 60 }, crew: { Foreman: 1, 'Daily Labour': 10, 'Roller Operator': 1, 'Truck Driver': 1 }, eq: { 'Road Roller': 1, 'Dump Truck': 1, 'Water Tanker': 1 } },
+        kerb: { per: { def: 80 }, crew: { Foreman: 1, 'Daily Labour': 4, Mason: 3, Helper: 3 }, eq: { 'Concrete Mixer': 1 } },
+        cobble: { per: { def: 45 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 5, Helper: 5 }, eq: { 'Plate Compactor': 1 } },
+        tile: { per: { def: 40 }, crew: { Foreman: 1, 'Daily Labour': 10, Tiler: 5, Helper: 5 }, eq: { 'Plate Compactor': 1 } },
+        asphalt: { per: { def: 600, 'M³': 100 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Roller Operator': 2, 'Truck Driver': 2 }, eq: { 'Road Roller': 2, 'Dump Truck': 2 } },
+        paint: { per: { def: 150, M: 400 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 3 }, eq: {} }
+      } },
+      mp: STD_ROLES.map(function (r) { return { name: r[0], type: r[1], person: '', count: r[1] === 'permanent' ? 1 : 0 }; }).concat([{ name: 'Roller Operator', type: 'temporary', person: '', count: 0 }]),
+      eq: STD_EQUIP.map(function (e) { return { name: e[0], source: e[1] }; }).concat([{ name: 'Road Roller', source: 'Rental' }]),
+      cf: { misc: 2, overhead: 7.5, profit: 7.5, defSplit: [50, 15, 12], presets: [], advPct: 15, interim: 3 } } },
     { id: 'b_rainy', name: 'Rainy season (slower)', builtin: true, note: 'Output about 20% lower on all work', parts: { prod: { hours: 8, factor: 0.8, types: {}, keepTypes: true } } },
     { id: 'b_remote', name: 'Remote site (slower)', builtin: true, note: 'Poor access: output about 15% lower', parts: { prod: { hours: 8, factor: 0.85, types: {}, keepTypes: true } } },
     { id: 'b_fast', name: 'Fast crews', builtin: true, note: 'Experienced crews: output about 15% higher', parts: { prod: { hours: 8, factor: 1.15, types: {}, keepTypes: true } } }

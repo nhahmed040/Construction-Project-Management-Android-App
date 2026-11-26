@@ -88,3 +88,4 @@ In the Gantt, *Columns* opens a list of check boxes: Qty, Days, Start, Finish, P
 ### Presets
 
 Setup ▾ → Presets (also a Presets button on Productivity, Manpower, Equipment and Cash flow). A preset bundles productivity, manpower, equipment and cash-flow set-ups. Apply per part with Replace or Merge (Undo available), optionally regenerate the schedule. Save the project's set-up as your own preset; rename, duplicate, delete (built-ins can be hidden). Presets are copied into the project and kept in settings/backup.
+Built-in presets: Building, Road / corridor (kerb, cobble, terrazzo, asphalt, hardcore, road marking crews and machines, cost split), Rainy season, Remote site, Fast crews.
