@@ -565,7 +565,7 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
     { id: 3, no: '', desc: 'Dia. 110 mm', unit: 'Nº', qty: 3, rate: 400 },
     { id: 4, no: '', desc: 'Dia. 80 mm', unit: 'Nº', qty: 2, rate: 300 }] });
   var h = S.headsOf(p);
-  assert.ok(/clean outs/.test(h['3']) && /Dia\. 110/.test(h['4']), 'description lines above, then the item above');
+  assert.ok(/clean outs/.test(h['3']) && /clean outs/.test(h['4']), 'both take the description lines above');
   assert.strictEqual(S.templateOf(p.boq[2], h['3']).id, 'drain');
   assert.strictEqual(S.templateOf(p.boq[3], h['4']).id, 'drain');
   console.log('ok   continuation lines and fragments take the description above');
