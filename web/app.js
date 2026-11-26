@@ -1739,14 +1739,41 @@
   }
 
   /* New project from a BoQ file: the project is created from the file name and only kept when the import goes through */
+  /* project type for a new project: Building, Road, Blank or any saved preset; the last choice is remembered */
+  function chooseType(next) {
+    var lib = window.CBSched.presetLibrary(state.settings.presets, state.settings.hiddenPresets);
+    var opts = [{ value: 'b_building', label: t('type_building') }, { value: 'b_road', label: t('type_road') }, { value: '', label: t('type_blank') }];
+    lib.forEach(function (x) { if (x.id !== 'b_building' && x.id !== 'b_road') opts.push({ value: x.id, label: '📦 ' + x.name }); });
+    var cur = state.settings.newType;
+    if (!opts.some(function (o) { return o.value === cur; })) cur = 'b_building';
+    openForm({
+      title: t('type_title'), submitLabel: t('type_next'),
+      fields: [{ key: 'type', label: t('type_label'), type: 'select', value: cur, options: opts }],
+      onSubmit: function (v) {
+        state.settings.newType = v.type || '-'; save();
+        var pre = lib.filter(function (x) { return x.id === v.type; })[0] || null;
+        next(pre);
+        return null;
+      }
+    });
+  }
+  function startFrom(np, pre) {
+    if (!pre) return;
+    var modes = { prod: 'replace', mp: 'replace', eq: 'replace', cf: 'replace' };
+    if (pre.id === 'b_building' && state.settings.prodDefault) delete modes.prod;
+    window.CBSched.applyPreset(np, pre, modes);
+  }
+  var boqPre = null;
   function newProjectFromBoq() {
-    var np = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50, sched: { prod: state.settings.prodDefault || undefined } }, state.projects.length + 1);
-    boqNew = np; boqTarget = np;
-    $('boqFile').click();
+    chooseType(function (pre) {
+      var np = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50, sched: { prod: state.settings.prodDefault || undefined } }, state.projects.length + 1);
+      boqNew = np; boqTarget = np; boqPre = pre;
+      $('boqFile').click();
+    });
   }
   function adoptNew(p, file) {
     if (boqNew !== p) return null;
-    boqNew = null;
+    boqNew = null; startFrom(p, boqPre); boqPre = null;
     p.name = (file.name || '').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80) || t('project');
     state.projects.push(p);
     ui.projectId = p.id; ui.section = 'schedule';
@@ -1886,11 +1913,14 @@
     // VAT 15%, retention 5%, withholding 3% and advance 20% are starting values only: set them to what your contract says.
     var p = L.sanitizeProject({ name: '', vat: 15, wht: 3, retention: 5, advancePct: 20, recoveryPct: 20, vatWhtPct: 50, sched: { prod: state.settings.prodDefault || undefined } }, state.projects.length + 1);
     p.name = '';
+    chooseType(function (pre) { window.setTimeout(function () { newProjectForm(p, pre); }, 30); });
+  }
+  function newProjectForm(p, pre) {
     openForm({
       title: t('new_project'),
       fields: projectFields(p),
       onSubmit: function (v) {
-        applyProjectValues(p, v);
+        applyProjectValues(p, v); startFrom(p, pre);
         state.projects.push(p);
         ui.projectId = p.id; ui.section = 'overview';
         save(); renderAll();

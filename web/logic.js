@@ -622,7 +622,7 @@
     return {
       v: 3,
       current: 'main',
-      settings: { lang: 'en', currency: 'ETB', theme: 'system', calendar: 'gregorian', pinHash: '', pinSalt: '', prodDefault: null, presets: [], hiddenPresets: [] },
+      settings: { lang: 'en', currency: 'ETB', theme: 'system', calendar: 'gregorian', pinHash: '', pinSalt: '', prodDefault: null, presets: [], hiddenPresets: [], newType: '' },
       books: [{ id: 'main', name: 'Main', projectId: '', businessId: '', entries: [] }],
       projects: [],
       contacts: [],
@@ -711,6 +711,7 @@
     if (THEMES.indexOf(rs.theme) >= 0) s.settings.theme = rs.theme;
     if (CALENDARS.indexOf(rs.calendar) >= 0) s.settings.calendar = rs.calendar;
     if (rs.prodDefault && typeof rs.prodDefault === 'object') s.settings.prodDefault = sanitizeProd(rs.prodDefault);
+    s.settings.newType = typeof rs.newType === 'string' ? rs.newType.slice(0, 40) : '';
     s.settings.presets = sanitizePresetList(rs.presets);
     s.settings.hiddenPresets = (Array.isArray(rs.hiddenPresets) ? rs.hiddenPresets : []).filter(function (x) { return typeof x === 'string' && x.length < 41; }).slice(0, 30);
     if (keepPin && typeof rs.pinHash === 'string' && typeof rs.pinSalt === 'string' && rs.pinHash && rs.pinSalt) {
