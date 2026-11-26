@@ -91,3 +91,10 @@ Setup ▾ → Presets (also a Presets button on Productivity, Manpower, Equipmen
 Built-in presets: Building, Road / corridor (kerb, cobble, terrazzo, asphalt, hardcore, road marking crews and machines, cost split), Rainy season, Remote site, Fast crews.
 Presets can be shared as .json files (Presets → ⋯ → Share as file, Export my presets, Import presets). Imports are validated: size limit 200 KB, file version, up to 20 presets; a same name asks Keep both or Replace.
 New project and New project from BoQ first ask for the project type: Building, Road / corridor, Blank, or any saved preset. The set-up of that preset is copied into the project; the last choice is remembered.
+
+### Norms library and gangs
+
+Productivity assumptions now come from the Ethiopian labour norms workbook: 141 activities in 18 categories (each folds open and closed on the Productivity screen), with the workbook's output per gang-day, typical crew per role and evidence grade (A field study, B schedule study, C planning assumption). Each BoQ line is matched in two steps: the type of work, then the activity inside it (footing, column or slab formwork). Sub-items and "Ditto" rows use the words above them.
+- **Gangs:** one gang is the norm's typical crew. Duration = quantity ÷ (output × gangs); crew = typical crew × gangs. Set the number per type (Productivity) or per task (quick edit, steps of 0.5). Blank means automatic: more gangs (up to 4) are added to tasks longer than "Longest task, days" (default 20).
+- **Site staff** (Project Manager, Store Keeper, Surveyor, Foreman, Accountant, Cashier) are the permanent roles and are counted once for the whole site, not inside each task.
+- Near-duplicate roles are merged (Mason / Concrete Lead → Mason, Tile Setter → Tiler, Steel Fixer → Bar Bender, Plumber / Pipe Fitter → Plumber). Trade assistants (Assistant Carpenter, Tile Assistant...) replace the generic Helper.

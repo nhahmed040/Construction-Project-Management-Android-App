@@ -360,15 +360,17 @@
         var tx = c.el('span', 'stext');
         tx.appendChild(c.el('b', null, (r.n ? r.n + '. ' : '') + (r.no ? r.no + ' ' : '') + r.desc));
         var info = r.planned
-          ? S.fmtNum(r.dur) + ' ' + t('sch_days_short') + ' · ' + (r.start ? A.fmtDate(r.start) : '') + (r.links ? ' · ← ' + r.links : '') + (r.crew.length ? ' · ' + r.crew.join(', ') : '')
+          ? S.fmtNum(r.dur) + ' ' + t('sch_days_short') + (r.gangs ? ' · ' + t('sch_gangs_n', { n: r.gangs }) : '') + ' · ' + (r.start ? A.fmtDate(r.start) : '') + (r.links ? ' · ← ' + r.links : '') + (r.crew.length ? ' · ' + r.crew.join(', ') : '')
           : (r.kept === 'manual' ? t('sch_gen_kept_manual') : r.kept === 'has' ? t('sch_gen_kept_has') : r.kept === 'skip' ? t('sch_gen_kept_skip') : '');
         tx.appendChild(c.el('small', 'muted', info));
         if (r.planned && !r.matched) tx.appendChild(c.el('small', 'warn', t('sch_gen_general_row')));
         if (r.planned) {
           var sl = c.el('select', 'tsel');
-          S.TEMPLATES.concat([{ id: 'general', label: t('sch_gen_general_type') }]).forEach(function (tp) {
-            var o = c.el('option', null, tp.label); o.value = tp.id; if (tp.id === (r.matched ? r.type : 'general')) o.selected = true; sl.appendChild(o);
-          });
+          var curType = r.matched ? r.type : 'general';
+          function opt(parent, tp) { var o = c.el('option', null, (tp.code ? tp.code + ' ' : '') + tp.label); o.value = tp.id; if (tp.id === curType) o.selected = true; parent.appendChild(o); }
+          opt(sl, { id: 'general', label: t('sch_gen_general_type') });
+          S.NORM_CATS.forEach(function (cat) { var g = c.el('optgroup'); g.label = cat; S.NORM_TEMPLATES.filter(function (tp) { return tp.cat === cat; }).forEach(function (tp) { opt(g, tp); }); sl.appendChild(g); });
+          var go = c.el('optgroup'); go.label = t('sch_cat_other'); S.OTHER_TEMPLATES.forEach(function (tp) { opt(go, tp); }); sl.appendChild(go);
           sl.addEventListener('change', function () { types[key] = sl.value; draw(); });
           tx.appendChild(sl);
         }
@@ -577,18 +579,23 @@
       m.appendChild(c.el('p', 'muted small', t('sch_prod_intro')));
       var g = c.panel(t('sch_prod_global'));
       inputs.hours = field(t('sch_prod_hours'), pr.hours); inputs.factor = field(t('sch_prod_factor'), pr.factor);
-      g.appendChild(inputs.hours.wrap); g.appendChild(inputs.factor.wrap);
+      inputs.maxDays = field(t('sch_prod_maxdays'), pr.maxDays == null ? 20 : pr.maxDays);
+      g.appendChild(inputs.hours.wrap); g.appendChild(inputs.factor.wrap); g.appendChild(inputs.maxDays.wrap);
       g.appendChild(c.el('p', 'muted small', t('sch_prod_global_note')));
       m.appendChild(g);
       var presets = S.presetList(s.cf);
-      S.TEMPLATES.forEach(function (tp) {
-        var o = (pr.types[tp.id]) || {}, eff = S.effTpl({ sched: { prod: pr } }, tp), ctl = {};
-        var d = c.el('details', 'fold'); var sm = c.el('summary', null, tp.label + (pr.types[tp.id] ? ' ✎' : '')); d.appendChild(sm);
+      function typeFold(tp) {
+        var eff = S.effTpl({ sched: { prod: pr } }, tp), ctl = {};
+        var d = c.el('details', 'fold sub'), sm = c.el('summary', null, (tp.code ? tp.code + ' ' : '') + tp.label + (pr.types[tp.id] ? ' ✎' : '')); d.appendChild(sm);
+        if (tp.grade) d.appendChild(c.el('p', 'muted small', t('sch_prod_grade') + ': ' + t('sch_grade_' + tp.grade) + ' · ' + t('sch_prod_range', { lo: tp.lo, hi: tp.hi, u: tp.unit })));
         ctl.per = {};
-        Object.keys(tp.per || {}).forEach(function (k) {
-          var f = field(t('sch_prod_output') + ' (' + (k === 'def' ? t('sch_prod_default_unit') : k) + ' / ' + t('sch_prod_crewday') + ')', eff.per[k]);
+        var keys = tp.norm ? [tp.unit] : Object.keys(tp.per || {});
+        keys.forEach(function (k) {
+          var f = field(t('sch_prod_output') + ' (' + (k === 'def' ? t('sch_prod_default_unit') : k) + ' / ' + t('sch_prod_gangday') + ')', eff.per[k]);
           ctl.per[k] = f.input; d.appendChild(f.wrap);
         });
+        var fg = field(t('sch_prod_gangs'), o0(pr.types[tp.id], 'gangs') || ''); fg.input.placeholder = t('sch_prod_auto'); fg.input.step = '0.5'; fg.input.min = '0.5'; fg.input.max = '10';
+        d.appendChild(fg.wrap); ctl.gangs = fg.input;
         var fc = field(t('sch_prod_crew'), mapText(eff.crew), 'text'), fe = field(t('sch_prod_equip'), mapText(eff.eq), 'text');
         d.appendChild(fc.wrap); d.appendChild(fe.wrap);
         ctl.crew = fc.input; ctl.eq = fe.input;
@@ -596,18 +603,28 @@
         var sl = c.el('select');
         var none = c.el('option', null, '—'); none.value = ''; sl.appendChild(none);
         presets.forEach(function (q) { var op = c.el('option', null, q.name || t('sch_preset_' + q.id)); op.value = q.id; sl.appendChild(op); });
-        sl.value = eff.preset || S.TPL_PRESET && S.TPL_PRESET[tp.id] || '';
+        sl.value = eff.preset || S.TPL_PRESET && S.TPL_PRESET[tp.trade || tp.id] || '';
         pw.appendChild(sl); d.appendChild(pw); ctl.preset = sl;
         d.appendChild(c.btn(t('sch_prod_type_reset'), '', function () { delete pr.types[tp.id]; collect(); build(); }));
-        inputs.types[tp.id] = ctl;
+        inputs.types[tp.id] = ctl; ctl.tp = tp;
+        return d;
+      }
+      function o0(o, k) { return o && o[k] != null ? o[k] : ''; }
+      function catFold(name, list) {
+        if (!list.length) return;
+        var changed = list.filter(function (tp) { return pr.types[tp.id]; }).length;
+        var d = c.el('details', 'fold cat'); d.appendChild(c.el('summary', null, name + '  ·  ' + list.length + (changed ? '  ·  ✎ ' + changed : '')));
+        list.forEach(function (tp) { d.appendChild(typeFold(tp)); });
         m.appendChild(d);
-      });
+      }
+      S.NORM_CATS.forEach(function (cat) { catFold(cat, S.NORM_TEMPLATES.filter(function (tp) { return tp.cat === cat; })); });
+      catFold(t('sch_cat_other'), S.OTHER_TEMPLATES);
       var br = c.el('div', 'btnrow');
       br.appendChild(c.btn(t('save'), 'primary', function () { collect(); s.prod = L.sanitizeProd(pr); A.save(); close(); if (done) done(); else A.rerender(); }));
       br.appendChild(c.btn(t('sch_prod_save_default'), '', function () { collect(); s.prod = L.sanitizeProd(pr); A.setProdDefault(s.prod); A.save(); A.toast(t('sch_prod_default_saved')); }));
       m.appendChild(br);
       var br2 = c.el('div', 'btnrow');
-      br2.appendChild(c.btn(t('sch_prod_reset'), '', function () { pr = { hours: 8, factor: 1, types: {} }; build(); }));
+      br2.appendChild(c.btn(t('sch_prod_reset'), '', function () { pr = { hours: 8, factor: 1, maxDays: 20, types: {} }; build(); }));
       br2.appendChild(c.btn('📦 ' + t('sch_presets'), '', function () { collect(); close(); openPresets(c, 'prod', function () { openProductivity(c, done); }); }));
       br2.appendChild(c.btn(t('sch_prod_use_default'), '', function () { var d0 = A.getProdDefault(); if (!d0) { A.toast(t('sch_prod_no_default')); return; } pr = JSON.parse(JSON.stringify(d0)); build(); }));
       m.appendChild(br2);
@@ -617,17 +634,18 @@
     function collect() {
       if (!inputs.hours) return;
       pr.hours = num(inputs.hours.input.value, 8); pr.factor = num(inputs.factor.input.value, 1);
-      S.TEMPLATES.forEach(function (tp) {
-        var ctl = inputs.types[tp.id]; if (!ctl) return;
-        var e = {}, per = {};
+      var md = parseFloat(inputs.maxDays.input.value); pr.maxDays = isFinite(md) && md >= 0 ? md : 20;
+      Object.keys(inputs.types).forEach(function (id) {
+        var ctl = inputs.types[id], tp = ctl.tp, e = {}, per = {};
         Object.keys(ctl.per).forEach(function (k) { var v = num(ctl.per[k].value, tp.per[k]); if (Math.abs(v - tp.per[k]) > 1e-9) per[k] = v; });
         if (Object.keys(per).length) e.per = per;
+        var gv = parseFloat(ctl.gangs.value); if (isFinite(gv) && gv > 0) e.gangs = Math.round(Math.max(0.5, Math.min(10, gv)) * 2) / 2;
         var crew = parseMap(ctl.crew.value), eq = parseMap(ctl.eq.value);
         if (mapText(crew) !== mapText(tp.crew)) e.crew = crew;
         if (mapText(eq) !== mapText(tp.eq)) e.eq = eq;
-        var base = S.TPL_PRESET[tp.id] || tp.preset || '';
+        var base = S.TPL_PRESET[tp.trade || tp.id] || tp.preset || '';
         if (ctl.preset.value !== base) e.preset = ctl.preset.value || base;
-        if (Object.keys(e).length) pr.types[tp.id] = e; else delete pr.types[tp.id];
+        if (Object.keys(e).length) pr.types[id] = e; else delete pr.types[id];
       });
     }
     ov.appendChild(m);
@@ -879,6 +897,14 @@
       if (r.sd != null) m.appendChild(c0.el('p', 'muted small', A.fmtDate(r.start) + ' → ' + A.fmtDate(r.finish) + ' · ' + (r.critical ? '● ' + t('sch_critical') : t('sch_float') + ' ' + r.tf + 'd')));
       m.appendChild(stepper(t('sch_duration'), S.fmtNum(task.dur || 0), function () { var st = (task.dur || 0) > 3 ? 1 : 0.5; task.dur = Math.max(0, Math.round(((task.dur || 0) - st) * 100) / 100); },
         function () { var st = (task.dur || 0) >= 3 ? 1 : 0.5; task.dur = Math.min(9999, Math.round(((task.dur || 0) + st) * 100) / 100); }, t('sch_days_short')));
+      if (task.tpl && task.gangs) {
+        function regang(g) {
+          g = Math.max(0.5, Math.min(10, g));
+          if (!S.crewIsAuto(p, id) && !window.confirm(t('sch_gangs_overwrite'))) return;
+          S.setGangs(p, id, g);
+        }
+        m.appendChild(stepper(t('sch_gangs'), S.fmtNum(task.gangs), function () { regang(task.gangs - 0.5); }, function () { regang(task.gangs + 0.5); }));
+      }
       if (!task.start) m.appendChild(stepper(t('sch_delay'), String(task.delay || 0), function () { var d = Math.max(0, (task.delay || 0) - 1); if (d) task.delay = d; else delete task.delay; },
         function () { task.delay = Math.min(999, (task.delay || 0) + 1); }, t('sch_days_short')));
       else {

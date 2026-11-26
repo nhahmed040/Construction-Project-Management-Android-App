@@ -788,3 +788,7 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .prevmodal > h2:first-of-type { padding-top: 20px; }
 .prevmodal .prevsum { margin: 0 -18px; padding: 6px 18px; background: var(--surface); }
 .prevmodal .stickybar { margin: 0 -18px; padding: 10px 18px calc(12px + env(safe-area-inset-bottom)); background: var(--surface); box-shadow: 0 -6px 12px -8px rgba(0,0,0,.25); }
+
+.fold.cat { border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin: 8px 0; background: var(--surface); }
+.fold.sub { margin: 6px 0 6px 8px; padding-left: 8px; border-left: 3px solid var(--border); }
+.fold.sub > summary { font-weight: 600; font-size: .92em; }

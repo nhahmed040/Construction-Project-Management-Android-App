@@ -582,3 +582,22 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   assert.ok(crew(t2) <= 3 && t2.dur >= 0.25, 'one small item gets a small crew: ' + crew(t2) + ' for ' + t2.dur);
   console.log('ok   thickness gives volume; small quantities get small crews');
 })();
+(function () {
+  var L = require('../web/logic.js'), S = require('../web/schedule.js'), assert = require('assert');
+  var p = L.sanitizeProject({ name: 'G', startDate: '2026-12-01', boqLines: 2, boq: [
+    { id: 1, desc: 'Excavation for trench foundation', unit: 'M³', qty: 60, rate: 300 }] });
+  S.generate(p, {});
+  var t = p.sched.tasks['1'], d1 = t.dur;
+  assert.strictEqual(t.tpl, 'et003'); assert.strictEqual(t.gangs, 1); assert.strictEqual(d1, 6);
+  assert.ok(S.crewIsAuto(p, 1));
+  S.setGangs(p, 1, 2);
+  assert.strictEqual(t.dur, 3); assert.strictEqual(t.gangs, 2);
+  var lab = p.sched.roles.filter(function (r) { return r.name === 'Daily Labour'; })[0];
+  assert.strictEqual(t.mp[String(lab.id)], 12, 'two gangs of six');
+  t.mp[String(lab.id)] = 5; assert.ok(!S.crewIsAuto(p, 1), 'a hand edit is noticed');
+  assert.ok(!Object.keys(t.mp).some(function (k) { return p.sched.roles.filter(function (r) { return String(r.id) === k; })[0].type === 'permanent'; }), 'site staff are not in a gang');
+  // a long task gets more gangs by itself
+  var q = L.sanitizeProject({ name: 'H', startDate: '2026-12-01', boqLines: 2, boq: [{ id: 1, desc: 'Hollow block wall 20cm', unit: 'M²', qty: 1000, rate: 500 }] });
+  S.generate(q, {}); assert.ok(q.sched.tasks['1'].gangs >= 2 && q.sched.tasks['1'].dur <= 30, 'gangs ' + q.sched.tasks['1'].gangs + ' dur ' + q.sched.tasks['1'].dur);
+  console.log('ok   gangs: set, auto, hand-edited crew noticed, site staff out of the gang');
+})();
