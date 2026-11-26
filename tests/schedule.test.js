@@ -445,3 +445,14 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   if (!hdr.length) throw new Error('gantt sheet has no Successors column');
   console.log('successors tests ok');
 })();
+
+(function () {
+  var S6 = require('../web/schedule.js'), L6 = require('../web/logic.js');
+  var p = L6.sanitizeProject({ name: 'N', boqLines: 2 }, 1);
+  function it(o) { return L6.sanitizeProject({ boq: [o], boqLines: 2 }, 1).boq[0]; }
+  p.boq = [it({ kind: 'line', desc: 'Concrete' }), it({ no: '2.1', desc: 'head', unit: '', qty: 0, rate: 0 }), it({ no: 'a', desc: 'one', unit: 'M3', qty: 5, rate: 9 }), it({ no: 'b', desc: 'two', unit: 'M3', qty: 5, rate: 9 }), it({ no: 'A', desc: 'sibling', unit: 'M3', qty: 5, rate: 9 })];
+  p.sched.start = '2026-12-01'; S6.generate(p, { strategy: 'boq' });
+  var d = S6.compute(p).rows.map(function (r) { return r.depth; }).join('');
+  if (d !== '12332') throw new Error('lowercase letters are sub-items: ' + d);
+  console.log('sub-item letter tests ok');
+})();

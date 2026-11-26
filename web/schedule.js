@@ -119,7 +119,7 @@
       if (lvl === 2) {
         if (L.isHeading(i)) { row.head = true; row.children = []; row.depth = 2; curHead = lastHead = row; }
         else {
-          var nv = nest[String(i.id)], par = nv === 'in' ? lastHead : nv === 'out' ? null : (curHead && !i.no ? curHead : null);
+          var nv = nest[String(i.id)], par = nv === 'in' ? lastHead : nv === 'out' ? null : (curHead && (!i.no || /^[a-z][.)]?$/.test(String(i.no).trim())) ? curHead : null);
           if (par) { row.parent = par.id; row.depth = 3; par.children.push(row); }
           else if (nv !== 'in') curHead = null;
         }
