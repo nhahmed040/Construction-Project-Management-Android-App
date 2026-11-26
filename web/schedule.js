@@ -4,9 +4,9 @@
 
    Tasks are the project's BoQ rows. Per task the project keeps p.sched.tasks[id] = { dur, start, par, mp, eq, split }. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./logic.js'));
-  else root.CBSched = factory(root.CBLogic);
-})(this, function (L) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./logic.js'), require('./norms.js'));
+  else root.CBSched = factory(root.CBLogic, root.CBNorms);
+})(this, function (L, NORMS) {
   'use strict';
 
   var DAY = 86400000;
@@ -586,6 +586,68 @@
   var DEFAULTS = { 'M³': 10, 'M²': 40, M: 50, KG: 250, PCS: 4, 'Nº': 4, LS: 0.34, SET: 1 };
   var DEFAULT_TPL = { id: 'general', label: 'General work', crew: { Foreman: 1, 'Daily Labour': 4 }, eq: {} };
 
+  /* ---------- the norms library: 141 activities in 18 categories, matched to BoQ lines in two steps ----------
+     1. the type of work above (kerb, formwork, plaster...) is found from the words of the BoQ line;
+     2. NORM_RULES pick the activity inside that type (footing, column or slab formwork...). Rules are tried on the line's own
+        words first, then on the words of the heading above it; the first entry of each list is the default. */
+  var NORM_RULES = {
+    clear: [['et001'], [/strip|remov\w* of the top|top\s?soil/, 'et002']],
+    excav: [['et003'], [/rock/, 'et005'], [/hard (soil|murram)|\bhard\b/, 'et004'], [/drain/, 'et115'], [/water (pipe )?trench|pipe trench/, 'et121'], [/bulk|reduce level|machine|mechani|road/, 'et122']],
+    backfill: [['et006'], [/compact|mechani|in layers|ram/, 'et007']],
+    hardcore: [['et009'], [/sand/, 'et008']],
+    lean: [['et011'], [/screed/, 'et048']],
+    concrete: [['et016'], [/slab|floor|roof|stair/, 'et016'], [/footing|foundation|strip|\bpad\b|tie beam|grade beam|plinth/, 'et012'], [/column/, 'et014'], [/beam|lintel|kerb|curb/, 'et015'], [/walk\s?way|pavement|apron/, 'et112'], [/ditch|drain|channel|culvert/, 'et116', ['M']]],
+    formwork: [['et023'], [/slab|floor|roof/, 'et023'], [/footing|foundation|strip|\bpad\b|plinth/, 'et020'], [/column/, 'et021'], [/beam|lintel|grade/, 'et022'], [/stair/, 'et024'], [/dismantl|strik/, 'et025']],
+    rebar: [['et031'], [/slab|floor|roof/, 'et031'], [/footing|foundation|strip|\bpad\b/, 'et028'], [/column/, 'et029'], [/beam|lintel|grade/, 'et030'], [/stair/, 'et032']],
+    hcb: [['et035'], [/lintel/, 'et040', ['M']], [/partition/, 'et039'], [/\b(10|100)\s?(cm|mm)\b/, 'et033'], [/\b(15|150)\s?(cm|mm)\b/, 'et034'], [/\b(20|200)\s?(cm|mm)\b/, 'et035'], [/brick/, 'et036']],
+    masonry: [['et037'], [/foundation|substructure|under|footing/, 'et038']],
+    pointing: [['et047']],
+    plaster: [['et041'], [/external|outside|exterior/, 'et042'], [/ceiling/, 'et043'], [/screed/, 'et044'], [/rough\s?cast/, 'et045'], [/skim/, 'et046']],
+    paint: [['et073'], [/ceiling/, 'et075'], [/door/, 'et070', ['Nº']], [/exterior|outside|external/, 'et074'], [/wood|varnish|vanish/, 'et076'], [/metal|steel|iron|oil paint/, 'et077'], [/putty/, 'et078'], [/primer/, 'et071'], [/one coat/, 'et072']],
+    roof: [['et056'], [/gutter/, 'et062'], [/down\s?pipe/, 'et063'], [/truss/, 'et058', ['Nº']], [/membrane|waterproof/, 'et059'], [/insulation/, 'et061'], [/screed/, 'et060']],
+    tile: [['et049'], [/porcelain/, 'et050'], [/marble/, 'et051'], [/granite/, 'et052'], [/terrazzo|terrazo/, 'et053'], [/interlock|pavers?\b/, 'et113']],
+    skirting: [['et054']],
+    ceiling: [['et100'], [/pvc/, 'et104'], [/framework|suspended/, 'et101'], [/joint/, 'et103']],
+    carp: [['carp'], [/door/, 'et064', ['Nº']], [/frame/, 'et066', ['Nº']]],
+    metal: [['metal'], [/door/, 'et065', ['Nº']], [/alumin.{0,30}(window|door)|window/, 'et067', ['Nº']], [/alumin.{0,30}frame/, 'et068', ['M²']]],
+    glaze: [['et069']],
+    plumb: [['et079'], [/\b(110|160|200|250|315)\s?mm/, 'et080'], [/ppr|hot|cold|water supply|g\.?i\b/, 'et083'], [/waste|soil pipe|drain/, 'et082'], [/wash\s?basin|hand\s?wash|lavatory/, 'et085', ['Nº']], [/\bwc\b|toilet|water closet|squat|turkish/, 'et086', ['Nº']], [/sink/, 'et087', ['Nº']], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
+    elec: [['et093'], [/conduit/, 'et090'], [/cable/, 'et092'], [/switch/, 'et094'], [/socket|outlet/, 'et095'], [/light|lamp|fixture|luminaire/, 'et096'], [/distribution|\bdb\b|panel|breaker/, 'et097'], [/earth/, 'et098']],
+    drain: [['et082'], [/sewer/, 'et120'], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
+    septic: [['et118']],
+    tank: [['et088']],
+    kerb: [['et114']],
+    cobble: [['et113']],
+    asphalt: [['et129'], [/\b(ton|tonne)\b/, 'et128']],
+    fence: [['et136']]
+  };
+  var NORM_BY_ID = {}, NORM_TEMPLATES = [], TRADE_OF_NORM = {};
+  Object.keys(NORM_RULES).forEach(function (tr) { NORM_RULES[tr].forEach(function (r) { var id = r.length === 1 ? r[0] : r[1]; if (/^et\d/.test(id) && !TRADE_OF_NORM[id]) TRADE_OF_NORM[id] = tr; }); });
+  function legacyById(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return null; }
+  (NORMS ? NORMS.NORMS : []).forEach(function (n) {
+    var tr = TRADE_OF_NORM[n.id], lg = tr && legacyById(tr), per = {}, crew = {}, maxc = 0, minc = 0;
+    if (lg) Object.keys(lg.per || {}).forEach(function (k) { per[k] = lg.per[k]; });
+    per[n.unit] = n.out; if (per.def == null || !lg) per.def = n.out;
+    Object.keys(n.crew).forEach(function (r) { crew[r] = n.crew[r][1]; maxc += n.crew[r][2]; minc += n.crew[r][0]; });
+    var t = { id: n.id, trade: tr || 'misc', cat: n.cat, code: n.code, label: n.name, unit: n.unit, per: per, crew: crew, eq: lg ? lg.eq : {}, preset: lg && lg.preset, lo: n.lo, hi: n.hi, grade: n.grade, minCrew: minc, maxCrew: maxc, norm: true };
+    NORM_TEMPLATES.push(t); NORM_BY_ID[n.id] = t;
+  });
+  function refine(tpl, it, head) {
+    var rules = tpl && NORM_RULES[tpl.id];
+    if (!rules) return tpl;
+    var own = String(it.desc || '').toLowerCase(), both = head ? (String(head).toLowerCase() + ' ' + own) : own, pick = null;
+    function scan(text) {
+      for (var i = rules.length - 1; i >= 1; i--) {   // later, more specific rules win
+        var r = rules[i];
+        if (r[2] && r[2].indexOf(it.unit) < 0) continue;
+        if (r[0].test(text)) return r[1];
+      }
+      return null;
+    }
+    pick = scan(own) || scan(both) || rules[0][0];
+    return NORM_BY_ID[pick] || legacyById(pick) || tpl;
+  }
+
   function matchText(d, u) {
     for (var i = 0; i < TEMPLATES.length; i++) {
       var t = TEMPLATES[i];
@@ -625,13 +687,14 @@
     });
     return out;
   }
-  function templateById(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return id === 'general' ? DEFAULT_TPL : null; }
+  function templateById(id) { if (NORM_BY_ID[id]) return NORM_BY_ID[id]; for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return id === 'general' ? DEFAULT_TPL : null; }
   function outputOf(tpl, unit) {
     if (!tpl || !tpl.per) return DEFAULTS[unit] || 20;
     return tpl.per[unit] != null ? tpl.per[unit] : tpl.per.def;
   }
   // an item measured in m² that states its thickness ("10 cm thick") is a volume for the work types that are rated per m³
   var BY_VOLUME = { concrete: 1, lean: 1, hardcore: 1, backfill: 1, masonry: 1 };
+  function volumeType(tpl) { return !!BY_VOLUME[tpl.trade || tpl.id]; }
   function thickness(it) {
     var m = /(\d+(?:\.\d+)?)\s*(cm|mm)\s*(?:thick|thickness|depth|deep)|(?:thick|thickness)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(cm|mm)/i.exec(String(it.desc || ''));
     if (!m) return 0;
@@ -662,14 +725,7 @@
       cf: { misc: 2, overhead: 7.5, profit: 7.5, defSplit: [65, 15, 3], presets: [], advPct: 20, interim: 3 } } },
     { id: 'b_road', name: 'Road / corridor', builtin: true, note: 'Kerb, cobble, terrazzo, asphalt, hardcore, road marking. Starting figures: adjust to your crews', parts: {
       prod: { hours: 8, factor: 1, types: {
-        clear: { per: { def: 600, 'M³': 120 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Truck Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Dump Truck': 1 } },
-        excav: { per: { def: 200 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Truck Driver': 2 }, eq: { 'Backhoe Loader': 1, 'Dump Truck': 2 } },
-        hardcore: { per: { def: 150, 'M³': 60 }, crew: { Foreman: 1, 'Daily Labour': 10, 'Roller Operator': 1, 'Truck Driver': 1 }, eq: { 'Road Roller': 1, 'Dump Truck': 1, 'Water Tanker': 1 } },
-        kerb: { per: { def: 80 }, crew: { Foreman: 1, 'Daily Labour': 4, Mason: 3, Helper: 3 }, eq: { 'Concrete Mixer': 1 } },
-        cobble: { per: { def: 45 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 5, Helper: 5 }, eq: { 'Plate Compactor': 1 } },
-        tile: { per: { def: 40 }, crew: { Foreman: 1, 'Daily Labour': 10, Tiler: 5, Helper: 5 }, eq: { 'Plate Compactor': 1 } },
-        asphalt: { per: { def: 600, 'M³': 100 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Roller Operator': 2, 'Truck Driver': 2 }, eq: { 'Road Roller': 2, 'Dump Truck': 2 } },
-        paint: { per: { def: 150, M: 400 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 3 }, eq: {} }
+        et114: { gangs: 2 }, et113: { gangs: 2 }, et130: { gangs: 2 }, et129: { gangs: 2 }
       } },
       mp: STD_ROLES.map(function (r) { return { name: r[0], type: r[1], person: '', count: r[1] === 'permanent' ? 1 : 0 }; }).concat([{ name: 'Grader Operator', type: 'temporary', person: '', count: 0 }, { name: 'Roller Operator', type: 'temporary', person: '', count: 0 }]),
       eq: STD_EQUIP.map(function (e) { return { name: e[0], source: e[1] }; }).concat([{ name: 'Grader', source: 'Rental' }, { name: 'Road Roller', source: 'Rental' }]),
@@ -751,7 +807,7 @@
   /* ---------- productivity assumptions ----------
      p.sched.prod = { hours, factor, types: { <type id>: { per:{unit:output}, crew:{role:n}, eq:{machine:n}, preset } } }
      Only what you changed is stored; everything else comes from TEMPLATES. */
-  function prodOf(p) { return p.sched.prod || { hours: 8, factor: 1, types: {} }; }
+  function prodOf(p) { return p.sched.prod || { hours: 8, factor: 1, maxDays: 20, types: {} }; }
   function effTpl(p, tpl) {
     var o = prodOf(p).types[tpl.id];
     if (!o) return tpl;
@@ -761,6 +817,7 @@
     if (o.crew) e.crew = o.crew;
     if (o.eq) e.eq = o.eq;
     if (o.preset != null) e.preset = o.preset;
+    if (o.gangs > 0) e.gangs = o.gangs;
     return e;
   }
   /* the output per crew-day the generator uses: 8 hours and a factor of 1 give the table figure */
@@ -844,6 +901,58 @@
   }
 
   /* opts: { only: 'all' | 'empty', end: 'YYYY-MM-DD' }. Fills p.sched in place. Returns a summary. */
+  /* duration and crew of one task for g gangs of the activity's norm crew. A task that needs less than half a gang-day gets a
+     smaller crew (never fewer than two people), so man-days follow the quantity. Site staff (foreman, surveyor...) are not in
+     a gang: they are the permanent roles of the project and are counted once for the whole site. */
+  function isPermanentRole(n) { var pm = STD_ROLES.filter(function (r) { return r[0] === n; })[0]; return !!(pm && pm[1] === 'permanent'); }
+  function crewPlan(x, g) {
+    g = Math.max(0.5, Math.min(10, Math.round(g * 2) / 2));
+    var crew = x.tpl.crew || {}, names = Object.keys(crew).filter(function (n) { return x.tpl.id === 'mobil' || !isPermanentRole(n); });
+    var raw = x.qty / (x.per * g), f = Math.min(1, raw / MIN_DUR), full = 0, cnt = {}, got = 0;
+    names.forEach(function (n) { full += crew[n] * g; cnt[n] = crew[n] > 0 ? Math.max(f < 1 ? 0 : 1, Math.round(crew[n] * g * f)) : 0; got += cnt[n]; });
+    if (f < 1 && full > 0) {
+      var order = names.slice().sort(function (a, b) { return crew[b] - crew[a]; }), want = Math.min(2, Math.round(full));
+      for (var k = 0; got < want && k < 12; k++) { cnt[order[k % order.length]] += 1; got += 1; }
+    }
+    var ratio = full > 0 ? Math.max(got / full, 0.01) : 1, out = {};
+    names.forEach(function (n) { if (cnt[n] > 0) out[n] = cnt[n]; });
+    return { dur: roundDur(x.qty / (x.per * g * ratio)), crew: out, gangs: g };
+  }
+  /* gangs when the type does not fix them: one gang, or more when a task would run longer than the longest task allowed
+     (Productivity: longest task), up to 4 gangs */
+  function autoGangs(p, x) {
+    var md = prodOf(p).maxDays;
+    if (!(md > 0) || !(x.per > 0)) return 1;
+    return Math.max(1, Math.min(4, Math.ceil(x.qty / x.per / md * 2) / 2));
+  }
+  /* the plan data of one BoQ item (type, output, quantity), as generate uses it */
+  function planOf(p, it, heads, typeId) {
+    var base = typeId ? templateById(typeId) : refine(templateOf(it, heads[String(it.id)]), it, heads[String(it.id)]), tpl = base || DEFAULT_TPL;
+    var eff = effTpl(p, tpl), unit = it.unit, qty = it.qty, th = volumeType(tpl) && it.unit === 'M²' ? thickness(it) : 0;
+    if (th) { unit = 'M³'; qty = it.qty * th; }
+    return { it: it, tpl: eff, base: tpl, per: outputOf(eff, unit) * speedOf(p), qty: qty, matched: !!base };
+  }
+  /* change the number of gangs of one task: its duration and crew are worked out again */
+  function setGangs(p, id, g) {
+    var s = p.sched, t = s.tasks[String(id)], it = p.boq.filter(function (i) { return String(i.id) === String(id); })[0];
+    if (!t || !it) return false;
+    var x = planOf(p, it, headsOf(p), t.tpl), cp = crewPlan(x, g);
+    t.gangs = cp.gangs; t.dur = cp.dur; t.mp = {};
+    Object.keys(cp.crew).forEach(function (n) {
+      var perm = STD_ROLES.filter(function (r) { return r[0] === n; })[0];
+      var role = ensure(s.roles, n, function () { return { id: L.newId(), name: n, type: perm ? perm[1] : 'temporary', person: '', count: 0 }; });
+      t.mp[String(role.id)] = cp.crew[n];
+    });
+    return true;
+  }
+  /* is the crew of this task what the generator gave it (so changing the gangs may replace it)? */
+  function crewIsAuto(p, id) {
+    var s = p.sched, t = s.tasks[String(id)], it = p.boq.filter(function (i) { return String(i.id) === String(id); })[0];
+    if (!t || !it || !t.gangs) return true;
+    var x = planOf(p, it, headsOf(p), t.tpl), cp = crewPlan(x, t.gangs), have = {};
+    Object.keys(t.mp || {}).forEach(function (k) { var r = s.roles.filter(function (z) { return String(z.id) === k; })[0]; if (r && t.mp[k] > 0 && !isPermanentRole(r.name)) have[r.name] = t.mp[k]; });
+    return JSON.stringify(Object.keys(have).sort().map(function (k) { return [k, have[k]]; })) === JSON.stringify(Object.keys(cp.crew).sort().map(function (k) { return [k, cp.crew[k]]; }));
+  }
   function generate(p, opts) {
     opts = opts || {};
     var s = p.sched, only = opts.only === 'empty' ? 'empty' : 'all', off = offMap(s);
@@ -858,12 +967,9 @@
       var forced = opts.force && opts.force[key];
       if (cur && cur.dur > 0 && cur.start && !forced) { kept.push({ id: it.id, why: 'manual' }); return; }   // a manual date is not overwritten
       if (only === 'empty' && cur && cur.dur > 0 && !forced) { kept.push({ id: it.id, why: 'has' }); return; }
-      var base = types[key] ? templateById(types[key]) : templateOf(it, heads[key]), tpl = base;
-      if (!tpl) { tpl = DEFAULT_TPL; general += 1; if (general_names.length < 5) general_names.push((it.no ? it.no + ' ' : '') + it.desc.slice(0, 40)); } else matched += 1;
-      var eff = effTpl(p, tpl), unit = it.unit, qty = it.qty, th = BY_VOLUME[tpl.id] && it.unit === 'M²' ? thickness(it) : 0;
-      if (th) { unit = 'M³'; qty = it.qty * th; }
-      var per = outputOf(eff, unit) * speedOf(p);
-      plan.push({ it: it, tpl: eff, base: tpl, per: per, qty: qty, matched: !!base });
+      var x0 = planOf(p, it, heads, types[key]), tpl = x0.base;
+      if (!x0.matched) { general += 1; if (general_names.length < 5) general_names.push((it.no ? it.no + ' ' : '') + it.desc.slice(0, 40)); } else matched += 1;
+      plan.push(x0);
     });
     if (!plan.length) return { tasks: 0, kept: items.length, keptList: kept };
     // the position of every item in the BoQ and the headings above it (for the trade links)
@@ -879,31 +985,20 @@
     function apply(m) {
       plan.forEach(function (x) {
         var key = String(x.it.id), t = s.tasks[key] || (s.tasks[key] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
-        // a task that needs less than half a crew-day gets a smaller crew, so man-days follow the quantity
-        var raw = x.qty / (x.per * m), f = Math.min(1, raw / MIN_DUR), crew = x.tpl.crew || {}, names = Object.keys(crew);
-        var temp = names.filter(function (n) { var pm = STD_ROLES.filter(function (r) { return r[0] === n; })[0]; return !(pm && pm[1] === 'permanent'); });
-        var full = temp.reduce(function (a, n) { return a + crew[n] * m; }, 0), cnt = {}, got = 0;
-        temp.forEach(function (n) { cnt[n] = Math.max(0, Math.round(crew[n] * m * f)); got += cnt[n]; });
-        if (f < 1 && full > 0) {
-          var order = temp.slice().sort(function (a, b) { return crew[b] - crew[a]; }), want = Math.min(2, full);
-          for (var k = 0; got < want && k < 10; k++) { cnt[order[k % order.length]] += 1; got += 1; }
-        } else { temp.forEach(function (n) { cnt[n] = crew[n] * m; }); got = full; }
-        var ratio = full > 0 ? Math.max(got / full, 0.01) : 1;
-        t.dur = roundDur(x.qty / (x.per * m * ratio)); t.start = ''; t.par = false; t.tpl = x.base.id;
+        var cp = crewPlan(x, (x.tpl.gangs || autoGangs(p, x)) * m);
+        t.dur = cp.dur; t.start = ''; t.par = false; t.tpl = x.base.id; t.gangs = cp.gangs;
         t.mp = {}; t.eq = {};
-        names.forEach(function (n) {
-          var perm = STD_ROLES.filter(function (r) { return r[0] === n; })[0], isPerm = perm && perm[1] === 'permanent';
-          var c = isPerm ? (f >= 0.5 ? crew[n] : 0) : cnt[n];
-          if (!(c > 0)) return;
+        Object.keys(cp.crew).forEach(function (n) {
+          var perm = STD_ROLES.filter(function (r) { return r[0] === n; })[0];
           var role = ensure(s.roles, n, function () { return { id: L.newId(), name: n, type: perm ? perm[1] : 'temporary', person: '', count: perm && perm[1] === 'permanent' ? 1 : 0 }; });
-          t.mp[String(role.id)] = role.type === 'permanent' ? c : c;
+          t.mp[String(role.id)] = cp.crew[n];
         });
         Object.keys(x.tpl.eq || {}).forEach(function (n) {
           var src = STD_EQUIP.filter(function (e) { return e[0] === n; })[0];
           var eq = ensure(s.equip, n, function () { return { id: L.newId(), name: n, source: src ? src[1] : 'Rental' }; });
           if (x.tpl.eq[n] > 0) t.eq[String(eq.id)] = x.tpl.eq[n];
         });
-        var pid = x.tpl.preset || TPL_PRESET[x.tpl.id];
+        var pid = x.tpl.preset || TPL_PRESET[x.tpl.trade || x.tpl.id];
         if (pid === 'earth_mach' && /trench|manual|by hand|hand dug/i.test(x.it.desc || '')) pid = 'earth_lab';
         var sp = pid ? presetSplit(s.cf, pid) : null, def = s.cf.defSplit;
         if (sp && !(Math.abs(sp[0] - def[0]) < 0.01 && Math.abs(sp[1] - def[1]) < 0.01 && Math.abs(sp[2] - def[2]) < 0.01)) t.split = sp; else delete t.split;
@@ -915,7 +1010,8 @@
           var key = String(it.id), tk = s.tasks[key];
           if (!tk || !(tk.dur > 0)) return;
           var pl = planById[key], inf = info[key];
-          list.push({ id: key, type: pl ? pl.base.id : (tk.tpl || (templateOf(it, heads[key]) || DEFAULT_TPL).id), dur: tk.dur, k: list.length, g0: inf.g0, g1: inf.g1 });
+          var bt = pl ? pl.base : (templateById(tk.tpl) || templateOf(it, heads[key]) || DEFAULT_TPL);
+          list.push({ id: key, type: bt.trade || bt.id, dur: tk.dur, k: list.length, g0: inf.g0, g1: inf.g1 });
         });
         var links = tradeLinks(list);
         plan.forEach(function (x) { var key = String(x.it.id); if (links[key]) s.tasks[key].pred = links[key]; });
@@ -1223,7 +1319,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, isOff: isOff, holidaysEthiopia: holidaysEthiopia, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, setNest: setNest, successors: successors, BUILTIN_PRESETS: BUILTIN_PRESETS, PRESET_PARTS: PRESET_PARTS, DEFAULT_MODES: DEFAULT_MODES, presetLibrary: presetLibrary, presetFromProject: presetFromProject, applyPreset: applyPreset, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, headsOf: headsOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, setNest: setNest, successors: successors, autoGangs: autoGangs, setGangs: setGangs, crewIsAuto: crewIsAuto, crewPlan: crewPlan, planOf: planOf, refine: refine, NORM_TEMPLATES: NORM_TEMPLATES, NORM_CATS: NORMS ? NORMS.CATS : [], BUILTIN_PRESETS: BUILTIN_PRESETS, PRESET_PARTS: PRESET_PARTS, DEFAULT_MODES: DEFAULT_MODES, presetLibrary: presetLibrary, presetFromProject: presetFromProject, applyPreset: applyPreset, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, headsOf: headsOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

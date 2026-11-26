@@ -378,7 +378,8 @@
   function sanitizeSchedTask(t) {
     t = t && typeof t === 'object' ? t : {};
     var out = { dur: Math.min(num3(t.dur, 0), 9999), start: isDate(t.start) ? t.start : '', par: !!t.par, mp: sanitizeCounts(t.mp), eq: sanitizeCounts(t.eq) };
-    if (/^[a-z]{2,12}$/.test(String(t.tpl || ''))) out.tpl = t.tpl;
+    if (/^[a-z][a-z0-9]{1,23}$/.test(String(t.tpl || ''))) out.tpl = t.tpl;
+    if (t.gangs != null) { var tg = num(t.gangs, 0.5, 10); out.gangs = Math.round(tg * 2) / 2; }
     if (Array.isArray(t.pred)) {
       out.pred = [];
       t.pred.slice(0, 12).forEach(function (q) {
@@ -397,7 +398,7 @@
   /* productivity assumptions: { hours, factor, types: { id: { per:{unit:n}, crew:{name:n}, eq:{name:n}, preset } } } */
   function sanitizeProd(pr) {
     pr = pr && typeof pr === 'object' ? pr : {};
-    var out = { hours: num(pr.hours == null ? 8 : pr.hours, 1, 16), factor: num(pr.factor == null ? 1 : pr.factor, 0.2, 3), types: {} };
+    var out = { hours: num(pr.hours == null ? 8 : pr.hours, 1, 16), factor: num(pr.factor == null ? 1 : pr.factor, 0.2, 3), maxDays: num(pr.maxDays == null ? 20 : pr.maxDays, 0, 365), types: {} };
     function nmap(m) {
       var r = {};
       if (m && typeof m === 'object') Object.keys(m).slice(0, 12).forEach(function (k) {
@@ -406,13 +407,14 @@
       });
       return r;
     }
-    if (pr.types && typeof pr.types === 'object') Object.keys(pr.types).slice(0, 40).forEach(function (id) {
+    if (pr.types && typeof pr.types === 'object') Object.keys(pr.types).slice(0, 200).forEach(function (id) {
       var o = pr.types[id];
       if (!/^[a-z0-9_]{1,24}$/.test(id) || !o || typeof o !== 'object') return;
       var e = {};
       if (o.per && typeof o.per === 'object') { e.per = nmap(o.per); Object.keys(e.per).forEach(function (k) { if (!(e.per[k] > 0)) delete e.per[k]; }); }
       if (o.crew && typeof o.crew === 'object') e.crew = nmap(o.crew);
       if (o.eq && typeof o.eq === 'object') e.eq = nmap(o.eq);
+      if (o.gangs != null) { var gg = num(o.gangs, 0.5, 10); e.gangs = Math.round(gg * 2) / 2; }
       if (typeof o.preset === 'string' && /^[A-Za-z0-9_ -]{1,40}$/.test(o.preset)) e.preset = o.preset;
       if (Object.keys(e).length) out.types[id] = e;
     });
