@@ -290,17 +290,17 @@ ok('generate: durations, crews, equipment and splits from the BoQ', function () 
   var q = boqOnly(), r = S.generate(q, {});
   assert.strictEqual(r.tasks, 10); assert.strictEqual(r.matched, 9); assert.strictEqual(r.general, 1);
   var d = function (id) { return q.sched.tasks[String(id)]; };
-  assert.deepStrictEqual([d(1).dur, d(2).dur, d(3).dur, d(4).dur, d(5).dur, d(6).dur], [1, 3, 1, 25, 8, 5]);
+  assert.deepStrictEqual([d(1).dur, d(2).dur, d(3).dur, d(4).dur, d(5).dur, d(6).dur], [1, 2, 1, 25, 8, 5]);
   assert.strictEqual(d(5).tpl, 'concrete', 'concrete mentioning formwork stays concrete');
   assert.strictEqual(d(7).tpl, 'plaster'); assert.strictEqual(d(8).tpl, 'plumb'); assert.strictEqual(d(9).tpl, 'plumb'); assert.strictEqual(d(10).tpl, 'general');
   assert.deepStrictEqual(d(1).split, [3, 65, 15], 'hand trench uses the labour preset'); assert.deepStrictEqual(d(2).split, [40, 20, 23]); assert.deepStrictEqual(d(4).split, [62, 18, 3], 'block work uses its own preset');
   var role = function (n) { return q.sched.roles.filter(function (x) { return x.name === n; })[0]; };
-  assert.strictEqual(d(1).mp[String(role('Daily Labour').id)], 6); assert.strictEqual(d(4).mp[String(role('Tiler').id)], 5);
+  assert.strictEqual(d(1).mp[String(role('Daily Labour').id)], 6); assert.strictEqual(d(4).mp[String(role('Tiler').id)], 4);
   assert.strictEqual(role('Project Manager').type, 'permanent');
   var eq = q.sched.equip.map(function (e) { return e.name; });
   assert.ok(eq.indexOf('Backhoe Loader') >= 0 && eq.indexOf('Concrete Mixer') >= 0 && eq.indexOf('Plate Compactor') >= 0);
   var c = S.compute(q); assert.ok(c.count === 10 && c.start === '2026-12-01');
-  var mp = S.manpower(q, c); assert.ok(mp.totalDays > 100 && mp.peak >= 20);
+  var mp = S.manpower(q, c); assert.ok(mp.totalDays > 60 && mp.peak >= 8, 'man-days ' + mp.totalDays + ' peak ' + mp.peak);
   assert.ok(Math.abs(S.cashflow(q).totals.amount - q.boq.reduce(function (s, i) { return s + i.qty * i.rate; }, 0)) < 0.01);
   q = L.sanitizeProject(q, 1); assert.strictEqual(q.sched.tasks['1'].tpl, 'excav', 'template survives save and load');
 });
@@ -569,4 +569,16 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   assert.strictEqual(S.templateOf(p.boq[2], h['3']).id, 'drain');
   assert.strictEqual(S.templateOf(p.boq[3], h['4']).id, 'drain');
   console.log('ok   continuation lines and fragments take the description above');
+})();
+(function () {
+  var L = require('../web/logic.js'), S = require('../web/schedule.js'), assert = require('assert');
+  var p = L.sanitizeProject({ name: 'M', startDate: '2026-12-01', boqLines: 2, boq: [
+    { id: 1, no: '3.3', desc: 'C-25 concrete in 10 cm thick RC floor slab', unit: 'M²', qty: 328, rate: 900 },
+    { id: 2, no: '4', desc: 'Supply and fix floor clean out', unit: 'Nº', qty: 1, rate: 400 }] });
+  S.generate(p, {});
+  var t1 = p.sched.tasks['1'], t2 = p.sched.tasks['2'];
+  assert.ok(t1.dur >= 3 && t1.dur <= 4.5, 'slab 33 m3 takes a few days, got ' + t1.dur);
+  var crew = function (t) { return Object.keys(t.mp).reduce(function (a, k) { return a + t.mp[k]; }, 0); };
+  assert.ok(crew(t2) <= 3 && t2.dur >= 0.5, 'one small item gets a small crew: ' + crew(t2) + ' for ' + t2.dur);
+  console.log('ok   thickness gives volume; small quantities get small crews');
 })();

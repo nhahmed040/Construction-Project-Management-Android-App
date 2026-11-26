@@ -552,7 +552,7 @@
     { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away |of )?(the )?(site|shrub|bush|vegetation)|site clearing|removing of the top|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
     { id: 'kerb', label: 'Kerb / edge stone', re: /kerb|curb\s?stone|edge stone|channel stone/, units: ['M'], per: { def: 60 }, crew: { Foreman: 1, 'Daily Labour': 3, Mason: 2, Helper: 2 }, eq: {} },
-    { id: 'drain', label: 'Drainage pipes / culverts', re: /^(?!.*excavat)(?=.*(clean\s?outs?|vent\s?caps?|(drain|sewer|culvert|hume)\w*[ -]?(pipe|line)?|(lay|laying|supply).{0,30}(drain|sewer)))/, units: ['M', 'Nº', 'PCS', 'LS'], per: { def: 25, 'Nº': 2 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 1, Plumber: 1 }, eq: {} },
+    { id: 'drain', label: 'Drainage pipes / culverts', re: /^(?!.*excavat)(?=.*(clean\s?outs?|vent\s?caps?|(drain|sewer|culvert|hume)\w*[ -]?(pipe|line)?|(lay|laying|supply).{0,30}(drain|sewer)))/, units: ['M', 'Nº', 'PCS', 'LS'], per: { def: 25, 'Nº': 6 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 1, Plumber: 1 }, eq: {} },
     { id: 'cobble', label: 'Cobblestone paving', re: /cobble/, per: { def: 35 }, crew: { Foreman: 1, 'Daily Labour': 4, Mason: 4, Helper: 4 }, eq: {} },
     { id: 'asphalt', label: 'Asphalt / bituminous surfacing', re: /asphalt|tack coat|prime coat|wearing course|bituminous (surface|course)/, units: ['M²', 'M³', 'M'], per: { def: 300, 'M³': 60 }, crew: { Foreman: 1, 'Daily Labour': 10, 'Roller Operator': 1 }, eq: { 'Road Roller': 1 } },
     { id: 'termite', label: 'Termite / soil treatment', re: /termite|soil poison|anti[- ]?termite/, units: ['M²', 'M', 'LS'], per: { def: 300 }, crew: { Foreman: 1, 'Daily Labour': 3 }, eq: {} },
@@ -561,20 +561,20 @@
     { id: 'septic', label: 'Septic tank / manholes', re: /septic|manhole|inspection chamber|soak\s?(away|pit)|\bsump\b|catch\s?pit/, units: ['Nº', 'PCS', 'LS', 'M³'], per: { def: 0.5, 'M³': 4 }, crew: { Foreman: 1, 'Daily Labour': 4, Mason: 3, Helper: 3 }, eq: {} },
     { id: 'tank', label: 'Water tank and pump', re: /water tank|\btank\b|reservoir|booster|\bpump/, units: ['Nº', 'PCS', 'LS', 'SET'], per: { def: 0.5 }, crew: { Foreman: 1, 'Daily Labour': 2, Plumber: 2 }, eq: {} },
     { id: 'cart', label: 'Cart away', re: /cart\s?away|carta?way|haul away|dispose|surplus/, per: { def: 96 }, crew: { Foreman: 1, 'Daily Labour': 6, 'Truck Driver': 1, 'Pick Up Driver': 1 }, eq: { 'Dump Truck': 1, 'Backhoe Loader': 1 }, preset: 'earth_mach' },
-    { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers|fill(ing)? around|(fill|filling) .{0,40}(excavated|selected) (material|soil)/, per: { def: 27 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'backfill' },
+    { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers|fill(ing)? around|(fill|filling) .{0,40}(excavated|selected) (material|soil)/, per: { def: 45 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'backfill' },
     { id: 'excav', label: 'Excavation', re: /excavat|trench|\bpit\b|\bdig/, per: { def: 96 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 }, preset: 'earth_mach' },
-    { id: 'hardcore', label: 'Hardcore / aggregate', re: /hard\s?core|stone soling|crushed|aggregate|gravel|blinding|sand fill/, per: { def: 100, 'M³': 36 }, crew: { Foreman: 1, 'Daily Labour': 9, Mason: 3, Helper: 3 }, eq: { 'Plate Compactor': 1 } },
+    { id: 'hardcore', label: 'Hardcore / aggregate', re: /hard\s?core|stone soling|crushed|aggregate|gravel|blinding|sand fill/, per: { def: 100, 'M³': 55 }, crew: { Foreman: 1, 'Daily Labour': 9, Mason: 3, Helper: 3 }, eq: { 'Plate Compactor': 1 } },
     { id: 'formwork', label: 'Formwork', re: /form\s?work|shuttering/, units: ['M²', 'M', 'LS'], per: { def: 80, M: 81 }, crew: { Foreman: 1, 'Daily Labour': 4, Carpenter: 4, Helper: 4 }, eq: {} },
     { id: 'rebar', label: 'Reinforcement bars', re: /bar\b|bars\b|rebar|reinforcement|stirrup|stirup/, units: ['KG'], per: { def: 258 }, crew: { Foreman: 1, 'Daily Labour': 2, 'Bar Bender': 2 }, eq: {} },
     { id: 'plaster', label: 'Plastering', re: /plaster|gypsum (plaster|finish)|chalk/, per: { def: 45 }, crew: { Foreman: 1, 'Daily Labour': 2, Plasterer: 2, Helper: 2 }, eq: {} },
     { id: 'hcb', label: 'Hollow block walling', re: /hollow block|\bhcb\b|block\s?work|blockwall|block wall/, per: { def: 40 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 2, Helper: 2 }, eq: {} },
     { id: 'pointing', label: 'Pointing', re: /pointing/, per: { def: 16 }, crew: { Foreman: 1, 'Daily Labour': 1, Mason: 1, Helper: 1 }, eq: {} },
-    { id: 'masonry', label: 'Stone masonry', re: /masonry|stone wall|foundation wall/, per: { def: 6 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 1, Helper: 1 }, eq: {} },
+    { id: 'masonry', label: 'Stone masonry', re: /masonry|stone wall|foundation wall/, per: { def: 8 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 1, Helper: 1 }, eq: {} },
     { id: 'paint', label: 'Painting', re: /paint|emulsion|varnish|enamel|thermoplastic|marking/, per: { def: 100 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 2 }, eq: {} },
     { id: 'skirting', label: 'Skirting / wall tile fixing', re: /skirting|dado/, units: ['M', 'M²'], per: { def: 50, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 2, Tiler: 2, Helper: 2 }, eq: {} },
-    { id: 'tile', label: 'Tiling / paving', re: /\btile|tiling|ceramic|terrazzo|terrazo|paving|marble|granite|flooring/, per: { def: 43 }, crew: { Foreman: 1, 'Daily Labour': 12, Tiler: 5, Helper: 5 }, eq: {} },
+    { id: 'tile', label: 'Tiling / paving', re: /\btile|tiling|ceramic|terrazzo|terrazo|paving|marble|granite|flooring/, per: { def: 43 }, crew: { Foreman: 1, 'Daily Labour': 4, Tiler: 4, Helper: 3 }, eq: {} },
     { id: 'lean', label: 'Lean concrete / screed', re: /lean concrete|screed|\bc-?7\b|blinding concrete/, per: { def: 25 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 2, Helper: 2, 'Mixer Operator': 1 }, eq: { 'Concrete Mixer': 1 } },
-    { id: 'concrete', label: 'Concrete', re: /concrete|\bc-?\d{2}\b|\brcc?\b|mass concrete|cast in situ/, per: { def: 10, 'M²': 7 }, crew: { Foreman: 1, 'Daily Labour': 12, Mason: 2, Helper: 2, 'Mixer Operator': 1, 'Vibrator Operator': 1 }, eq: { 'Concrete Mixer': 1, Vibrator: 1 } },
+    { id: 'concrete', label: 'Concrete', re: /concrete|\bc-?\d{2}\b|\brcc?\b|mass concrete|cast in situ/, per: { def: 10, 'M²': 25 }, crew: { Foreman: 1, 'Daily Labour': 12, Mason: 2, Helper: 2, 'Mixer Operator': 1, 'Vibrator Operator': 1 }, eq: { 'Concrete Mixer': 1, Vibrator: 1 } },
     { id: 'roof', label: 'Roofing', re: /roof|corrugated|iron sheet|polycarbonate|gutter|down\s?pipe|flashing|ridge cap|fascia/, per: { def: 35, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 1, Carpenter: 1, Helper: 1 }, eq: {} },
     { id: 'ceiling', label: 'Ceiling boards / gypsum', re: /^(?!.*(light|lamp|\bled\b|fitting)).*(ceiling|gypsum board|cornice)/, units: ['M²', 'M'], per: { def: 40, M: 60 }, crew: { Foreman: 1, 'Daily Labour': 1, Carpenter: 2, Helper: 2 }, eq: {} },
     { id: 'carp', label: 'Carpentry / timber', re: /morale|timber|purlin|truss|eucalyptus|zigba|carpent|batten|joiner|pile\b|cabinet|cupboard|wardrobe/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2, Helper: 2 }, eq: {} },
@@ -630,6 +630,16 @@
     if (!tpl || !tpl.per) return DEFAULTS[unit] || 20;
     return tpl.per[unit] != null ? tpl.per[unit] : tpl.per.def;
   }
+  // an item measured in m² that states its thickness ("10 cm thick") is a volume for the work types that are rated per m³
+  var BY_VOLUME = { concrete: 1, lean: 1, hardcore: 1, backfill: 1, masonry: 1 };
+  function thickness(it) {
+    var m = /(\d+(?:\.\d+)?)\s*(cm|mm)\s*(?:thick|thickness|depth|deep)|(?:thick|thickness)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(cm|mm)/i.exec(String(it.desc || ''));
+    if (!m) return 0;
+    var v = parseFloat(m[1] || m[3]), u = (m[2] || m[4]).toLowerCase();
+    v = u === 'mm' ? v / 1000 : v / 100;
+    return v > 0.01 && v < 2 ? v : 0;
+  }
+  var MIN_DUR = 0.5;
   function roundDur(d) {
     if (!(d > 0)) return 0.25;
     if (d < 0.5) return Math.max(0.25, Math.ceil(d / 0.25 - 1e-9) * 0.25);
@@ -850,8 +860,10 @@
       if (only === 'empty' && cur && cur.dur > 0 && !forced) { kept.push({ id: it.id, why: 'has' }); return; }
       var base = types[key] ? templateById(types[key]) : templateOf(it, heads[key]), tpl = base;
       if (!tpl) { tpl = DEFAULT_TPL; general += 1; if (general_names.length < 5) general_names.push((it.no ? it.no + ' ' : '') + it.desc.slice(0, 40)); } else matched += 1;
-      var eff = effTpl(p, tpl), per = outputOf(eff, it.unit) * speedOf(p);
-      plan.push({ it: it, tpl: eff, base: tpl, per: per, matched: !!base });
+      var eff = effTpl(p, tpl), unit = it.unit, qty = it.qty, th = BY_VOLUME[tpl.id] && it.unit === 'M²' ? thickness(it) : 0;
+      if (th) { unit = 'M³'; qty = it.qty * th; }
+      var per = outputOf(eff, unit) * speedOf(p);
+      plan.push({ it: it, tpl: eff, base: tpl, per: per, qty: qty, matched: !!base });
     });
     if (!plan.length) return { tasks: 0, kept: items.length, keptList: kept };
     // the position of every item in the BoQ and the headings above it (for the trade links)
@@ -867,13 +879,24 @@
     function apply(m) {
       plan.forEach(function (x) {
         var key = String(x.it.id), t = s.tasks[key] || (s.tasks[key] = { dur: 0, start: '', par: false, mp: {}, eq: {} });
-        t.dur = roundDur(x.it.qty / (x.per * m)); t.start = ''; t.par = false; t.tpl = x.base.id;
+        // a task that needs less than half a crew-day gets a smaller crew, so man-days follow the quantity
+        var raw = x.qty / (x.per * m), f = Math.min(1, raw / MIN_DUR), crew = x.tpl.crew || {}, names = Object.keys(crew);
+        var temp = names.filter(function (n) { var pm = STD_ROLES.filter(function (r) { return r[0] === n; })[0]; return !(pm && pm[1] === 'permanent'); });
+        var full = temp.reduce(function (a, n) { return a + crew[n] * m; }, 0), cnt = {}, got = 0;
+        temp.forEach(function (n) { cnt[n] = Math.max(0, Math.round(crew[n] * m * f)); got += cnt[n]; });
+        if (f < 1 && full > 0) {
+          var order = temp.slice().sort(function (a, b) { return crew[b] - crew[a]; }), want = Math.min(2, full);
+          for (var k = 0; got < want && k < 10; k++) { cnt[order[k % order.length]] += 1; got += 1; }
+        } else { temp.forEach(function (n) { cnt[n] = crew[n] * m; }); got = full; }
+        var ratio = full > 0 ? Math.max(got / full, 0.01) : 1;
+        t.dur = roundDur(x.qty / (x.per * m * ratio)); t.start = ''; t.par = false; t.tpl = x.base.id;
         t.mp = {}; t.eq = {};
-        Object.keys(x.tpl.crew || {}).forEach(function (n) {
-          var perm = STD_ROLES.filter(function (r) { return r[0] === n; })[0];
+        names.forEach(function (n) {
+          var perm = STD_ROLES.filter(function (r) { return r[0] === n; })[0], isPerm = perm && perm[1] === 'permanent';
+          var c = isPerm ? (f >= 0.5 ? crew[n] : 0) : cnt[n];
+          if (!(c > 0)) return;
           var role = ensure(s.roles, n, function () { return { id: L.newId(), name: n, type: perm ? perm[1] : 'temporary', person: '', count: perm && perm[1] === 'permanent' ? 1 : 0 }; });
-          var c = x.tpl.crew[n];
-          if (c > 0) t.mp[String(role.id)] = role.type === 'permanent' ? c : c * m;
+          t.mp[String(role.id)] = role.type === 'permanent' ? c : c;
         });
         Object.keys(x.tpl.eq || {}).forEach(function (n) {
           var src = STD_EQUIP.filter(function (e) { return e[0] === n; })[0];
