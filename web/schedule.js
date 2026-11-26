@@ -549,6 +549,7 @@
   var LAB = 'Daily Labour', FM = 'Foreman';
   /* per: output per crew-day (a number, or { def, 'M³': n, ... } by unit). units: only for these units. Order matters: first match wins. */
   var TEMPLATES = [
+    { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away )?(the )?(site|shrub|bush|vegetation)|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
     { id: 'cart', label: 'Cart away', re: /cart\s?away|carta?way|haul away|dispose|surplus/, per: { def: 96 }, crew: { Foreman: 1, 'Daily Labour': 6, 'Truck Driver': 1, 'Pick Up Driver': 1 }, eq: { 'Dump Truck': 1, 'Backhoe Loader': 1 }, preset: 'earth_mach' },
     { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers|fill(ing)? around|(fill|filling) .{0,40}(excavated|selected) (material|soil)/, per: { def: 27 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'backfill' },
@@ -574,14 +575,30 @@
   var DEFAULTS = { 'M³': 10, 'M²': 40, M: 50, KG: 250, PCS: 4, 'Nº': 4, LS: 0.34, SET: 1 };
   var DEFAULT_TPL = { id: 'general', label: 'General work', crew: { Foreman: 1, 'Daily Labour': 4 }, eq: {} };
 
-  function templateOf(item) {
-    var d = String(item.desc || '').toLowerCase(), u = item.unit;
+  function matchText(d, u) {
     for (var i = 0; i < TEMPLATES.length; i++) {
       var t = TEMPLATES[i];
       if (t.units && t.units.indexOf(u) < 0) continue;
       if (t.re.test(d)) return t;
     }
     return null;
+  }
+  // an item's own words first; a sub-item such as "a) To footing" also takes the words of the heading above it
+  function templateOf(item, head) {
+    var d = String(item.desc || '').toLowerCase(), u = item.unit;
+    return matchText(d, u) || (head ? matchText(String(head).toLowerCase() + ' ' + d, u) : null);
+  }
+  // heading text above each sub-item (same nesting rule as the schedule rows)
+  function headsOf(p) {
+    var out = {}, cur = null, last = null, nest = (p.sched && p.sched.nest) || {};
+    p.boq.forEach(function (i) {
+      if (i.kind === 'sum') { cur = last = null; return; }
+      if (L.isHeading(i)) { cur = last = i; return; }
+      if (!L.isItemRow(i)) { cur = last = null; return; }
+      var nv = nest[String(i.id)], par = nv === 'in' ? last : nv === 'out' ? null : (cur && (!i.no || /^[a-z][.)]?$/.test(String(i.no).trim())) ? cur : null);
+      if (par) out[String(i.id)] = par.desc; else if (nv !== 'in') cur = null;
+    });
+    return out;
   }
   function templateById(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return id === 'general' ? DEFAULT_TPL : null; }
   function outputOf(tpl, unit) {
@@ -773,14 +790,14 @@
     var items = p.boq.filter(function (i) { return L.isItemRow(i) && !L.isHeading(i); });
     if (!items.length) return { tasks: 0 };
     if (!s.roles.length) STD_ROLES.forEach(function (r) { if (r[1] === 'permanent') s.roles.push({ id: L.newId(), name: r[0], type: 'permanent', person: '', count: 1 }); });
-    var plan = [], matched = 0, general = 0, general_names = [], kept = [];
+    var plan = [], matched = 0, general = 0, general_names = [], kept = [], heads = headsOf(p);
     items.forEach(function (it) {
       var key = String(it.id), cur = s.tasks[key];
       if (skip[key]) { kept.push({ id: it.id, why: 'skip' }); return; }
       var forced = opts.force && opts.force[key];
       if (cur && cur.dur > 0 && cur.start && !forced) { kept.push({ id: it.id, why: 'manual' }); return; }   // a manual date is not overwritten
       if (only === 'empty' && cur && cur.dur > 0 && !forced) { kept.push({ id: it.id, why: 'has' }); return; }
-      var base = types[key] ? templateById(types[key]) : templateOf(it), tpl = base;
+      var base = types[key] ? templateById(types[key]) : templateOf(it, heads[key]), tpl = base;
       if (!tpl) { tpl = DEFAULT_TPL; general += 1; if (general_names.length < 5) general_names.push((it.no ? it.no + ' ' : '') + it.desc.slice(0, 40)); } else matched += 1;
       var eff = effTpl(p, tpl), per = outputOf(eff, it.unit) * speedOf(p);
       plan.push({ it: it, tpl: eff, base: tpl, per: per, matched: !!base });
@@ -824,7 +841,7 @@
           var key = String(it.id), tk = s.tasks[key];
           if (!tk || !(tk.dur > 0)) return;
           var pl = planById[key], inf = info[key];
-          list.push({ id: key, type: pl ? pl.base.id : (tk.tpl || (templateOf(it) || DEFAULT_TPL).id), dur: tk.dur, k: list.length, g0: inf.g0, g1: inf.g1 });
+          list.push({ id: key, type: pl ? pl.base.id : (tk.tpl || (templateOf(it, heads[key]) || DEFAULT_TPL).id), dur: tk.dur, k: list.length, g0: inf.g0, g1: inf.g1 });
         });
         var links = tradeLinks(list);
         plan.forEach(function (x) { var key = String(x.it.id); if (links[key]) s.tasks[key].pred = links[key]; });
@@ -1132,7 +1149,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, isOff: isOff, holidaysEthiopia: holidaysEthiopia, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, setNest: setNest, successors: successors, BUILTIN_PRESETS: BUILTIN_PRESETS, PRESET_PARTS: PRESET_PARTS, DEFAULT_MODES: DEFAULT_MODES, presetLibrary: presetLibrary, presetFromProject: presetFromProject, applyPreset: applyPreset, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, setNest: setNest, successors: successors, BUILTIN_PRESETS: BUILTIN_PRESETS, PRESET_PARTS: PRESET_PARTS, DEFAULT_MODES: DEFAULT_MODES, presetLibrary: presetLibrary, presetFromProject: presetFromProject, applyPreset: applyPreset, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, headsOf: headsOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

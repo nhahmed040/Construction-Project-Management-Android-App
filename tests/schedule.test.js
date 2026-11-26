@@ -482,3 +482,28 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   if (list.length !== 1) throw new Error('preset list sanitize');
   console.log('preset engine tests ok');
 })();
+
+// sub-items take the words of their heading; site clearing has its own type
+(function () {
+  var L = require('../web/logic.js'), S = require('../web/schedule.js');
+  var p = L.sanitizeProject({ name: 't', boqLines: 2, boq: [
+    { id: 1, no: '3.4', desc: 'Provide, cut and fix in position sawn zigba wood or steel form work', unit: '', qty: 0, rate: 0 },
+    { id: 2, no: 'a)', desc: 'To footing', unit: 'M²', qty: 20, rate: 100 },
+    { id: 3, no: '3.5', desc: 'Clear off the site shrubs and organic soil for an average depth of 20cm.', unit: 'M²', qty: 900, rate: 10 }
+  ] });
+  var pv = S.preview(p, { only: 'all', strategy: 'trade' });
+  var row = function (id) { return (pv.rows || pv.items || []).filter(function (r) { return String(r.id) === String(id); })[0]; };
+  var t1 = S.templateOf ? S.templateOf({ desc: 'To footing', unit: 'M²' }, 'form work') : null;
+  console.log(S.templateOf ? (t1 && t1.id === 'formwork' ? 'ok   sub-item uses heading words' : 'FAIL sub-item heading') : 'skip templateOf not exported');
+  var t3 = S.templateOf && S.templateOf({ desc: 'Clear off the site shrubs and organic soil for an average depth of 20cm.', unit: 'M²' });
+  console.log(t3 && t3.id === 'clear' ? 'ok   site clearing type' : 'FAIL site clearing type');
+})();
+(function () {
+  var L = require('../web/logic.js'), S = require('../web/schedule.js');
+  var p = L.sanitizeProject({ name: 't', boqLines: 2, boq: [
+    { id: 1, no: '3.4', desc: 'Provide, cut and fix in position sawn zigba wood or steel form work', unit: '', qty: 0, rate: 0 },
+    { id: 2, no: 'a)', desc: 'To footing', unit: 'M²', qty: 20, rate: 100 } ] });
+  var r = S.generate(p, { only: 'all', strategy: 'trade' }), mp = p.sched.tasks['2'].mp || {};
+  var names = p.sched.roles.filter(function (x) { return mp[x.id] > 0; }).map(function (x) { return x.name; });
+  console.log(names.indexOf('Carpenter') >= 0 && !r.general ? 'ok   generated sub-item gets formwork crew' : 'FAIL sub-item crew ' + JSON.stringify(names) + ' general=' + r.general);
+})();

@@ -783,3 +783,8 @@ body.view-entries.books-home #bookBtn, body.view-entries.books-home .fab { displ
 .colopt { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-top: 1px solid var(--border); font-size: 1rem; }
 .colopt input { width: 20px; height: 20px; }
 .gt-cols .gc.cs, .gt-cols .gc.cf, .gt-cols .gc.csu { font-size: .66rem; }
+/* preview sheets: the sticky summary and button bar must cover the whole width and the padding, so rows never show through */
+.prevmodal { padding-top: 0; padding-bottom: 0; }
+.prevmodal > h2:first-of-type { padding-top: 20px; }
+.prevmodal .prevsum { margin: 0 -18px; padding: 6px 18px; background: var(--surface); }
+.prevmodal .stickybar { margin: 0 -18px; padding: 10px 18px calc(12px + env(safe-area-inset-bottom)); background: var(--surface); box-shadow: 0 -6px 12px -8px rgba(0,0,0,.25); }
