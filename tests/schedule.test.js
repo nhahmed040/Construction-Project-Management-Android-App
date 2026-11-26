@@ -470,7 +470,7 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   p.sched.roles = [{ id: 1, name: 'Mason', type: 'temporary', person: '', count: 7 }];
   S7.applyPreset(p, S7.BUILTIN_PRESETS[0], { mp: 'merge', eq: 'merge' });
   var mason = p.sched.roles.filter(function (r) { return r.name === 'Mason'; });
-  if (mason.length !== 1 || mason[0].count !== 7 || p.sched.roles.length < 20 || p.sched.equip.length !== 12) throw new Error('merge roles');
+  if (mason.length !== 1 || mason[0].count !== 7 || p.sched.roles.length < 20 || p.sched.equip.length !== 14) throw new Error('merge roles');
   // replace removes unused roles not in the preset, keeps used
   p.sched.roles.push({ id: 99, name: 'Spare', type: 'temporary', person: '', count: 1 });
   S7.applyPreset(p, { parts: { mp: [{ name: 'Mason', type: 'temporary', person: '', count: 2 }] } }, { mp: 'replace' });
