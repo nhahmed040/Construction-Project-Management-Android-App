@@ -1315,6 +1315,16 @@
         back(); requestAnimationFrame(back);
       },
       printDoc: printDoc,
+      saveFile: function (n, m, c) { return saveFile(n, m, c); },
+      pickText: function (cb) {
+        var inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json,text/plain';
+        inp.addEventListener('change', function () {
+          var f = inp.files && inp.files[0]; if (!f) return;
+          if (f.size > 300 * 1024) { cb('', f.size); return; }
+          var r = new FileReader(); r.onload = function () { cb(String(r.result || ''), f.size); }; r.readAsText(f);
+        });
+        inp.click();
+      },
       getPresets: function () { return state.settings.presets || []; },
       setPresets: function (v) { state.settings.presets = v; },
       getHiddenPresets: function () { return state.settings.hiddenPresets || []; },

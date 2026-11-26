@@ -428,6 +428,7 @@
             }]);
             acts.push(['🗑 ' + t('sch_preset_delete'), function () { if (!window.confirm(t('sch_preset_delete_ask', { x: pre.name }))) return; A.setPresets(A.getPresets().filter(function (z) { return z.id !== pre.id; })); A.save(); draw(); }]);
           } else acts.push(['🙈 ' + t('sch_preset_hide'), function () { A.setHiddenPresets(A.getHiddenPresets().concat([pre.id])); A.save(); draw(); }]);
+          acts.push(['📤 ' + t('sch_preset_share'), function () { exportPresets(c, [pre], pre.name); }]);
           menuSheet(c, pre.name, acts);
         }));
         pn.appendChild(row);
@@ -435,6 +436,8 @@
       m.appendChild(pn);
       var br = c.el('div', 'btnrow');
       br.appendChild(c.btn('💾 ' + t('sch_preset_save'), 'primary', function () { close0(); saveSheet(c, only, function () { openPresets(c, only, done); }); }));
+      br.appendChild(c.btn('📥 ' + t('sch_preset_import'), '', function () { close0(); importPresets(c, function () { openPresets(c, only, done); }); }));
+      if (A.getPresets().length) br.appendChild(c.btn('📤 ' + t('sch_preset_export_all'), '', function () { exportPresets(c, A.getPresets(), 'my-presets'); }));
       if (A.getHiddenPresets().length) br.appendChild(c.btn(t('sch_preset_unhide'), '', function () { A.setHiddenPresets([]); A.save(); draw(); }));
       m.appendChild(br);
       m.appendChild(c.btn(t('close'), 'block', close));
@@ -443,6 +446,48 @@
     ov.appendChild(m);
     document.body.appendChild(ov);
     draw();
+  }
+
+  /* ---------- sharing presets as .json files ---------- */
+  var PRESET_FILE = 'cb-presets', PRESET_VERSION = 1, PRESET_MAX = 200 * 1024;
+  function exportPresets(c, list, label) {
+    var out = list.map(function (x) { var q = L.sanitizePreset(JSON.parse(JSON.stringify(x))); if (q) delete q.id; return q; }).filter(Boolean);
+    if (!out.length) { c.A.toast(c.t('sch_preset_empty')); return; }
+    var data = JSON.stringify({ file: PRESET_FILE, version: PRESET_VERSION, presets: out }, null, 1);
+    c.A.saveFile('preset-' + String(label || 'presets').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) + '.json', 'application/json', data);
+  }
+  function importPresets(c, back) {
+    var A = c.A, t = c.t;
+    A.pickText(function (text, size) {
+      if (size > PRESET_MAX || text.length > PRESET_MAX) { A.toast(t('sch_preset_toobig')); return; }
+      var d; try { d = JSON.parse(text); } catch (e) { A.toast(t('sch_preset_badfile')); return; }
+      if (!d || d.file !== PRESET_FILE || !Array.isArray(d.presets)) { A.toast(t('sch_preset_badfile')); return; }
+      if (!(d.version >= 1) || d.version > PRESET_VERSION) { A.toast(t('sch_preset_newer')); return; }
+      var found = L.sanitizePresetList(d.presets.slice(0, 20).map(function (x) { if (x && typeof x === 'object') x.id = ''; return x; }));
+      if (!found.length) { A.toast(t('sch_preset_badfile')); return; }
+      var ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal');
+      function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); if (back) back(); }
+      m.appendChild(c.el('h2', null, t('sch_preset_import')));
+      var cur = A.getPresets(), names = {};
+      cur.forEach(function (z) { names[z.name.toLowerCase()] = 1; });
+      found.forEach(function (q) { m.appendChild(c.el('p', 'small', '• ' + q.name + (names[q.name.toLowerCase()] ? '  (' + t('sch_preset_exists') + ')' : '') + ' — ' + partsText(c, q))); });
+      var sel = c.el('select', 'tsel');
+      [['both', t('sch_preset_keepboth')], ['replace', t('sch_mode_replace')]].forEach(function (x) { var o = c.el('option', null, x[1]); o.value = x[0]; sel.appendChild(o); });
+      m.appendChild(c.el('p', 'muted small', t('sch_preset_same_name'))); m.appendChild(sel);
+      var br = c.el('div', 'btnrow');
+      br.appendChild(c.btn(t('sch_preset_import'), 'primary', function () {
+        var list = A.getPresets().slice();
+        found.forEach(function (q) {
+          var i = -1; list.forEach(function (z, k) { if (z.name.toLowerCase() === q.name.toLowerCase()) i = k; });
+          if (i >= 0 && sel.value === 'replace') { q.id = list[i].id; list[i] = q; return; }
+          if (i >= 0) { var base = q.name.slice(0, 34), n = 2; while (list.some(function (z) { return z.name.toLowerCase() === (base + ' (' + n + ')').toLowerCase(); })) n++; q.name = base + ' (' + n + ')'; }
+          if (list.length < 60) list.push(q);
+        });
+        A.setPresets(L.sanitizePresetList(list)); A.save(); A.toast(t('sch_preset_imported', { n: found.length })); close();
+      }));
+      br.appendChild(c.btn(t('cancel'), '', close)); m.appendChild(br);
+      ov.appendChild(m); document.body.appendChild(ov);
+    });
   }
 
   /* save the project's present set-up as a preset: choose the parts */
