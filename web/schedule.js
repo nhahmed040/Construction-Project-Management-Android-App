@@ -538,7 +538,7 @@
      tap any task to change what the app proposed. */
   var STD_ROLES = [
     ['Project Manager', 'permanent'], ['Store Keeper', 'permanent'], ['Surveyor', 'permanent'], ['Foreman', 'permanent'], ['Accountant', 'permanent'], ['Cashier', 'permanent'],
-    ['Daily Labour', 'temporary'], ['Mason', 'temporary'], ['Carpenter', 'temporary'], ['Helper', 'temporary'], ['Plasterer', 'temporary'], ['Bar Bender', 'temporary'], ['Tiler', 'temporary'],
+    ['Daily Labour', 'temporary'], ['Mason', 'temporary'], ['Carpenter', 'temporary'], ['Plasterer', 'temporary'], ['Bar Bender', 'temporary'], ['Tiler', 'temporary'],
     ['Chiseler', 'temporary'], ['Welder', 'temporary'], ['Painter', 'temporary'], ['Glazier', 'temporary'], ['Electrician', 'temporary'], ['Plumber', 'temporary'],
     ['Mixer Operator', 'temporary'], ['Vibrator Operator', 'temporary'], ['Compactor Operator', 'temporary'], ['Truck Driver', 'temporary'], ['Backhoe Loader Operator', 'temporary'], ['Loader Operator', 'temporary'], ['Excavator Operator', 'temporary'], ['Pick Up Driver', 'temporary']
   ];
@@ -584,6 +584,8 @@
     { id: 'elec', label: 'Electrical', re: /electric|wire|cable|conduit|socket|switch|\blight|lamp|breaker|distribution|\bdb\b|fitting|\bpoints?\b|earthing|\bpanel|outlet|\brj ?45\b|\bdata\b/, per: { def: 8, M: 300 }, crew: { Foreman: 1, Electrician: 1, 'Daily Labour': 1 }, eq: {} }
   ];
   var DEFAULTS = { 'M³': 10, 'M²': 40, M: 50, KG: 250, PCS: 4, 'Nº': 4, LS: 0.34, SET: 1 };
+  // the generic Helper is replaced by the trade assistants of the norms; older types give their helpers to Daily Labour
+  TEMPLATES.forEach(function (t) { if (t.crew && t.crew.Helper) { t.crew[LAB] = (t.crew[LAB] || 0) + t.crew.Helper; delete t.crew.Helper; } });
   var DEFAULT_TPL = { id: 'general', label: 'General work', crew: { Foreman: 1, 'Daily Labour': 4 }, eq: {} };
 
   /* ---------- the norms library: 141 activities in 18 categories, matched to BoQ lines in two steps ----------
