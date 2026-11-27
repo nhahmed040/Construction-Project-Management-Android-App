@@ -601,3 +601,8 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   S.generate(q, {}); assert.ok(q.sched.tasks['1'].gangs >= 2 && q.sched.tasks['1'].dur <= 30, 'gangs ' + q.sched.tasks['1'].gangs + ' dur ' + q.sched.tasks['1'].dur);
   console.log('ok   gangs: set, auto, hand-edited crew noticed, site staff out of the gang');
 })();
+(function () {
+  var S = require('../web/schedule.js'), assert = require('assert');
+  ['TPL_PRESET', 'NORM_TEMPLATES', 'NORM_CATS', 'OTHER_TEMPLATES', 'setGangs', 'crewIsAuto', 'effTpl', 'prodOf', 'presetList'].forEach(function (k) { assert.ok(S[k] != null, 'schedule.js must export ' + k + ' (the Productivity screen needs it)'); });
+  console.log('ok   exports used by the Productivity screen');
+})();
