@@ -640,7 +640,9 @@
         m.insertBefore(sp, m.children[3] || null);
       }
       var br = c.el('div', 'btnrow');
-      br.appendChild(c.btn(t('save'), 'primary', function () { collect(); s.prod = L.sanitizeProd(pr); A.save(); close(); if (done) done(); else A.rerender(); }));
+      br.appendChild(c.btn(t('save'), 'primary', function () { collect(); s.prod = L.sanitizeProd(pr);
+        if (p.boq.length && Object.keys(s.tasks || {}).length && window.confirm(t('sch_prod_regen_ask'))) S.generate(p, { only: 'all', strategy: 'trade', end: p.endDate && L.isDate(p.endDate) ? p.endDate : '' });
+        A.save(); close(); if (done) done(); else A.rerender(); }));
       br.appendChild(c.btn(t('sch_prod_save_default'), '', function () { collect(); s.prod = L.sanitizeProd(pr); A.setProdDefault(s.prod); A.save(); A.toast(t('sch_prod_default_saved')); }));
       m.appendChild(br);
       var br2 = c.el('div', 'btnrow');
