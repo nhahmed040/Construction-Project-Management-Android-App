@@ -300,7 +300,7 @@
         return role ? role.name + ' ' + tk.mp[rid] : '';
       }).filter(Boolean);
       var row = { id: r.id, n: r.n, no: r.no, desc: r.desc, unit: r.unit, qty: r.qty, planned: !!x, kept: keptWhy[key] || '', type: x ? x.type : (tk.tpl || ''), label: x ? x.label : '',
-        matched: x ? x.matched : true, per: x ? x.per : 0, gangs: tk.gangs || 0, dur: r.dur, start: r.start, finish: r.finish, crew: crew,
+        matched: x ? x.matched : true, per: x ? x.per : 0, gangs: tk.gangs || 0, grade: x && templateById(x.type) ? templateById(x.type).grade || '' : '', dur: r.dur, start: r.start, finish: r.finish, crew: crew,
         links: formatLinks(r.sched ? r.preds : tk.pred || [], sc), split: tk.split || null };
       if (x && was[key] !== (r.dur || 0) + '|' + (r.start || '') + '|' + formatLinks(r.sched ? r.preds : tk.pred || [], sc)) changed += 1;
       rows.push(row);
@@ -913,7 +913,7 @@
     var raw = x.qty / (x.per * g), f = Math.min(1, raw / MIN_DUR), full = 0, cnt = {}, got = 0;
     names.forEach(function (n) { full += crew[n] * g; cnt[n] = crew[n] > 0 ? Math.max(f < 1 ? 0 : 1, Math.round(crew[n] * g * f)) : 0; got += cnt[n]; });
     if (f < 1 && full > 0) {
-      var order = names.slice().sort(function (a, b) { return crew[b] - crew[a]; }), want = Math.min(2, Math.round(full));
+      var order = names.slice().sort(function (a, b) { return crew[b] - crew[a]; }), want = Math.min(Math.max(2, Math.round(x.tpl.minCrew || 0)), Math.round(full));
       for (var k = 0; got < want && k < 12; k++) { cnt[order[k % order.length]] += 1; got += 1; }
     }
     var ratio = full > 0 ? Math.max(got / full, 0.01) : 1, out = {};

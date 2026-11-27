@@ -74,15 +74,17 @@
   function require_col(i) { var s = '', n = i + 1; while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
 
   function scheduleSheet(wb, p, sc) {
-    var sh = sheet('Schedule', wb, [6, 60, 8, 11, 12, 16, 11, 15, 15, 9]);
+    var sh = sheet('Schedule', wb, [6, 60, 8, 11, 12, 16, 11, 15, 15, 9, 8]);
     var r = titleBlock(sh, p, 'Construction Schedule');
     sh.put(r, 0, { v: 'Project Time Span', s: { b: true, font: F } }); sh.put(r, 2, { v: d2(sc.start) + ' - ' + d2(sc.finish), s: { b: true, font: F } });
     r += 2;
-    taskColumns(sh, r, sc, true); sh.put(r, 9, { v: '% done', s: HEAD });
+    taskColumns(sh, r, sc, true); sh.put(r, 9, { v: '% done', s: HEAD }); sh.put(r, 10, { v: 'Gangs', s: HEAD });
     var first = r + 1;
     sc.rows.forEach(function (row) {
       r += 1; taskRow(sh, r, row, true);
       sh.put(r, 9, { v: row.level === 2 && row.amount > 0 ? Math.round(row.pct * 10) / 10 : '', s: row.level === 2 ? CEN : labelCell(row, row.level) });
+      var tk = row.level === 2 && p.sched.tasks[String(row.id)];
+      sh.put(r, 10, { v: tk && tk.gangs ? tk.gangs : '', s: row.level === 2 ? CEN : labelCell(row, row.level) });
     });
     var last = r;
     r += 1; sumRows(sh, r, first, last, [5], 'Total');

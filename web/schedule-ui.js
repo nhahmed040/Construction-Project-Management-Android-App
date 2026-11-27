@@ -360,7 +360,7 @@
         var tx = c.el('span', 'stext');
         tx.appendChild(c.el('b', null, (r.n ? r.n + '. ' : '') + (r.no ? r.no + ' ' : '') + r.desc));
         var info = r.planned
-          ? S.fmtNum(r.dur) + ' ' + t('sch_days_short') + (r.gangs ? ' · ' + t('sch_gangs_n', { n: r.gangs }) : '') + ' · ' + (r.start ? A.fmtDate(r.start) : '') + (r.links ? ' · ← ' + r.links : '') + (r.crew.length ? ' · ' + r.crew.join(', ') : '')
+          ? S.fmtNum(r.dur) + ' ' + t('sch_days_short') + (r.gangs ? ' · ' + t('sch_gangs_n', { n: r.gangs }) : '') + (r.grade ? ' · ' + t('sch_grade_short', { g: r.grade }) : '') + ' · ' + (r.start ? A.fmtDate(r.start) : '') + (r.links ? ' · ← ' + r.links : '') + (r.crew.length ? ' · ' + r.crew.join(', ') : '')
           : (r.kept === 'manual' ? t('sch_gen_kept_manual') : r.kept === 'has' ? t('sch_gen_kept_has') : r.kept === 'skip' ? t('sch_gen_kept_skip') : '');
         tx.appendChild(c.el('small', 'muted', info));
         if (r.planned && !r.matched) tx.appendChild(c.el('small', 'warn', t('sch_gen_general_row')));
@@ -619,6 +619,13 @@
       }
       S.NORM_CATS.forEach(function (cat) { catFold(cat, S.NORM_TEMPLATES.filter(function (tp) { return tp.cat === cat; })); });
       catFold(t('sch_cat_other'), S.OTHER_TEMPLATES);
+      var stale = Object.keys(pr.types).filter(function (id) { return !inputs.types[id]; });
+      if (stale.length) {
+        var sp = c.panel(t('sch_prod_stale'));
+        sp.appendChild(c.el('p', 'muted small', t('sch_prod_stale_note', { x: stale.join(', ') })));
+        sp.appendChild(c.btn(t('sch_prod_stale_remove'), '', function () { collect(); stale.forEach(function (id) { delete pr.types[id]; }); build(); }));
+        m.insertBefore(sp, m.children[3] || null);
+      }
       var br = c.el('div', 'btnrow');
       br.appendChild(c.btn(t('save'), 'primary', function () { collect(); s.prod = L.sanitizeProd(pr); A.save(); close(); if (done) done(); else A.rerender(); }));
       br.appendChild(c.btn(t('sch_prod_save_default'), '', function () { collect(); s.prod = L.sanitizeProd(pr); A.setProdDefault(s.prod); A.save(); A.toast(t('sch_prod_default_saved')); }));
