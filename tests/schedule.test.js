@@ -290,7 +290,7 @@ ok('generate: durations, crews, equipment and splits from the BoQ', function () 
   var q = boqOnly(), r = S.generate(q, {});
   assert.strictEqual(r.tasks, 10); assert.strictEqual(r.matched, 9); assert.strictEqual(r.general, 1);
   var d = function (id) { return q.sched.tasks[String(id)]; };
-  assert.deepStrictEqual([d(1).dur, d(2).dur, d(3).dur, d(4).dur, d(5).dur, d(6).dur], [9.5, 1.5, 1, 27, 12.5, 13]);
+  assert.deepStrictEqual([d(1).dur, d(2).dur, d(3).dur, d(4).dur, d(5).dur, d(6).dur], [10.5, 1.5, 8, 27, 12.5, 13]);
   assert.strictEqual(d(5).tpl, 'et016', 'concrete mentioning formwork stays concrete');
   assert.strictEqual(d(7).tpl, 'et041'); assert.strictEqual(d(8).tpl, 'et079'); assert.strictEqual(d(9).tpl, 'et086'); assert.strictEqual(d(10).tpl, 'general');
   assert.deepStrictEqual(d(1).split, [3, 65, 15], 'hand trench uses the labour preset'); assert.deepStrictEqual(d(2).split, [40, 20, 23]); assert.deepStrictEqual(d(4).split, [62, 18, 3], 'block work uses its own preset');
@@ -298,11 +298,11 @@ ok('generate: durations, crews, equipment and splits from the BoQ', function () 
   assert.strictEqual(d(1).mp[String(role('Daily Labour').id)], 6); assert.strictEqual(d(4).mp[String(role('Mason').id)], 4);
   assert.strictEqual(role('Project Manager').type, 'permanent');
   var eq = q.sched.equip.map(function (e) { return e.name; });
-  assert.ok(eq.indexOf('Backhoe Loader') >= 0 && eq.indexOf('Concrete Mixer') >= 0 && eq.indexOf('Plate Compactor') >= 0);
+  assert.ok(eq.indexOf('Concrete Mixer') >= 0 && eq.indexOf('Plate Compactor') >= 0);
   var c = S.compute(q); assert.ok(c.count === 10 && c.start === '2026-12-01');
   var mp = S.manpower(q, c); assert.ok(mp.totalDays > 60 && mp.peak >= 8, 'man-days ' + mp.totalDays + ' peak ' + mp.peak);
   assert.ok(Math.abs(S.cashflow(q).totals.amount - q.boq.reduce(function (s, i) { return s + i.qty * i.rate; }, 0)) < 0.01);
-  q = L.sanitizeProject(q, 1); assert.strictEqual(q.sched.tasks['1'].tpl, 'et003', 'template survives save and load');
+  q = L.sanitizeProject(q, 1); assert.strictEqual(q.sched.tasks['1'].tpl, 'et146', 'template survives save and load');
 });
 ok('generate: only tasks without a duration, keeping manual edits', function () {
   var q = boqOnly({ sched: { tasks: { 4: { dur: 10, mp: {}, eq: {} } } } }), r = S.generate(q, { only: 'empty' });
@@ -606,3 +606,35 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
   ['TPL_PRESET', 'NORM_TEMPLATES', 'NORM_CATS', 'OTHER_TEMPLATES', 'setGangs', 'crewIsAuto', 'effTpl', 'prodOf', 'presetList'].forEach(function (k) { assert.ok(S[k] != null, 'schedule.js must export ' + k + ' (the Productivity screen needs it)'); });
   console.log('ok   exports used by the Productivity screen');
 })();
+
+/* earthwork, carpentry and masonry norms matched to BoQ wording */
+ok('earthwork: depth, soil class and machine or manual', function () {
+  var rows = [['Bulk excavation in ordinary soil to up to a depth of 1500 mm from reduced level', 'M³', 300], ['a) Ditto, but in hardrock', 'M³', 10],
+    ['Pit excavation in ordinary soil over 1500mm but not exceeding 3000mm.', 'M³', 40], ['Trench excavation for masonry foundation wall to an average depth of 1000mm', 'M³', 50],
+    ['Ditto, but in soft rock', 'M³', 20], ['Load and cart away excavated material as per engineers direction.', 'M³', 175],
+    ['25cm thick basaltic or equivalent stone hardcore, well rolled, consolidated and blinded with crushed stone.', 'M³', 138]];
+  function mk(mode, min) {
+    var q = L.sanitizeProject({ name: 'E', startDate: '2026-12-01', boqLines: 2, boq: rows.map(function (r, i) { return { id: i + 1, desc: r[0], unit: r[1], qty: r[2], rate: 10 }; }) }, 1);
+    q.sched.prod = L.sanitizeProd({ earth: mode, mechMin: min });
+    return q;
+  }
+  function ids(q) { var h = S.headsOf(q); return q.boq.map(function (i) { return S.planOf(q, i, h).base.id; }); }
+  assert.deepStrictEqual(ids(mk('auto')), ['et151', 'et157', 'et147', 'et146', 'et005', 'et165', 'et163']);
+  assert.deepStrictEqual(ids(mk('manual')), ['et003', 'et149', 'et147', 'et146', 'et005', 'et164', 'et162']);
+  assert.deepStrictEqual(ids(mk('mech')), ['et151', 'et157', 'et154', 'et153', 'et155', 'et165', 'et163']);
+  assert.strictEqual(L.sanitizeProd({ earth: 'x', mechMin: -5 }).earth, 'auto'); assert.strictEqual(L.sanitizeProd({ earth: 'mech', mechMin: 30 }).mechMin, 30);
+  var q = mk('auto'); S.generate(q, {});
+  var t = q.sched.tasks['1']; assert.strictEqual(t.tpl, 'et151');
+  assert.ok(q.sched.equip.some(function (e) { return e.name === 'Excavator'; }), 'machine version brings the Excavator');
+});
+ok('carpentry and masonry lines keep their own norms', function () {
+  var rows = [['a. Ø(12-15)cm eucalyptus top & lower', 'M', 100], ['b. Ø(8-10) Vert. & diagonal eucalyptus', 'M', 100], ['b. 5X7cm zigba roof purlin', 'M', 100],
+    ['Supply and fix flush type internal wooden doors painted with semi gloss paint', 'Nº', 4], ['G-30 galvanized CIS roof fixed to zigba purlins and concrete tie beam, three coat antirust paint', 'M²', 100],
+    ['50cm thick Trachytic stone masonry foundation wall below NGL bedded in cement sand mortar mix ratio 1:3', 'M³', 20], ['50cm thick Trachytic stone masonry foundation wall ABOVE NGL bedded in cement sand mortar mix ratio 1:3', 'M³', 20],
+    ['Provide, cut and fix sawn zigba wood or steel form work', 'M²', 20], ['Supply and fix local gypsum ceiling without battens', 'M²', 50]];
+  var q = L.sanitizeProject({ name: 'C', boqLines: 2, boq: rows.map(function (r, i) { return { id: i + 1, desc: r[0], unit: r[1], qty: r[2], rate: 10 }; }) }, 1), h = S.headsOf(q);
+  var got = q.boq.map(function (i) { var b = S.refine(S.templateOf(i, h[String(i.id)]), i, h[String(i.id)]); return b && b.id; });
+  assert.deepStrictEqual(got, ['et166', 'et167', 'et168', 'et064', 'et056', 'et038', 'et037', 'et023', 'et100']);
+  var cats = S.NORM_CATS; assert.ok(cats.indexOf('Carpentry and Joinery') > 0 && cats.indexOf('Masonry') > 0);
+  assert.ok(S.OTHER_TEMPLATES.every(function (t) { return t.id !== 'carp' && t.id !== 'cart'; }), 'carpentry and cart-away are no longer in Other');
+});

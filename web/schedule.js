@@ -551,6 +551,7 @@
   var TEMPLATES = [
     { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away |of )?(the )?(site|shrub|bush|vegetation)|site clearing|removing of the top|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
+    { id: 'carp', label: 'Carpentry and joinery', re: /^(?!.*(\bcis\b|corrugated|gauge|steel (truss|purlin)|metal (door|window|frame)|\bg-?\d\d\b|tubular|plaster|gypsum|ceiling|form\s?work|shuttering))(?=.*(eucalyptus|zigba|kerero|wanza|morale|cabinet|cupboard|wardrobe|carpent|joiner|timber|\bpurlins?\b|fascia board|barge board|(wood|wooden|flush|panel+ed)( type)? (of )?(internal |external |entrance |main )?(doors?|windows?|frames?|shutters?|handrail)|(door|window|frame)s? .{0,40}(wood|timber)|shelves|shelving))/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2 }, eq: {} },
     { id: 'steel', label: 'Structural steel', re: /structural steel|steel (structure|frame|truss|column|beam|purlin|work)|fabricat|steel erection|erection of steel|\bwelding\b/, per: { def: 150 }, crew: { 'Daily Labour': 4 }, eq: {} },
     { id: 'road', label: 'Road layers and marking', re: /sub[- ]?base|base course|subgrade|gravel road|gravel wearing|crushed stone base|road marking|thermoplastic|centre ?line|zebra/, per: { def: 100 }, crew: { 'Daily Labour': 5 }, eq: {} },
     { id: 'landsc', label: 'Landscaping', re: /top\s?soil spread|spreading (of )?top\s?soil|\bgrass|\bturf|\bsod\b|\btrees?\b|shrub|landscap|planting/, per: { def: 50 }, crew: { 'Daily Labour': 4 }, eq: {} },
@@ -566,23 +567,22 @@
     { id: 'septic', label: 'Septic tank / manholes', re: /septic|manhole|inspection chamber|soak\s?(away|pit)|\bsump\b|catch\s?pit/, units: ['Nº', 'PCS', 'LS', 'M³'], per: { def: 0.5, 'M³': 4 }, crew: { Foreman: 1, 'Daily Labour': 4, Mason: 3, Helper: 3 }, eq: {} },
     { id: 'tank', label: 'Water tank and pump', re: /water tank|\btank\b|reservoir|booster|\bpump/, units: ['Nº', 'PCS', 'LS', 'SET'], per: { def: 0.5 }, crew: { Foreman: 1, 'Daily Labour': 2, Plumber: 2 }, eq: {} },
     { id: 'cart', label: 'Cart away', re: /cart\s?away|carta?way|haul away|dispose|surplus/, per: { def: 96 }, crew: { Foreman: 1, 'Daily Labour': 6, 'Truck Driver': 1, 'Pick Up Driver': 1 }, eq: { 'Dump Truck': 1, 'Backhoe Loader': 1 }, preset: 'earth_mach' },
-    { id: 'backfill', label: 'Backfill and compaction', re: /back\s?fill|compact|ram in layers|fill(ing)? around|(fill|filling) .{0,40}(excavated|selected) (material|soil)/, per: { def: 45 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'backfill' },
+    { id: 'backfill', label: 'Backfill and compaction', re: /^(?!.*(precast|pre-cast|manhole|chamber|\bcover\b)).*(back\s?fill|compact|ram in layers|fill(ing)? around|(fill|filling) .{0,40}(excavated|selected) (material|soil))/, per: { def: 45 }, crew: { Foreman: 1, 'Daily Labour': 12, 'Compactor Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Plate Compactor': 1, 'Pick Up Vehicle': 1 }, preset: 'backfill' },
     { id: 'excav', label: 'Excavation', re: /excavat|trench|\bpit\b|\bdig/, per: { def: 96 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 }, preset: 'earth_mach' },
-    { id: 'hardcore', label: 'Hardcore / aggregate', re: /hard\s?core|stone soling|crushed|aggregate|gravel|blinding|sand fill/, per: { def: 100, 'M³': 55 }, crew: { Foreman: 1, 'Daily Labour': 9, Mason: 3, Helper: 3 }, eq: { 'Plate Compactor': 1 } },
+    { id: 'hardcore', label: 'Hardcore / aggregate', re: /^(?!.*(sprinkl|aashto|95\s?%|fill(ing)? around|back\s?fill)).*(hard\s?core|stone soling|crushed|aggregate|gravel|blinding|sand fill)/, per: { def: 100, 'M³': 55 }, crew: { Foreman: 1, 'Daily Labour': 9, Mason: 3, Helper: 3 }, eq: { 'Plate Compactor': 1 } },
     { id: 'formwork', label: 'Formwork', re: /form\s?work|shuttering/, units: ['M²', 'M', 'LS'], per: { def: 80, M: 81 }, crew: { Foreman: 1, 'Daily Labour': 4, Carpenter: 4, Helper: 4 }, eq: {} },
     { id: 'rebar', label: 'Reinforcement bars', re: /bar\b|bars\b|rebar|reinforcement|stirrup|stirup/, units: ['KG'], per: { def: 258 }, crew: { Foreman: 1, 'Daily Labour': 2, 'Bar Bender': 2 }, eq: {} },
     { id: 'plaster', label: 'Plastering', re: /plaster|gypsum (plaster|finish)|chalk/, per: { def: 45 }, crew: { Foreman: 1, 'Daily Labour': 2, Plasterer: 2, Helper: 2 }, eq: {} },
     { id: 'hcb', label: 'Hollow block walling', re: /hollow block|\bhcb\b|block\s?work|blockwall|block wall/, per: { def: 40 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 2, Helper: 2 }, eq: {} },
     { id: 'pointing', label: 'Pointing', re: /pointing/, per: { def: 16 }, crew: { Foreman: 1, 'Daily Labour': 1, Mason: 1, Helper: 1 }, eq: {} },
     { id: 'masonry', label: 'Stone masonry', re: /masonry|stone wall|foundation wall/, per: { def: 8 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 1, Helper: 1 }, eq: {} },
-    { id: 'paint', label: 'Painting', re: /paint|emulsion|varnish|enamel|thermoplastic|marking/, per: { def: 100 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 2 }, eq: {} },
+    { id: 'paint', label: 'Painting', re: /^(?!.*(\bcis\b|corrugated|iron sheet|roof(ing)? sheet)).*(paint|emulsion|varnish|enamel|thermoplastic|marking)/, per: { def: 100 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 2 }, eq: {} },
     { id: 'skirting', label: 'Skirting / wall tile fixing', re: /skirting|dado/, units: ['M', 'M²'], per: { def: 50, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 2, Tiler: 2, Helper: 2 }, eq: {} },
     { id: 'tile', label: 'Tiling / paving', re: /\btile|tiling|ceramic|terrazzo|terrazo|paving|marble|granite|flooring/, per: { def: 43 }, crew: { Foreman: 1, 'Daily Labour': 4, Tiler: 4, Helper: 3 }, eq: {} },
     { id: 'lean', label: 'Lean concrete / screed', re: /lean concrete|screed|\bc-?7\b|blinding concrete/, per: { def: 25 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 2, Helper: 2, 'Mixer Operator': 1 }, eq: { 'Concrete Mixer': 1 } },
-    { id: 'concrete', label: 'Concrete', re: /concrete|\bc-?\d{2}\b|\brcc?\b|mass concrete|cast in situ/, per: { def: 10, 'M²': 25 }, crew: { Foreman: 1, 'Daily Labour': 12, Mason: 2, Helper: 2, 'Mixer Operator': 1, 'Vibrator Operator': 1 }, eq: { 'Concrete Mixer': 1, Vibrator: 1 } },
+    { id: 'concrete', label: 'Concrete', re: /^(?!.*(\bcis\b|corrugated|iron sheet)).*(concrete|\bc-?\d{2}\b|\brcc?\b|mass concrete|cast in situ)/, per: { def: 10, 'M²': 25 }, crew: { Foreman: 1, 'Daily Labour': 12, Mason: 2, Helper: 2, 'Mixer Operator': 1, 'Vibrator Operator': 1 }, eq: { 'Concrete Mixer': 1, Vibrator: 1 } },
     { id: 'roof', label: 'Roofing', re: /roof|corrugated|iron sheet|polycarbonate|gutter|down\s?pipe|flashing|ridge cap|fascia/, per: { def: 35, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 1, Carpenter: 1, Helper: 1 }, eq: {} },
     { id: 'ceiling', label: 'Ceiling boards / gypsum', re: /^(?!.*(light|lamp|\bled\b|fitting)).*(ceiling|gypsum board|cornice)/, units: ['M²', 'M'], per: { def: 40, M: 60 }, crew: { Foreman: 1, 'Daily Labour': 1, Carpenter: 2, Helper: 2 }, eq: {} },
-    { id: 'carp', label: 'Carpentry / timber', re: /morale|timber|purlin|truss|eucalyptus|zigba|carpent|batten|joiner|pile\b|cabinet|cupboard|wardrobe/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2, Helper: 2 }, eq: {} },
     { id: 'metal', label: 'Metal doors and windows', re: /\bdoors?\b|\bwindows?\b|grill|steel frame|metal (door|window|frame)|railing|handrail/, per: { def: 10 }, crew: { Foreman: 1, 'Daily Labour': 1, Welder: 1, Helper: 1 }, eq: { 'Welding Machine': 1, Grinder: 1 } },
     { id: 'glaze', label: 'Glazing', re: /glaz|glass/, per: { def: 12 }, crew: { Foreman: 1, Glazier: 1 }, eq: {} },
     { id: 'plumb', label: 'Plumbing / sanitary', re: /pipe|plumb|valve|toilet|\bwash|sanitary|\bwc\b|basin|\btap\b|elbow|\bppr\b|\bsink\b|towel|soap|toilet paper|mirror|shower/, per: { def: 50, 'Nº': 4, PCS: 4, M: 74 }, crew: { Foreman: 1, 'Daily Labour': 2, Plumber: 2 }, eq: {} },
@@ -598,16 +598,17 @@
      2. NORM_RULES pick the activity inside that type (footing, column or slab formwork...). Rules are tried on the line's own
         words first, then on the words of the heading above it; the first entry of each list is the default. */
   var NORM_RULES = {
-    clear: [['et001'], [/strip|remov\w* of the top|top\s?soil/, 'et002']],
-    excav: [['et003'], [/rock/, 'et005'], [/hard (soil|murram)|\bhard\b/, 'et004'], [/drain/, 'et115'], [/water (pipe )?trench|pipe trench/, 'et121'], [/bulk|reduce level|machine|mechani|road/, 'et122']],
-    backfill: [['et006'], [/compact|mechani|in layers|ram/, 'et007'], [/plate compactor|compaction of (the )?(sub)?grade|soil compaction/, 'et010', ['M²']]],
-    hardcore: [['et009'], [/sand/, 'et008']],
+    clear: [['et001'], [/strip|remov\w* of the top|top\s?soil|organic soil|\btop \d+\s?(cm|mm)/, 'et002']],
+    excav: [['@excav'], [/drain/, 'et115'], [/water (pipe )?trench|pipe trench/, 'et121'], [/\broad\b|machine|mechani/, 'et122']],
+    backfill: [['et006'], [/compact|mechani/, 'et007'], [/in layers|\bram|around (the )?foundation|around (the )?(footing|wall)/, 'et159'], [/plate compactor|compaction of (the )?(sub)?grade|soil compaction/, 'et010', ['M²']], [/under hard\s?core|sprinkl|95\s?%|aashto/, 'et161']],
+    hardcore: [['et162'], [/sand/, 'et008'], [/gravel|murram/, 'et009']],
+    cart: [['et164']],
     lean: [['et011'], [/screed/, 'et048']],
     concrete: [['et016'], [/slab|floor|roof|stair/, 'et016'], [/footing|foundation|strip|\bpad\b|tie beam|grade beam|plinth/, 'et012'], [/column/, 'et014'], [/beam|lintel|kerb|curb/, 'et015'], [/walk\s?way|pavement|apron/, 'et112'], [/ditch|drain|channel|culvert/, 'et116', ['M']], [/ready[- ]?mix|\brmc\b/, 'et017'], [/(footing|foundation)[\s\S]*ready[- ]?mix|ready[- ]?mix[\s\S]*(footing|foundation)/, 'et013']],
     formwork: [['et023'], [/slab|floor|roof/, 'et023'], [/footing|foundation|strip|\bpad\b|plinth/, 'et020'], [/column/, 'et021'], [/beam|lintel|grade/, 'et022'], [/stair/, 'et024'], [/dismantl|strik/, 'et025']],
     rebar: [['et031'], [/slab|floor|roof/, 'et031'], [/footing|foundation|strip|\bpad\b/, 'et028'], [/column/, 'et029'], [/beam|lintel|grade/, 'et030'], [/stair/, 'et032']],
-    hcb: [['et035'], [/lintel/, 'et040', ['M']], [/partition/, 'et039'], [/\b(10|100)\s?(cm|mm)\b/, 'et033'], [/\b(15|150)\s?(cm|mm)\b/, 'et034'], [/\b(20|200)\s?(cm|mm)\b/, 'et035'], [/brick/, 'et036']],
-    masonry: [['et037'], [/foundation|substructure|under|footing/, 'et038']],
+    hcb: [['et035'], [/parapet/, 'et177', ['M²']], [/lintel/, 'et040', ['M']], [/partition/, 'et039'], [/\b(10|100)\s?(cm|mm)\b/, 'et033'], [/\b(15|150)\s?(cm|mm)\b/, 'et034'], [/\b(20|200)\s?(cm|mm)\b/, 'et035'], [/brick/, 'et036']],
+    masonry: [['et037'], [/foundation|substructure|under|footing|below/, 'et038'], [/above\s*(ngl|ground|g\.?l)|superstructure/, 'et037'], [/dress|faced|face stone|chisel/, 'et175'], [/retaining/, 'et176']],
     pointing: [['et047']],
     plaster: [['et041'], [/external|outside|exterior/, 'et042'], [/ceiling/, 'et043'], [/screed/, 'et044'], [/rough\s?cast/, 'et045'], [/skim/, 'et046']],
     paint: [['et073'], [/ceiling/, 'et075'], [/door/, 'et070', ['Nº']], [/exterior|outside|external/, 'et074'], [/wood|varnish|vanish/, 'et076'], [/metal|steel|iron|oil paint/, 'et077'], [/putty/, 'et078'], [/primer/, 'et071'], [/one coat/, 'et072']],
@@ -615,7 +616,7 @@
     tile: [['et049'], [/porcelain/, 'et050'], [/marble/, 'et051'], [/granite/, 'et052'], [/terrazzo|terrazo/, 'et053'], [/interlock|pavers?\b/, 'et113']],
     skirting: [['et054']],
     ceiling: [['et100'], [/pvc/, 'et104'], [/framework|suspended/, 'et101'], [/joint/, 'et103']],
-    carp: [['carp'], [/door/, 'et064', ['Nº']], [/frame/, 'et066', ['Nº']]],
+    carp: [['et174'], [/chord|top\s*(&|and)\s*(lower|bottom)|upper and lower/, 'et166'], [/vert|diag|web member/, 'et167'], [/purlin/, 'et168'], [/fascia|barge/, 'et169'], [/cabinet|cupboard/, 'et170', ['M²']], [/shel(f|ves|ving)|wardrobe/, 'et171', ['M²']], [/handrail/, 'et172', ['M']], [/window/, 'et173', ['Nº']], [/door/, 'et064', ['Nº']], [/frame/, 'et066', ['Nº']]],
     metal: [['metal'], [/door/, 'et065', ['Nº']], [/alumin.{0,30}(window|door)|window/, 'et067', ['Nº']], [/alumin.{0,30}frame/, 'et068', ['M²']]],
     glaze: [['et069']],
     plumb: [['et079'], [/\b(110|160|200|250|315)\s?mm/, 'et080'], [/ppr|hot|cold|water supply|g\.?i\b/, 'et083'], [/waste|soil pipe|drain/, 'et082'], [/wash\s?basin|hand\s?wash|lavatory/, 'et085', ['Nº']], [/\bwc\b|toilet|water closet|squat|turkish/, 'et086', ['Nº']], [/sink/, 'et087', ['Nº']], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
@@ -634,16 +635,49 @@
     cleanup: [['et138'], [/debris|rubble|waste/, 'et139']]
   };
   var NORM_BY_ID = {}, NORM_TEMPLATES = [], TRADE_OF_NORM = {};
+  /* norms that no rule returns by themselves (the machine versions and the split earthwork steps) belong to a type of work too */
+  var EXTRA_TRADE = { et142: 'clear', et143: 'clear', et159: 'backfill', et160: 'backfill', et161: 'backfill', et163: 'hardcore', et165: 'cart', et177: 'hcb', et175: 'masonry', et176: 'masonry',
+    et166: 'carp', et167: 'carp', et168: 'carp', et169: 'carp', et170: 'carp', et171: 'carp', et172: 'carp', et173: 'carp', et174: 'carp' };
+  ['et145', 'et146', 'et147', 'et148', 'et149', 'et150', 'et151', 'et152', 'et153', 'et154', 'et155', 'et156', 'et157', 'et158'].forEach(function (k) { EXTRA_TRADE[k] = 'excav'; });
+  var PRESET_OF = {};
+  ['et001', 'et002', 'et003', 'et004', 'et005', 'et145', 'et146', 'et147', 'et148', 'et006', 'et159', 'et161', 'et162', 'et164'].forEach(function (k) { PRESET_OF[k] = 'earth_lab'; });
+  /* every excavation, fill, hardcore, clearing and cart-away norm that has a machine version: manual id -> machine id */
+  var MECH_PAIRS = { et001: 'et143', et002: 'et142', et003: 'et151', et145: 'et152', et146: 'et153', et147: 'et154', et004: 'et152', et005: 'et155', et148: 'et156', et149: 'et157', et150: 'et158',
+    et006: 'et007', et159: 'et007', et161: 'et160', et162: 'et163', et164: 'et165' };
+  var ALWAYS_MECH = { et149: 1, et150: 1 };   // hardrock goes to the breaker whatever the quantity
   Object.keys(NORM_RULES).forEach(function (tr) { NORM_RULES[tr].forEach(function (r) { var id = r.length === 1 ? r[0] : r[1]; if (/^et\d/.test(id) && !TRADE_OF_NORM[id]) TRADE_OF_NORM[id] = tr; }); });
   function legacyById(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return null; }
   (NORMS ? NORMS.NORMS : []).forEach(function (n) {
-    var tr = TRADE_OF_NORM[n.id], lg = tr && legacyById(tr), per = {}, crew = {}, maxc = 0, minc = 0;
+    var tr = TRADE_OF_NORM[n.id] || EXTRA_TRADE[n.id], lg = tr && legacyById(tr), per = {}, crew = {}, maxc = 0, minc = 0;
     if (lg) Object.keys(lg.per || {}).forEach(function (k) { per[k] = lg.per[k]; });
     per[n.unit] = n.out; if (per.def == null || !lg) per.def = n.out;
     Object.keys(n.crew).forEach(function (r) { crew[r] = n.crew[r][1]; maxc += n.crew[r][2]; minc += n.crew[r][0]; });
-    var t = { id: n.id, trade: tr || 'misc', cat: n.cat, code: n.code, label: n.name, unit: n.unit, per: per, crew: crew, eq: lg ? lg.eq : {}, preset: lg && lg.preset, lo: n.lo, hi: n.hi, grade: n.grade, minCrew: minc, maxCrew: maxc, norm: true };
+    var t = { id: n.id, trade: tr || 'misc', cat: n.cat, code: n.code, label: n.name, unit: n.unit, per: per, crew: crew, eq: n.eq ? n.eq : (lg ? lg.eq : {}), preset: PRESET_OF[n.id] || (lg && lg.preset), lo: n.lo, hi: n.hi, grade: n.grade, minCrew: minc, maxCrew: maxc, norm: true };
     NORM_TEMPLATES.push(t); NORM_BY_ID[n.id] = t;
   });
+  /* excavation: the soil class, the depth and the shape (pit / trench or bulk) of the BoQ line pick the manual norm */
+  function excavPick(own, both) {
+    function cls(t) { return /hard\s?rock/.test(t) ? 'H' : /rock/.test(t) ? 'S' : /hard (soil|murram|ground)|\bhard\b/.test(t) ? 'HS' : /ordinary|soil|murram|clay|gravel|sand/.test(t) ? 'O' : null; }
+    function depth(t) {
+      var mx = 0, re = /(\d+(?:[.,]\d+)?)\s*(mm|cm|m)\b/g, m;
+      while ((m = re.exec(t))) { var v = parseFloat(m[1].replace(',', '.')) * (m[2] === 'mm' ? 0.001 : m[2] === 'cm' ? 0.01 : 1); if (v >= 0.5 && v <= 12 && v > mx) mx = v; }
+      return mx;
+    }
+    var c = cls(own) || cls(both) || 'O', d = depth(own) || depth(both), deep = d > 1.5, pit = /\bpits?\b|trench/.test(own) || (!/bulk|reduce|strip/.test(own) && /\bpits?\b|trench/.test(both));
+    if (c === 'H') return deep ? 'et150' : 'et149';
+    if (c === 'S') return deep ? 'et148' : 'et005';
+    if (c === 'HS') return 'et004';
+    return pit ? (deep ? 'et147' : 'et146') : (deep ? 'et145' : 'et003');
+  }
+  /* manual or machine: Auto uses the machine from a quantity (default 100 m³) up, always for hardrock */
+  function earthMethod(p, tpl, it) {
+    var pair = tpl && MECH_PAIRS[tpl.id];
+    if (!pair) return tpl;
+    var pr = prodOf(p), mode = pr.earth || 'auto', q = parseFloat(it.qty) || 0, th = volumeType(tpl) && it.unit === 'M²' ? thickness(it) : 0;
+    if (th) q = q * th;
+    var mech = mode === 'mech' || (mode === 'auto' && (ALWAYS_MECH[tpl.id] || q >= (pr.mechMin > 0 ? pr.mechMin : 100)));
+    return mech ? NORM_BY_ID[pair] : tpl;
+  }
   function refine(tpl, it, head) {
     var rules = tpl && NORM_RULES[tpl.id];
     if (!rules) return tpl;
@@ -657,6 +691,7 @@
       return null;
     }
     pick = scan(own) || scan(both) || rules[0][0];
+    if (pick === '@excav') pick = excavPick(own, both);
     return NORM_BY_ID[pick] || legacyById(pick) || tpl;
   }
 
@@ -819,7 +854,7 @@
   /* ---------- productivity assumptions ----------
      p.sched.prod = { hours, factor, types: { <type id>: { per:{unit:output}, crew:{role:n}, eq:{machine:n}, preset } } }
      Only what you changed is stored; everything else comes from TEMPLATES. */
-  function prodOf(p) { return p.sched.prod || { hours: 8, factor: 1, maxDays: 20, types: {} }; }
+  function prodOf(p) { return p.sched.prod || { hours: 8, factor: 1, maxDays: 20, earth: 'auto', mechMin: 100, types: {} }; }
   function effTpl(p, tpl) {
     var o = prodOf(p).types[tpl.id];
     if (!o) return tpl;
@@ -939,7 +974,9 @@
   }
   /* the plan data of one BoQ item (type, output, quantity), as generate uses it */
   function planOf(p, it, heads, typeId) {
-    var base = typeId ? templateById(typeId) : refine(templateOf(it, heads[String(it.id)]), it, heads[String(it.id)]), tpl = base || DEFAULT_TPL;
+    var base = typeId ? templateById(typeId) : refine(templateOf(it, heads[String(it.id)]), it, heads[String(it.id)]), tpl;
+    if (base && !typeId) base = earthMethod(p, base, it);
+    tpl = base || DEFAULT_TPL;
     var eff = effTpl(p, tpl), unit = it.unit, qty = it.qty, th = volumeType(tpl) && it.unit === 'M²' ? thickness(it) : 0;
     if (th) { unit = 'M³'; qty = it.qty * th; }
     return { it: it, tpl: eff, base: tpl, per: outputOf(eff, unit) * speedOf(p), qty: qty, matched: !!base };
@@ -1331,7 +1368,7 @@
 
   return {
     toDays: toDays, fromDays: fromDays, dow: dow, isOff: isOff, holidaysEthiopia: holidaysEthiopia, nextWork: nextWork, finishOf: finishOf, workList: workList, workCount: workCount, offMap: offMap,
-    compute: compute, setNest: setNest, successors: successors, TPL_PRESET: TPL_PRESET, OTHER_TEMPLATES: TEMPLATES.filter(function (t) { return !NORM_RULES[t.id] || (NORM_RULES[t.id][0][0] && !NORM_BY_ID[NORM_RULES[t.id][0][0]]); }), autoGangs: autoGangs, setGangs: setGangs, crewIsAuto: crewIsAuto, crewPlan: crewPlan, planOf: planOf, refine: refine, NORM_TEMPLATES: NORM_TEMPLATES, NORM_CATS: NORMS ? NORMS.CATS : [], BUILTIN_PRESETS: BUILTIN_PRESETS, PRESET_PARTS: PRESET_PARTS, DEFAULT_MODES: DEFAULT_MODES, presetLibrary: presetLibrary, presetFromProject: presetFromProject, applyPreset: applyPreset, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, headsOf: headsOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
+    compute: compute, setNest: setNest, successors: successors, TPL_PRESET: TPL_PRESET, OTHER_TEMPLATES: TEMPLATES.filter(function (t) { return !NORM_RULES[t.id] || (NORM_RULES[t.id][0][0] && !NORM_BY_ID[NORM_RULES[t.id][0][0]] && !/^@/.test(NORM_RULES[t.id][0][0])); }), autoGangs: autoGangs, MECH_PAIRS: MECH_PAIRS, setGangs: setGangs, crewIsAuto: crewIsAuto, crewPlan: crewPlan, planOf: planOf, refine: refine, NORM_TEMPLATES: NORM_TEMPLATES, NORM_CATS: NORMS ? NORMS.CATS : [], BUILTIN_PRESETS: BUILTIN_PRESETS, PRESET_PARTS: PRESET_PARTS, DEFAULT_MODES: DEFAULT_MODES, presetLibrary: presetLibrary, presetFromProject: presetFromProject, applyPreset: applyPreset, preview: preview, effTpl: effTpl, prodOf: prodOf, speedOf: speedOf, TRADE: TRADE, tradeLinks: tradeLinks, parseLinks: parseLinks, formatLinks: formatLinks, reschedule: reschedule, wouldLoop: wouldLoop, LINK_TYPES: LINK_TYPES, addWork: addWork, generate: generate, templateOf: templateOf, headsOf: headsOf, templateById: templateById, outputOf: outputOf, TEMPLATES: TEMPLATES, STD_ROLES: STD_ROLES, STD_EQUIP: STD_EQUIP, progress: progress, TOLERANCE: TOLERANCE, autoDurations: autoDurations, manpower: manpower, equipment: equipment,
     PRESETS: PRESETS, presetList: presetList, presetSplit: presetSplit, fitSplit: fitSplit, poolOf: poolOf, splitOf: splitOf, indirectPct: indirectPct, cashflow: cashflow, earnedBy: earnedBy, payments: payments, monthlyValue: monthlyValue,
     parseWorkbook: parseWorkbook, applyImport: applyImport, parseDate: parseDate, parseDur: parseDur, fmtNum: fmtNum
   };

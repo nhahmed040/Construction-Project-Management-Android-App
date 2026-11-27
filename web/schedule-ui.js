@@ -581,6 +581,11 @@
       inputs.hours = field(t('sch_prod_hours'), pr.hours); inputs.factor = field(t('sch_prod_factor'), pr.factor);
       inputs.maxDays = field(t('sch_prod_maxdays'), pr.maxDays == null ? 20 : pr.maxDays);
       g.appendChild(inputs.hours.wrap); g.appendChild(inputs.factor.wrap); g.appendChild(inputs.maxDays.wrap);
+      var ew = c.el('label', 'pfield'); ew.appendChild(c.el('span', 'muted small', t('sch_prod_earth')));
+      inputs.earth = c.el('select'); [['auto', t('sch_earth_auto')], ['manual', t('sch_earth_manual')], ['mech', t('sch_earth_mech')]].forEach(function (o) { var op = c.el('option', null, o[1]); op.value = o[0]; if ((pr.earth || 'auto') === o[0]) op.selected = true; inputs.earth.appendChild(op); });
+      ew.appendChild(inputs.earth); g.appendChild(ew);
+      inputs.mechMin = field(t('sch_prod_mechmin'), pr.mechMin == null ? 100 : pr.mechMin); g.appendChild(inputs.mechMin.wrap);
+      g.appendChild(c.el('p', 'muted small', t('sch_prod_earth_note')));
       g.appendChild(c.el('p', 'muted small', t('sch_prod_global_note')));
       m.appendChild(g);
       var presets = S.presetList(s.cf);
@@ -646,7 +651,7 @@
       br.appendChild(c.btn(t('sch_prod_save_default'), '', function () { collect(); s.prod = L.sanitizeProd(pr); A.setProdDefault(s.prod); A.save(); A.toast(t('sch_prod_default_saved')); }));
       m.appendChild(br);
       var br2 = c.el('div', 'btnrow');
-      br2.appendChild(c.btn(t('sch_prod_reset'), '', function () { pr = { hours: 8, factor: 1, maxDays: 20, types: {} }; build(); }));
+      br2.appendChild(c.btn(t('sch_prod_reset'), '', function () { pr = { hours: 8, factor: 1, maxDays: 20, earth: 'auto', mechMin: 100, types: {} }; build(); }));
       br2.appendChild(c.btn('📦 ' + t('sch_presets'), '', function () { collect(); close(); openPresets(c, 'prod', function () { openProductivity(c, done); }); }));
       br2.appendChild(c.btn(t('sch_prod_use_default'), '', function () { var d0 = A.getProdDefault(); if (!d0) { A.toast(t('sch_prod_no_default')); return; } pr = JSON.parse(JSON.stringify(d0)); build(); }));
       m.appendChild(br2);
@@ -657,6 +662,7 @@
       if (!inputs.hours) return;
       pr.hours = num(inputs.hours.input.value, 8); pr.factor = num(inputs.factor.input.value, 1);
       var md = parseFloat(inputs.maxDays.input.value); pr.maxDays = isFinite(md) && md >= 0 ? md : 20;
+      pr.earth = inputs.earth ? inputs.earth.value : 'auto'; var mm = inputs.mechMin ? parseFloat(inputs.mechMin.input.value) : 100; pr.mechMin = isFinite(mm) && mm >= 0 ? mm : 100;
       Object.keys(inputs.types).forEach(function (id) {
         var ctl = inputs.types[id], tp = ctl.tp, e = {}, per = {};
         Object.keys(ctl.per).forEach(function (k) { var v = num(ctl.per[k].value, tp.per[k]); if (Math.abs(v - tp.per[k]) > 1e-9) per[k] = v; });

@@ -74,6 +74,8 @@
     sch_gangs: 'Gangs', sch_gangs_n: '{n} gang(s)', sch_gangs_overwrite: 'You changed the crew of this task by hand. Replace it with the crew for the new number of gangs?',
     sch_grade_short: 'evidence {g}', sch_prod_stale: 'Old settings', sch_prod_stale_note: 'These changes were saved for work types that the norms library replaced, so they are no longer used: {x}.', sch_prod_stale_remove: 'Remove them',
     sch_prod_regen_ask: 'Regenerate the schedule now with these values? (OK = regenerate, Cancel = keep the current schedule; new values apply the next time you generate.)',
+    sch_prod_earth: 'Earthwork method', sch_earth_auto: 'Auto (machine for large quantities)', sch_earth_manual: 'Always manual', sch_earth_mech: 'Always machine',
+    sch_prod_mechmin: 'Auto: machine from this quantity (m³ or m²) up', sch_prod_earth_note: 'Applies to clearing, excavation, filling, hardcore and cart-away lines when the schedule is generated. Hardrock always uses a breaker in Auto. To change one task, change its type in the task editor.',
     sch_prod_showall: 'Show all types ({n} more)', sch_prod_hide_type: 'Hide this type', sch_prod_unhide: 'Show the {n} hidden types again',
     sch_gen_note: 'If you give a finish date and the plan is too long, the crews are made bigger (and the durations shorter) until it fits. Tasks run one after another in BoQ order. Everything can be changed afterwards by tapping a task.',
     sch_gen_nothing: 'All tasks already have a duration.', sch_gen_done: '{n} tasks planned from the BoQ ({m} matched to a type of work).',
