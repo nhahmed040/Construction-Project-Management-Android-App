@@ -99,3 +99,6 @@ Productivity assumptions now come from the Ethiopian labour norms workbook: 141 
 - **Preview** shows each activity's evidence grade; small tasks never get fewer people than the norm's minimum crew; the Excel Schedule sheet has a Gangs column. Old per-type changes that no longer apply are listed on the Productivity screen with a Remove button.
 - **Site staff** (Project Manager, Store Keeper, Surveyor, Foreman, Accountant, Cashier) are the permanent roles and are counted once for the whole site, not inside each task.
 - Near-duplicate roles are merged (Mason / Concrete Lead → Mason, Tile Setter → Tiler, Steel Fixer → Bar Bender, Plumber / Pipe Fitter → Plumber). Trade assistants (Assistant Carpenter, Tile Assistant...) replace the generic Helper.
+
+### Fewer types on the Productivity screen
+The screen lists only the work types used in the current project (plus any you edited). Tick "Show all types" to see the rest, or use "Hide this type" on a type you never use; "Show the hidden types again" restores them. The library has 127 norms in 17 categories (Landscaping and Miscellaneous are merged).

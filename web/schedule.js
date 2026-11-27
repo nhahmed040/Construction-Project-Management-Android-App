@@ -551,6 +551,11 @@
   var TEMPLATES = [
     { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away |of )?(the )?(site|shrub|bush|vegetation)|site clearing|removing of the top|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
+    { id: 'steel', label: 'Structural steel', re: /structural steel|steel (structure|frame|truss|column|beam|purlin|work)|fabricat|steel erection|erection of steel|\bwelding\b/, per: { def: 150 }, crew: { 'Daily Labour': 4 }, eq: {} },
+    { id: 'road', label: 'Road layers and marking', re: /sub[- ]?base|base course|subgrade|gravel road|gravel wearing|crushed stone base|road marking|thermoplastic|centre ?line|zebra/, per: { def: 100 }, crew: { 'Daily Labour': 5 }, eq: {} },
+    { id: 'landsc', label: 'Landscaping', re: /top\s?soil spread|spreading (of )?top\s?soil|\bgrass|\bturf|\bsod\b|\btrees?\b|shrub|landscap|planting/, per: { def: 50 }, crew: { 'Daily Labour': 4 }, eq: {} },
+    { id: 'demol', label: 'Demolition', re: /demoli|dismantl(e|ing) (of )?(the )?(existing|block|wall|concrete)|break(ing)? (out|up)|remov(al|ing|e) of (the )?(existing|old)/, per: { def: 20 }, crew: { 'Daily Labour': 4 }, eq: {} },
+    { id: 'cleanup', label: 'Site cleaning and debris', re: /site clean|final clean|clean(ing)? (up )?(of )?(the )?site|debris|rubble|construction waste/, per: { def: 300 }, crew: { 'Daily Labour': 4 }, eq: {} },
     { id: 'kerb', label: 'Kerb / edge stone', re: /kerb|curb\s?stone|edge stone|channel stone/, units: ['M'], per: { def: 60 }, crew: { Foreman: 1, 'Daily Labour': 3, Mason: 2, Helper: 2 }, eq: {} },
     { id: 'drain', label: 'Drainage pipes / culverts', re: /^(?!.*excavat)(?=.*(clean\s?outs?|vent\s?caps?|(drain|sewer|culvert|hume)\w*[ -]?(pipe|line)?|(lay|laying|supply).{0,30}(drain|sewer)))/, units: ['M', 'Nº', 'PCS', 'LS'], per: { def: 25, 'Nº': 6 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 1, Plumber: 1 }, eq: {} },
     { id: 'cobble', label: 'Cobblestone paving', re: /cobble/, per: { def: 35 }, crew: { Foreman: 1, 'Daily Labour': 4, Mason: 4, Helper: 4 }, eq: {} },
@@ -595,10 +600,10 @@
   var NORM_RULES = {
     clear: [['et001'], [/strip|remov\w* of the top|top\s?soil/, 'et002']],
     excav: [['et003'], [/rock/, 'et005'], [/hard (soil|murram)|\bhard\b/, 'et004'], [/drain/, 'et115'], [/water (pipe )?trench|pipe trench/, 'et121'], [/bulk|reduce level|machine|mechani|road/, 'et122']],
-    backfill: [['et006'], [/compact|mechani|in layers|ram/, 'et007']],
+    backfill: [['et006'], [/compact|mechani|in layers|ram/, 'et007'], [/plate compactor|compaction of (the )?(sub)?grade|soil compaction/, 'et010', ['M²']]],
     hardcore: [['et009'], [/sand/, 'et008']],
     lean: [['et011'], [/screed/, 'et048']],
-    concrete: [['et016'], [/slab|floor|roof|stair/, 'et016'], [/footing|foundation|strip|\bpad\b|tie beam|grade beam|plinth/, 'et012'], [/column/, 'et014'], [/beam|lintel|kerb|curb/, 'et015'], [/walk\s?way|pavement|apron/, 'et112'], [/ditch|drain|channel|culvert/, 'et116', ['M']]],
+    concrete: [['et016'], [/slab|floor|roof|stair/, 'et016'], [/footing|foundation|strip|\bpad\b|tie beam|grade beam|plinth/, 'et012'], [/column/, 'et014'], [/beam|lintel|kerb|curb/, 'et015'], [/walk\s?way|pavement|apron/, 'et112'], [/ditch|drain|channel|culvert/, 'et116', ['M']], [/ready[- ]?mix|\brmc\b/, 'et017'], [/(footing|foundation)[\s\S]*ready[- ]?mix|ready[- ]?mix[\s\S]*(footing|foundation)/, 'et013']],
     formwork: [['et023'], [/slab|floor|roof/, 'et023'], [/footing|foundation|strip|\bpad\b|plinth/, 'et020'], [/column/, 'et021'], [/beam|lintel|grade/, 'et022'], [/stair/, 'et024'], [/dismantl|strik/, 'et025']],
     rebar: [['et031'], [/slab|floor|roof/, 'et031'], [/footing|foundation|strip|\bpad\b/, 'et028'], [/column/, 'et029'], [/beam|lintel|grade/, 'et030'], [/stair/, 'et032']],
     hcb: [['et035'], [/lintel/, 'et040', ['M']], [/partition/, 'et039'], [/\b(10|100)\s?(cm|mm)\b/, 'et033'], [/\b(15|150)\s?(cm|mm)\b/, 'et034'], [/\b(20|200)\s?(cm|mm)\b/, 'et035'], [/brick/, 'et036']],
@@ -615,13 +620,18 @@
     glaze: [['et069']],
     plumb: [['et079'], [/\b(110|160|200|250|315)\s?mm/, 'et080'], [/ppr|hot|cold|water supply|g\.?i\b/, 'et083'], [/waste|soil pipe|drain/, 'et082'], [/wash\s?basin|hand\s?wash|lavatory/, 'et085', ['Nº']], [/\bwc\b|toilet|water closet|squat|turkish/, 'et086', ['Nº']], [/sink/, 'et087', ['Nº']], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
     elec: [['et093'], [/conduit/, 'et090'], [/cable/, 'et092'], [/switch/, 'et094'], [/socket|outlet/, 'et095'], [/light|lamp|fixture|luminaire/, 'et096'], [/distribution|\bdb\b|panel|breaker/, 'et097'], [/earth/, 'et098']],
-    drain: [['et082'], [/sewer/, 'et120'], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
+    drain: [['et082'], [/sewer/, 'et120'], [/masonry (drain|channel)|stone (drain|channel)/, 'et117', ['M']], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
     septic: [['et118']],
     tank: [['et088']],
     kerb: [['et114']],
     cobble: [['et113']],
     asphalt: [['et129'], [/\b(ton|tonne)\b/, 'et128']],
-    fence: [['et136']]
+    fence: [['et136'], [/\bposts?\b/, 'et137', ['Nº']]],
+    steel: [['et107'], [/fabricat/, 'et106'], [/weld/, 'et108', ['M']], [/primer/, 'et110'], [/paint/, 'et111']],
+    road: [['et125'], [/subgrade|sub-grade/, 'et123', ['M²']], [/compact/, 'et124', ['M²']], [/sub[- ]?base/, 'et125'], [/base course/, 'et126'], [/gravel/, 'et127'], [/marking|thermoplastic|centre ?line|zebra/, 'et131']],
+    landsc: [['et133'], [/top\s?soil/, 'et132', ['M³']], [/shrub|plant/, 'et135'], [/tree/, 'et134']],
+    demol: [['et140'], [/concrete/, 'et141']],
+    cleanup: [['et138'], [/debris|rubble|waste/, 'et139']]
   };
   var NORM_BY_ID = {}, NORM_TEMPLATES = [], TRADE_OF_NORM = {};
   Object.keys(NORM_RULES).forEach(function (tr) { NORM_RULES[tr].forEach(function (r) { var id = r.length === 1 ? r[0] : r[1]; if (/^et\d/.test(id) && !TRADE_OF_NORM[id]) TRADE_OF_NORM[id] = tr; }); });

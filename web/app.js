@@ -1327,6 +1327,8 @@
       },
       getPresets: function () { return state.settings.presets || []; },
       setPresets: function (v) { state.settings.presets = v; },
+      getHiddenTypes: function () { return state.settings.hiddenTypes || []; },
+      setHiddenTypes: function (v) { state.settings.hiddenTypes = v; },
       getHiddenPresets: function () { return state.settings.hiddenPresets || []; },
       setHiddenPresets: function (v) { state.settings.hiddenPresets = v; },
       getProdDefault: function () { return state.settings.prodDefault; },

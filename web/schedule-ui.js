@@ -567,7 +567,7 @@
     var ov = c.el('div', 'overlay open sheetov'), m = c.el('div', 'modal importmodal prevmodal');
     function close() { if (ov.parentNode) ov.parentNode.removeChild(ov); }
     function num(v, d) { var x = parseFloat(v); return isFinite(x) && x > 0 ? x : d; }
-    var inputs = { types: {} };
+    var inputs = { types: {} }, showAll = { on: false };
     function field(label, value, cls) {
       var w = c.el('label', 'pfield'); w.appendChild(c.el('span', 'muted small', label));
       var i = c.el('input'); i.value = value; i.type = cls === 'text' ? 'text' : 'number'; if (cls !== 'text') { i.step = 'any'; i.inputMode = 'decimal'; }
@@ -606,19 +606,32 @@
         sl.value = eff.preset || S.TPL_PRESET && S.TPL_PRESET[tp.trade || tp.id] || '';
         pw.appendChild(sl); d.appendChild(pw); ctl.preset = sl;
         d.appendChild(c.btn(t('sch_prod_type_reset'), '', function () { delete pr.types[tp.id]; collect(); build(); }));
+        if (!usedIds[tp.id]) d.appendChild(c.btn(t('sch_prod_hide_type'), '', function () { collect(); c.A.setHiddenTypes(c.A.getHiddenTypes().concat([tp.id])); c.A.save(); build(); }));
         inputs.types[tp.id] = ctl; ctl.tp = tp;
         return d;
       }
       function o0(o, k) { return o && o[k] != null ? o[k] : ''; }
-      function catFold(name, list) {
+      var usedIds = {}; Object.keys(s.tasks || {}).forEach(function (k) { if (s.tasks[k].tpl) usedIds[s.tasks[k].tpl] = 1; });
+      Object.keys(pr.types).forEach(function (k) { usedIds[k] = 1; });
+      var hiddenIds = c.A.getHiddenTypes(), isHid = {}; hiddenIds.forEach(function (x) { isHid[x] = 1; });
+      var anyUsed = Object.keys(usedIds).length > 0, listed = 0;
+      function seen(tp) { return usedIds[tp.id] || (!isHid[tp.id] && (showAll.on || !anyUsed)); }
+      function catFold(name, all) {
+        var list = all.filter(seen); listed += list.length;
         if (!list.length) return;
         var changed = list.filter(function (tp) { return pr.types[tp.id]; }).length;
         var d = c.el('details', 'fold cat'); d.appendChild(c.el('summary', null, name + '  ·  ' + list.length + (changed ? '  ·  ✎ ' + changed : '')));
         list.forEach(function (tp) { d.appendChild(typeFold(tp)); });
         m.appendChild(d);
       }
+      if (anyUsed) {
+        var shw = c.el('label', 'colopt'), scb = c.el('input'); scb.type = 'checkbox'; scb.checked = showAll.on;
+        scb.addEventListener('change', function () { collect(); showAll.on = scb.checked; build(); });
+        shw.appendChild(scb); shw.appendChild(c.el('span', null, t('sch_prod_showall', { n: S.NORM_TEMPLATES.length + S.OTHER_TEMPLATES.length - Object.keys(usedIds).length - hiddenIds.length }))); m.appendChild(shw);
+      }
       S.NORM_CATS.forEach(function (cat) { catFold(cat, S.NORM_TEMPLATES.filter(function (tp) { return tp.cat === cat; })); });
       catFold(t('sch_cat_other'), S.OTHER_TEMPLATES);
+      if (hiddenIds.length) m.appendChild(c.btn(t('sch_prod_unhide', { n: hiddenIds.length }), '', function () { collect(); c.A.setHiddenTypes([]); c.A.save(); build(); }));
       var stale = Object.keys(pr.types).filter(function (id) { return !inputs.types[id]; });
       if (stale.length) {
         var sp = c.panel(t('sch_prod_stale'));
