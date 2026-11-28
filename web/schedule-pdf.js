@@ -91,7 +91,7 @@
     'td, th { padding: 1pt 2pt; overflow: hidden; line-height: 1.15; font-weight: normal; }' +
     'th { font-weight: 700; } .c { overflow: hidden; word-break: break-word; }' +
     'tr.gap td { height: 6pt; } .top td { white-space: nowrap; overflow: visible; } .pb { page-break-before: always; }' +
-    '.gantt td, .gantt th { padding: 0 1pt; }';
+    '.gantt td, .gantt th { padding: 0 1pt; } .gpage { page-break-inside: avoid; break-inside: avoid; }';
 
   /* ---------- Gantt pages: the same chart as on screen, drawn as vector graphics ----------
      g = { S, sc, prog, hidden[], asOf, title, fmtDate(iso), monthLabel(key), keyFn(iso), day(iso), labels{} } */
@@ -187,7 +187,7 @@
       [['#1f3864', lb.group || 'Group'], ['#8ea9db', lb.section || 'Section'], ['#2f75b5', lb.taskL || 'Task'], ['#c0392b', lb.critical || 'Critical'], ['#e0a526', lb.plan || 'Planned'], ['#555', lb.done || 'Actual (dark part of the bar)'], ['#e03a2f', lb.today || 'Today']].forEach(function (q) {
         leg += '<rect x="' + lx + '" y="' + (ly - 5) + '" width="9" height="5" fill="' + q[0] + '"/><text x="' + (lx + 12) + '" y="' + ly + '" font-size="5.8">' + esc(q[1]) + '</text>'; lx += 24 + String(q[1]).length * 3.1;
       });
-      out += '<section class="gpage pb"><svg xmlns="http://www.w3.org/2000/svg" width="' + W.toFixed(1) + 'pt" height="' + (H + FOOT).toFixed(1) + 'pt" viewBox="0 0 ' + W.toFixed(1) + ' ' + (H + FOOT).toFixed(1) + '" font-family="Calibri, Arial, sans-serif">' + s + body + links + tl + leg + '</svg></section>';
+      out += '<section class="gpage pb"><svg xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto" viewBox="0 0 ' + W.toFixed(1) + ' ' + (H + FOOT).toFixed(1) + '" preserveAspectRatio="xMinYMin meet" font-family="Calibri, Arial, sans-serif">' + s + body + links + tl + leg + '</svg></section>';
     }
     return out;
   }

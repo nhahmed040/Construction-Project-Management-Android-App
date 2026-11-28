@@ -665,7 +665,7 @@ ok('pdf: the Gantt is drawn as vector pages with links, today line and progress'
   assert.ok(/class="gpage pb"/.test(h) && /<svg /.test(h) && /Gantt chart - G/.test(h));
   assert.ok(!/weeks start on Monday/.test(h), 'the grid Gantt sheet is replaced');
   assert.ok(/stroke="#e03a2f"/.test(h), 'today line');
-  assert.ok(P.html(wb, 'G', 'en').indexOf('gpage') < 0, 'without g the workbook sheets are used as before');
+  assert.ok(P.html(wb, 'G', 'en').indexOf('<section class="gpage') < 0, 'without g the workbook sheets are used as before');
   g.hidden = sc.rows.map(function (r, i) { return i > 5; });
   assert.ok(P.ganttHtml(g).length < h.length, 'folded rows are left out');
 });

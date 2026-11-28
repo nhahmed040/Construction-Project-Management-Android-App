@@ -96,7 +96,7 @@
   }
 
   /* PDF (print): every sheet of the Excel export, A3 landscape */
-  function exportPdf(c) {
+  function exportPdf(c, mode) {
     var p = c.p, A = c.A;
     var wb = window.CBSchedExcel.workbook(p, { keyFn: c.keyFn, monthLabel: c.monthLabel }), t = c.t, sc = c.sc, asOf = asOfDate();
     /* the Gantt pages are drawn as vector graphics, the same chart as on screen (folded sections stay folded) */
@@ -104,7 +104,16 @@
       fmtDate: function (iso) { return A.fmtDate(iso); }, monthLabel: c.monthLabel, keyFn: c.keyFn, day: function (iso) { return String(A.cal().parts(iso).d); },
       labels: { task: t('sch_task'), days: t('sch_days_col'), start: t('sch_start_col'), finish: t('sch_finish_col'), pred: t('sch_pred_col'), page: t('sch_page'), d: t('sch_d_short'), today: t('sch_today'),
         group: t('sch_legend_group'), section: t('sch_legend_section'), taskL: t('sch_legend_task'), critical: t('sch_critical'), plan: t('sch_legend_plan'), done: t('sch_legend_done') } };
-    A.printDoc('Schedule - ' + (p.name || ''), window.CBSchedPdf.html(wb, 'Schedule - ' + (p.name || ''), A.lang(), gg));
+    var title = 'Schedule - ' + (p.name || ''), P = window.CBSchedPdf;
+    function build(keep) { return P.html({ sheets: wb.sheets.filter(keep) }, title, A.lang(), gg); }
+    var html;
+    if (mode === 'gantt') { if (!gg) { A.toast(t('sch_no_schedule')); return; } html = build(function () { return false; }); }
+    else {
+      html = build(function () { return true; });
+      /* a very big document can stall the phone's print preview: offer the schedule and the Gantt only */
+      if (html.length > 5000000 && window.confirm(t('sch_pdf_big', { n: Math.round(html.length / 1048576) }))) html = build(function (sh, i) { return i === 0; });
+    }
+    A.printDoc(title, html);
   }
 
   /* ---------- progress against the plan ---------- */
@@ -1552,7 +1561,7 @@
     zr.appendChild(c.btn('▾ ' + t('sch_expand_all'), '', function () { foldAll(c, false); }));
     zr.appendChild(c.btn('▸ ' + t('sch_collapse_all'), '', function () { foldAll(c, true); }));
     zr.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
-    zr.appendChild(c.btn('📄 ' + t('sch_export_pdf'), '', function () { exportPdf(c); }));
+    zr.appendChild(c.btn('📄 ' + t('sch_export_pdf_gantt'), '', function () { exportPdf(c, 'gantt'); }));
     bar.appendChild(zr);
     var lg = c.el('div', 'glegend');
     [['gb-group', t('sch_legend_group')], ['gb-line', t('sch_legend_section')], ['gb-task', t('sch_legend_task')], ['gb-crit', t('sch_critical')], ['gb-plan', t('sch_legend_plan')], ['gb-done', t('sch_legend_done')], ['gb-late', t('sch_legend_late')]].forEach(function (x) {

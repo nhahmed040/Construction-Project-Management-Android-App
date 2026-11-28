@@ -83,6 +83,8 @@
     sch_fit: 'Fit', sch_name_width: 'Names ↔',
     sch_prod_parallel: 'Same work in different top-level groups at the same time', sch_prod_parallel_note: 'Off: the same kind of work is done by one crew, one task after the other, through the whole BoQ. On: each top-level group (for example Block A and Block B) has its own crew, so groups can run side by side. Use it only when the groups are separate buildings or blocks, not for Substructure then Superstructure.',
     sch_prod_maxpeople: 'Warn when people on site go above (0 = no limit)', sch_peak_warn: '⚠ Peak people on site is {n}, above your limit of {m}. Reduce the gangs of the busiest tasks or let the finish date move.',
+    sch_export_pdf_gantt: 'Gantt PDF', sch_pdf_big: 'This PDF is big (about {n} MB) and may not open on the phone. OK = only the schedule and the Gantt (small), Cancel = everything.',
+    sch_no_schedule: 'There is no schedule yet.',
     sch_prod_showall: 'Show all types ({n} more)', sch_prod_hide_type: 'Hide this type', sch_prod_unhide: 'Show the {n} hidden types again',
     sch_gen_note: 'If you give a finish date and the plan is too long, the crews are made bigger (and the durations shorter) until it fits. Tasks run one after another in BoQ order. Everything can be changed afterwards by tapping a task.',
     sch_gen_nothing: 'All tasks already have a duration.', sch_gen_done: '{n} tasks planned from the BoQ ({m} matched to a type of work).',
