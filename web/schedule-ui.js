@@ -5,7 +5,7 @@
 
   var S = window.CBSched, L = window.CBLogic;
   var GCOLS = [{ k: 'qty', w: 62, h: 'sch_qty' }, { k: 'days', w: 44, h: 'sch_days_col' }, { k: 'start', w: 66, h: 'sch_start_col' }, { k: 'finish', w: 66, h: 'sch_finish_col' }, { k: 'pred', w: 78, h: 'sch_pred_col' }, { k: 'succ', w: 78, h: 'sch_succ_col' }];
-  var gantt = { gw: 16, asOf: '', links: true, colset: { qty: false, days: true, start: false, finish: false, pred: true, succ: false } };
+  var gantt = { gw: 16, nw: 150, asOf: '', links: true, colset: { qty: false, days: true, start: false, finish: false, pred: true, succ: false } };
   try { var sv = JSON.parse(localStorage.getItem('cbs.gantt.cols') || 'null'); if (sv && typeof sv === 'object') GCOLS.forEach(function (x) { if (typeof sv[x.k] === 'boolean') gantt.colset[x.k] = sv[x.k]; }); } catch (e) {}
   function shownCols() { return GCOLS.filter(function (x) { return gantt.colset[x.k]; }); }
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -98,8 +98,13 @@
   /* PDF (print): every sheet of the Excel export, A3 landscape */
   function exportPdf(c) {
     var p = c.p, A = c.A;
-    var wb = window.CBSchedExcel.workbook(p, { keyFn: c.keyFn, monthLabel: c.monthLabel });
-    A.printDoc('Schedule - ' + (p.name || ''), window.CBSchedPdf.html(wb, 'Schedule - ' + (p.name || ''), A.lang()));
+    var wb = window.CBSchedExcel.workbook(p, { keyFn: c.keyFn, monthLabel: c.monthLabel }), t = c.t, sc = c.sc, asOf = asOfDate();
+    /* the Gantt pages are drawn as vector graphics, the same chart as on screen (folded sections stay folded) */
+    var gg = sc.sd == null ? null : { S: S, sc: sc, prog: S.progress(p, sc, asOf), hidden: hiddenRows(sc.rows), asOf: asOf, title: t('sch_gantt_title') + ' - ' + (p.name || ''),
+      fmtDate: function (iso) { return A.fmtDate(iso); }, monthLabel: c.monthLabel, keyFn: c.keyFn, day: function (iso) { return String(A.cal().parts(iso).d); },
+      labels: { task: t('sch_task'), days: t('sch_days_col'), start: t('sch_start_col'), finish: t('sch_finish_col'), pred: t('sch_pred_col'), page: t('sch_page'), d: t('sch_d_short'), today: t('sch_today'),
+        group: t('sch_legend_group'), section: t('sch_legend_section'), taskL: t('sch_legend_task'), critical: t('sch_critical'), plan: t('sch_legend_plan'), done: t('sch_legend_done') } };
+    A.printDoc('Schedule - ' + (p.name || ''), window.CBSchedPdf.html(wb, 'Schedule - ' + (p.name || ''), A.lang(), gg));
   }
 
   /* ---------- progress against the plan ---------- */
@@ -350,6 +355,8 @@
       if (late) pn.appendChild(c.el('div', 'warn wide', t('sch_gen_nofit')));
       if (pv.mult > 1) pn.appendChild(c.el('div', 'muted small wide', t('sch_gen_crews', { n: pv.mult })));
       if (pv.general) pn.appendChild(c.el('div', 'warn wide', t('sch_gen_general', { n: pv.general })));
+      var uw = pv.rows.filter(function (r) { return r.planned && r.unitWarn; }).length;
+      if (uw) pn.appendChild(c.el('div', 'warn wide', t('sch_unit_check', { n: uw })));
       m.appendChild(pn);
       var list = c.el('div', 'panel');
       pv.rows.forEach(function (r) {
@@ -364,6 +371,7 @@
           : (r.kept === 'manual' ? t('sch_gen_kept_manual') : r.kept === 'has' ? t('sch_gen_kept_has') : r.kept === 'skip' ? t('sch_gen_kept_skip') : '');
         tx.appendChild(c.el('small', 'muted', info));
         if (r.planned && !r.matched) tx.appendChild(c.el('small', 'warn', t('sch_gen_general_row')));
+        else if (r.planned && r.unitWarn) tx.appendChild(c.el('small', 'warn', t('sch_unit_row', { a: r.normUnit, b: r.unit || '?' })));
         if (r.planned) {
           var sl = c.el('select', 'tsel');
           var curType = r.matched ? r.type : 'general';
@@ -1522,28 +1530,36 @@
     var bar = c.panel(null);
     bar.appendChild(c.kv(t('sch_period'), range(c)));
     var zr = c.el('div', 'btnrow');
-    var sizes = [5, 9, 16, 26, 40];
+    var sizes = [5, 9, 16, 26, 40], nDays = sc.fd - (sc.sd - ((S.dow(sc.sd) + 6) % 7)) + 1;
+    function sizeIdx() { var k = 0; sizes.forEach(function (s, i) { if (Math.abs(s - gantt.gw) < Math.abs(sizes[k] - gantt.gw)) k = i; }); return k; }
     [[t('sch_scale_day'), 26], [t('sch_scale_week'), 9], [t('sch_scale_month'), 5]].forEach(function (x) { zr.appendChild(c.btn((gantt.gw === x[1] ? '● ' : '') + x[0], '', function () { gantt.gw = x[1]; A.rerender(); })); });
     zr.appendChild(c.btn('⌖ ' + t('sch_today'), '', function () { var w = document.querySelector('.gantt'); if (!w) return; var tn = S.toDays(L.todayStr()), aa = sc.sd - ((S.dow(sc.sd) + 6) % 7); w.scrollLeft = Math.max(0, (tn - aa) * gantt.gw - w.clientWidth / 2 + 150); }));
-    zr.appendChild(c.btn('－', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.max(0, i - 1)] || 16; A.rerender(); }));
+    zr.appendChild(c.btn('－', '', function () { gantt.gw = sizes[Math.max(0, sizeIdx() - 1)]; A.rerender(); }));
+    zr.appendChild(c.btn(t('sch_fit'), '', function () {
+      var wEl = document.querySelector('.gantt'), vw = (wEl ? wEl.clientWidth : window.innerWidth - 24) - gantt.nw - shownCols().reduce(function (s, x) { return s + x.w; }, 0) - 8;
+      gantt.gw = Math.max(1.2, Math.min(40, vw / nDays)); A.rerender();
+    }));
+    zr.appendChild(c.btn(t('sch_name_width') + ' ' + gantt.nw, '', function () { var nws = [110, 150, 220, 300]; gantt.nw = nws[(nws.indexOf(gantt.nw) + 1) % nws.length]; A.rerender(); }));
     zr.appendChild(c.el('span', 'zoomlbl', t('sch_zoom')));
-    zr.appendChild(c.btn('＋', '', function () { var i = sizes.indexOf(gantt.gw); gantt.gw = sizes[Math.min(sizes.length - 1, i + 1)] || 16; A.rerender(); }));
+    zr.appendChild(c.btn('＋', '', function () { gantt.gw = sizes[Math.min(sizes.length - 1, sizeIdx() + 1)]; A.rerender(); }));
     zr.appendChild(c.btn((gantt.links ? '☑ ' : '☐ ') + t('sch_show_links'), '', function () { gantt.links = !gantt.links; A.rerender(); }));
     zr.appendChild(c.btn(t('sch_columns') + ' (' + shownCols().length + ') ▾', '', function () { columnsMenu(c); }));
     zr.appendChild(c.btn('▾ ' + t('sch_expand_all'), '', function () { foldAll(c, false); }));
     zr.appendChild(c.btn('▸ ' + t('sch_collapse_all'), '', function () { foldAll(c, true); }));
     zr.appendChild(c.btn(t('sch_export'), '', function () { exportExcel(c); }));
+    zr.appendChild(c.btn('📄 ' + t('sch_export_pdf'), '', function () { exportPdf(c); }));
     bar.appendChild(zr);
     var lg = c.el('div', 'glegend');
-    [['gb-group', t('sch_legend_group')], ['gb-line', t('sch_legend_section')], ['gb-task', t('sch_legend_task')], ['gb-plan', t('sch_legend_plan')], ['gb-done', t('sch_legend_done')], ['gb-late', t('sch_legend_late')]].forEach(function (x) {
+    [['gb-group', t('sch_legend_group')], ['gb-line', t('sch_legend_section')], ['gb-task', t('sch_legend_task')], ['gb-crit', t('sch_critical')], ['gb-plan', t('sch_legend_plan')], ['gb-done', t('sch_legend_done')], ['gb-late', t('sch_legend_late')]].forEach(function (x) {
       var s = c.el('span'); s.appendChild(c.el('i', x[0])); s.appendChild(document.createTextNode(' ' + x[1])); lg.appendChild(s);
     });
     bar.appendChild(lg);
     body.appendChild(bar);
 
-    var gw = gantt.gw, NAMEW = 150, SC = shownCols(), EXTRA = SC.reduce(function (s, x) { return s + x.w; }, 0), LABEL = NAMEW + EXTRA, a = sc.sd - ((S.dow(sc.sd) + 6) % 7), b = sc.fd;   // start on a Monday
+    var gw = gantt.gw, NAMEW = gantt.nw || 150, SC = shownCols(), EXTRA = SC.reduce(function (s, x) { return s + x.w; }, 0), LABEL = NAMEW + EXTRA, a = sc.sd - ((S.dow(sc.sd) + 6) % 7), b = sc.fd;   // start on a Monday
     var n = b - a + 1, width = LABEL + n * gw;
     var wrap = c.el('div', 'gantt'), inner = c.el('div', 'gt-inner');
+    wrap.style.setProperty('--nw', NAMEW + 'px');
     inner.style.width = width + 'px';
 
     var hm = c.el('div', 'gt-head');
@@ -1636,7 +1652,8 @@
           if (gi.status === 'late') { bx.classList.add('late'); lb.classList.add('late'); }
           bx.title += '\n' + t('sch_planned') + ' ' + pct(gi.planned) + ' · ' + t('sch_actual') + ' ' + pct(gi.actual);
         }
-        if ((r.fd - r.sd + 1) * gw >= 44) bx.appendChild(c.el('span', null, days(r.dur)));
+        if (isTask(r) && (r.fd - r.sd + 1) * gw >= 44) bx.appendChild(c.el('span', null, (gi && gi.actual > 0 ? pct(gi.actual) + ' · ' : '') + days(r.dur)));
+        else if (!isTask(r) && gi && gi.actual > 0 && (r.fd - r.sd + 1) * gw >= 60) bx.title += '';
         if (isTask(r)) dragEnd(c, bx, r, gw);
         row.appendChild(bx);
       }
@@ -1644,7 +1661,7 @@
       rowsBox.appendChild(row);
     });
     inner.appendChild(rowsBox);
-    pinch(wrap, function (dir) { var i = sizes.indexOf(gantt.gw); var j = Math.max(0, Math.min(sizes.length - 1, i + dir)); if (j !== i) { gantt.gw = sizes[j]; A.rerender(); } });
+    pinch(wrap, function (dir) { var i = sizeIdx(); var j = Math.max(0, Math.min(sizes.length - 1, i + dir)); if (j !== i) { gantt.gw = sizes[j]; A.rerender(); } });
     if (gantt.links && gw >= 9) setTimeout(function () { if (rowsBox.isConnected) drawLinks(c, rowsBox, rowEls, a, gw, LABEL, width); }, 0);
     wrap.appendChild(inner);
     body.appendChild(wrap);

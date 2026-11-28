@@ -585,7 +585,7 @@ ok('excel: equal row heights, long text wrapped and kept whole, header rows repe
 (function () {
   var L = require('../web/logic.js'), S = require('../web/schedule.js'), assert = require('assert');
   var p = L.sanitizeProject({ name: 'G', startDate: '2026-12-01', boqLines: 2, boq: [
-    { id: 1, desc: 'Excavation for trench foundation', unit: 'M³', qty: 60, rate: 300 }] });
+    { id: 1, desc: 'Bulk excavation in ordinary soil', unit: 'M³', qty: 60, rate: 300 }] });
   S.generate(p, {});
   var t = p.sched.tasks['1'], d1 = t.dur;
   assert.strictEqual(t.tpl, 'et003'); assert.strictEqual(t.gangs, 1); assert.strictEqual(d1, 6);
@@ -637,4 +637,33 @@ ok('carpentry and masonry lines keep their own norms', function () {
   assert.deepStrictEqual(got, ['et166', 'et167', 'et168', 'et064', 'et056', 'et038', 'et037', 'et023', 'et100']);
   var cats = S.NORM_CATS; assert.ok(cats.indexOf('Carpentry and Joinery') > 0 && cats.indexOf('Masonry') > 0);
   assert.ok(S.OTHER_TEMPLATES.every(function (t) { return t.id !== 'carp' && t.id !== 'cart'; }), 'carpentry and cart-away are no longer in Other');
+});
+
+/* units: a line is matched to a norm in its own unit, converted when it states a thickness or a size, or flagged */
+ok('units: norm unit follows the line unit', function () {
+  var rows = [['Supply and fix Angle valves of approved standard before hand wash basins', 'Nº', 0], ['Dia. 15 mm', 'Nº', 6], ['Supply and fix hand wash basins of AQUA or equivalent complete with taps', 'Nº', 3],
+    ['Supply and lay 3x25cm marble window sill', 'M', 20], ['Roof ridge cap', 'M', 30], ['Painting of steel doors D1 : 150 x 275cm', 'Nº', 4], ['Lean concrete C-7, 10cm thick under footings', 'M²', 100],
+    ['Construct concrete gutter as per the drawing', 'M', 40], ['Supply and install crystal glass mirror for wash basins', 'Nº', 3], ['Unusual lighting LED linear', 'M', 12]];
+  var q = L.sanitizeProject({ name: 'U', boqLines: 2, boq: rows.map(function (r, i) { return { id: i + 1, desc: r[0], unit: r[1], qty: r[2], rate: 10 }; }) }, 1), h = S.headsOf(q);
+  var pl = q.boq.map(function (i) { return S.planOf(q, i, h); });
+  assert.strictEqual(pl[1].base.id, 'et178'); assert.strictEqual(pl[2].base.id, 'et085'); assert.strictEqual(pl[3].base.id, 'et181'); assert.strictEqual(pl[4].base.id, 'et180');
+  assert.strictEqual(pl[5].base.id, 'et077'); assert.ok(Math.abs(pl[5].qty - 4 * 1.5 * 2.75) < 1e-9, 'a count of doors becomes m2 from the size'); assert.ok(!pl[5].unitWarn);
+  assert.strictEqual(pl[6].base.id, 'et011'); assert.strictEqual(pl[6].qty, 100, 'lean concrete stays in m2'); assert.strictEqual(pl[6].base.unit, 'M²');
+  assert.strictEqual(pl[7].base.id, 'et182'); assert.strictEqual(pl[8].base.id, 'et179');
+  assert.ok(pl[9].unitWarn && pl[9].normUnit === 'Nº', 'no norm in this unit: flagged'); assert.strictEqual(pl[9].per, 50, 'general output for the unit');
+});
+
+ok('pdf: the Gantt is drawn as vector pages with links, today line and progress', function () {
+  var P = require('../web/schedule-pdf.js'), X = require('../web/schedule-excel.js');
+  var rows = []; for (var k = 0; k < 40; k++) rows.push({ id: k + 1, no: String(k + 1), desc: 'Item ' + (k + 1), unit: 'M³', qty: 50, rate: 100, done: k % 3 ? 0 : 25 });
+  var q = L.sanitizeProject({ name: 'G', startDate: '2026-12-01', boqLines: 2, boq: rows }, 1); S.generate(q, {});
+  var sc = S.compute(q), wb = X.workbook(q, { keyFn: function (i) { return i.slice(0, 7); }, monthLabel: function (k) { return k; } });
+  var g = { S: S, sc: sc, prog: S.progress(q, sc, '2026-12-10'), hidden: sc.rows.map(function () { return false; }), asOf: '2026-12-10', title: 'Gantt chart - G', labels: {} };
+  var h = P.html(wb, 'G', 'en', g);
+  assert.ok(/class="gpage pb"/.test(h) && /<svg /.test(h) && /Gantt chart - G/.test(h));
+  assert.ok(!/weeks start on Monday/.test(h), 'the grid Gantt sheet is replaced');
+  assert.ok(/stroke="#e03a2f"/.test(h), 'today line');
+  assert.ok(P.html(wb, 'G', 'en').indexOf('gpage') < 0, 'without g the workbook sheets are used as before');
+  g.hidden = sc.rows.map(function (r, i) { return i > 5; });
+  assert.ok(P.ganttHtml(g).length < h.length, 'folded rows are left out');
 });

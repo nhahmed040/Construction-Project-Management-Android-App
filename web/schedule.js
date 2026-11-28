@@ -300,7 +300,7 @@
         return role ? role.name + ' ' + tk.mp[rid] : '';
       }).filter(Boolean);
       var row = { id: r.id, n: r.n, no: r.no, desc: r.desc, unit: r.unit, qty: r.qty, planned: !!x, kept: keptWhy[key] || '', type: x ? x.type : (tk.tpl || ''), label: x ? x.label : '',
-        matched: x ? x.matched : true, per: x ? x.per : 0, gangs: tk.gangs || 0, grade: x && templateById(x.type) ? templateById(x.type).grade || '' : '', dur: r.dur, start: r.start, finish: r.finish, crew: crew,
+        matched: x ? x.matched : true, unitWarn: !!(x && x.unitWarn), normUnit: x ? x.normUnit || '' : '', per: x ? x.per : 0, gangs: tk.gangs || 0, grade: x && templateById(x.type) ? templateById(x.type).grade || '' : '', dur: r.dur, start: r.start, finish: r.finish, crew: crew,
         links: formatLinks(r.sched ? r.preds : tk.pred || [], sc), split: tk.split || null };
       if (x && was[key] !== (r.dur || 0) + '|' + (r.start || '') + '|' + formatLinks(r.sched ? r.preds : tk.pred || [], sc)) changed += 1;
       rows.push(row);
@@ -551,6 +551,7 @@
   var TEMPLATES = [
     { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away |of )?(the )?(site|shrub|bush|vegetation)|site clearing|removing of the top|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
+    { id: 'sanit', label: 'Valves, taps and sanitary accessories', re: /^(?!.{0,40}(toilet (seat|suite)|turkish|\bwc\b|water closet|wash\s?basin|hand\s?wash|\bsink\b|urinal|bath ?tub)).{0,60}(\b(angle|gate|stop|ball|globe|check|float|foot|butterfly) valves?\b|\bvalves?\b|\btaps?\b|bib\s?cock|\bmixers?\b|\bmirror|soap (dish|holder|dispenser)|towel (rail|ring|rack|holder)|toilet paper|paper holder|water heater|\bgeyser|water meter|shower (rose|head)|robe hook)/, units: ['Nº', 'PCS', 'SET', 'LS'], per: { def: 10 }, crew: { Foreman: 1, 'Daily Labour': 1, Plumber: 2 }, eq: {} },
     { id: 'carp', label: 'Carpentry and joinery', re: /^(?!.*(\bcis\b|corrugated|gauge|steel (truss|purlin)|metal (door|window|frame)|\bg-?\d\d\b|tubular|plaster|gypsum|ceiling|form\s?work|shuttering))(?=.*(eucalyptus|zigba|kerero|wanza|morale|cabinet|cupboard|wardrobe|carpent|joiner|timber|\bpurlins?\b|fascia board|barge board|(wood|wooden|flush|panel+ed)( type)? (of )?(internal |external |entrance |main )?(doors?|windows?|frames?|shutters?|handrail)|(door|window|frame)s? .{0,40}(wood|timber)|shelves|shelving))/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2 }, eq: {} },
     { id: 'steel', label: 'Structural steel', re: /structural steel|steel (structure|frame|truss|column|beam|purlin|work)|fabricat|steel erection|erection of steel|\bwelding\b/, per: { def: 150 }, crew: { 'Daily Labour': 4 }, eq: {} },
     { id: 'road', label: 'Road layers and marking', re: /sub[- ]?base|base course|subgrade|gravel road|gravel wearing|crushed stone base|road marking|thermoplastic|centre ?line|zebra/, per: { def: 100 }, crew: { 'Daily Labour': 5 }, eq: {} },
@@ -576,7 +577,7 @@
     { id: 'hcb', label: 'Hollow block walling', re: /hollow block|\bhcb\b|block\s?work|blockwall|block wall/, per: { def: 40 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 2, Helper: 2 }, eq: {} },
     { id: 'pointing', label: 'Pointing', re: /pointing/, per: { def: 16 }, crew: { Foreman: 1, 'Daily Labour': 1, Mason: 1, Helper: 1 }, eq: {} },
     { id: 'masonry', label: 'Stone masonry', re: /masonry|stone wall|foundation wall/, per: { def: 8 }, crew: { Foreman: 1, 'Daily Labour': 2, Mason: 1, Helper: 1 }, eq: {} },
-    { id: 'paint', label: 'Painting', re: /^(?!.*(\bcis\b|corrugated|iron sheet|roof(ing)? sheet)).*(paint|emulsion|varnish|enamel|thermoplastic|marking)/, per: { def: 100 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 2 }, eq: {} },
+    { id: 'paint', label: 'Painting', re: /^(?!.*(\bcis\b|corrugated|iron sheet|roof(ing)? sheet|basin|\bsink\b|\bwc\b|water closet|toilet)).*(paint|emulsion|varnish|enamel|thermoplastic|marking)/, per: { def: 100 }, crew: { Foreman: 1, 'Daily Labour': 2, Painter: 2 }, eq: {} },
     { id: 'skirting', label: 'Skirting / wall tile fixing', re: /skirting|dado/, units: ['M', 'M²'], per: { def: 50, M: 50 }, crew: { Foreman: 1, 'Daily Labour': 2, Tiler: 2, Helper: 2 }, eq: {} },
     { id: 'tile', label: 'Tiling / paving', re: /\btile|tiling|ceramic|terrazzo|terrazo|paving|marble|granite|flooring/, per: { def: 43 }, crew: { Foreman: 1, 'Daily Labour': 4, Tiler: 4, Helper: 3 }, eq: {} },
     { id: 'lean', label: 'Lean concrete / screed', re: /lean concrete|screed|\bc-?7\b|blinding concrete/, per: { def: 25 }, crew: { Foreman: 1, 'Daily Labour': 6, Mason: 2, Helper: 2, 'Mixer Operator': 1 }, eq: { 'Concrete Mixer': 1 } },
@@ -619,6 +620,7 @@
     carp: [['et174'], [/chord|top\s*(&|and)\s*(lower|bottom)|upper and lower/, 'et166'], [/vert|diag|web member/, 'et167'], [/purlin/, 'et168'], [/fascia|barge/, 'et169'], [/cabinet|cupboard/, 'et170', ['M²']], [/shel(f|ves|ving)|wardrobe/, 'et171', ['M²']], [/handrail/, 'et172', ['M']], [/window/, 'et173', ['Nº']], [/door/, 'et064', ['Nº']], [/frame/, 'et066', ['Nº']]],
     metal: [['metal'], [/door/, 'et065', ['Nº']], [/alumin.{0,30}(window|door)|window/, 'et067', ['Nº']], [/alumin.{0,30}frame/, 'et068', ['M²']]],
     glaze: [['et069']],
+    sanit: [['et178'], [/heater|meter|mirror|soap|towel|paper|shower|hook/, 'et179']],
     plumb: [['et079'], [/\b(110|160|200|250|315)\s?mm/, 'et080'], [/ppr|hot|cold|water supply|g\.?i\b/, 'et083'], [/waste|soil pipe|drain/, 'et082'], [/wash\s?basin|hand\s?wash|lavatory/, 'et085', ['Nº']], [/\bwc\b|toilet|water closet|squat|turkish/, 'et086', ['Nº']], [/sink/, 'et087', ['Nº']], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
     elec: [['et093'], [/conduit/, 'et090'], [/cable/, 'et092'], [/switch/, 'et094'], [/socket|outlet/, 'et095'], [/light|lamp|fixture|luminaire/, 'et096'], [/distribution|\bdb\b|panel|breaker/, 'et097'], [/earth/, 'et098']],
     drain: [['et082'], [/sewer/, 'et120'], [/masonry (drain|channel)|stone (drain|channel)/, 'et117', ['M']], [/floor drain|clean\s?out|vent\s?cap/, 'et084', ['Nº']]],
@@ -637,6 +639,7 @@
   var NORM_BY_ID = {}, NORM_TEMPLATES = [], TRADE_OF_NORM = {};
   /* norms that no rule returns by themselves (the machine versions and the split earthwork steps) belong to a type of work too */
   var EXTRA_TRADE = { et142: 'clear', et143: 'clear', et159: 'backfill', et160: 'backfill', et161: 'backfill', et163: 'hardcore', et165: 'cart', et177: 'hcb', et175: 'masonry', et176: 'masonry',
+    et178: 'sanit', et179: 'sanit', et180: 'roof', et181: 'tile', et182: 'concrete', et183: 'fence', et185: 'carp',
     et166: 'carp', et167: 'carp', et168: 'carp', et169: 'carp', et170: 'carp', et171: 'carp', et172: 'carp', et173: 'carp', et174: 'carp' };
   ['et145', 'et146', 'et147', 'et148', 'et149', 'et150', 'et151', 'et152', 'et153', 'et154', 'et155', 'et156', 'et157', 'et158'].forEach(function (k) { EXTRA_TRADE[k] = 'excav'; });
   var PRESET_OF = {};
@@ -678,6 +681,26 @@
     var mech = mode === 'mech' || (mode === 'auto' && (ALWAYS_MECH[tpl.id] || q >= (pr.mechMin > 0 ? pr.mechMin : 100)));
     return mech ? NORM_BY_ID[pair] : tpl;
   }
+  /* a norm in another unit can still be used when the line gives what is needed to convert it: a thickness (m² to m³) or a size (a count to m²) */
+  function convertible(np, it, head) {
+    if (np.unit === 'M³' && it.unit === 'M²' && BY_VOLUME[np.trade]) return (thickness(it) || thickness({ desc: head || '' })) > 0;
+    if (np.unit === 'M²' && canon(it.unit) === 'Nº') return (sizeArea(it) || sizeArea({ desc: head || '' })) > 0;
+    return false;
+  }
+  var UNIT_DEFAULT = { 'plumb|Nº': [null, 'et178'], 'roof|M': [null, 'et180'], 'elec|M': [/conductor|cable|wire|earth/, 'et092'], 'elec|Nº': [null, 'et093'], 'tile|M': [/sill|threshold|step|nosing/, 'et181'],
+    'concrete|M': [/gutter|channel|curb|kerb|drain|gully/, 'et182'], 'masonry|M': [/gutter|channel|curb|kerb|drain|gully/, 'et182'], 'pointing|M': [/gutter|channel|curb|kerb|drain|gully/, 'et182'],
+    'fence|Nº': [/gate/, 'et183'], 'drain|Nº': [null, 'et084'], 'formwork|M': [/curb|kerb|gutter|channel|drain/, 'et182'], 'carp|M²': [/door|shutter/, 'et185'] };
+  /* the picked norm is rated in another unit than the line: look for a norm of the same type of work in the line's own unit */
+  function unitPick(tpl, rules, it, own, both) {
+    for (var i = rules.length - 1; i >= 1; i--) {
+      var n = NORM_BY_ID[rules[i][1]];
+      if (n && n.unit === canon(it.unit) && (rules[i][0].test(own) || rules[i][0].test(both))) return rules[i][1];
+    }
+    var d = UNIT_DEFAULT[tpl.id + '|' + canon(it.unit)];
+    if (d && (!d[0] || d[0].test(own) || d[0].test(both))) return d[1];
+    var def = rules[0][0], dn = NORM_BY_ID[def];
+    return dn && dn.unit === canon(it.unit) ? def : null;
+  }
   function refine(tpl, it, head) {
     var rules = tpl && NORM_RULES[tpl.id];
     if (!rules) return tpl;
@@ -692,21 +715,53 @@
     }
     pick = scan(own) || scan(both) || rules[0][0];
     if (pick === '@excav') pick = excavPick(own, both);
+    var np = NORM_BY_ID[pick];
+    if (np && it.unit && np.unit !== canon(it.unit) && !convertible(np, it, head)) pick = unitPick(tpl, rules, it, own, both) || pick;
     return NORM_BY_ID[pick] || legacyById(pick) || tpl;
   }
 
-  function matchText(d, u) {
+  /* the units each type of work is rated in (its norms, its older per-unit figures, and m² lines that state a thickness) */
+  var UNITS = null;
+  function unitsOf(id) {
+    if (!UNITS) {
+      UNITS = {};
+      var add = function (k, u) { (UNITS[k] = UNITS[k] || {})[u] = 1; };
+      NORM_TEMPLATES.forEach(function (n) { add(n.trade, n.unit); });
+      TEMPLATES.forEach(function (t) { (t.units || []).forEach(function (u) { add(t.id, u); }); Object.keys(t.per || {}).forEach(function (k) { if (k !== 'def') add(t.id, k); }); });
+      Object.keys(BY_VOLUME).forEach(function (k) { add(k, 'M²'); add(k, 'M³'); });
+    }
+    return UNITS[id];
+  }
+  /* "150 x 275 cm", "500x400 mm": the area in m² of a size stated in the line (a count of doors, windows, covers) */
+  function sizeArea(it) {
+    var m = /(\d+(?:[.,]\d+)?)\s*(cm|mm|m)?\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|m)\b/i.exec(String(it.desc || ''));
+    if (!m) return 0;
+    var u2 = m[4].toLowerCase(), u1 = (m[2] || m[4]).toLowerCase(), k = function (u) { return u === 'mm' ? 0.001 : u === 'cm' ? 0.01 : 1; };
+    var w = parseFloat(m[1].replace(',', '.')) * k(u1), h = parseFloat(m[3].replace(',', '.')) * k(u2);
+    return w >= 0.1 && h >= 0.1 && w <= 20 && h <= 20 ? w * h : 0;
+  }
+  function canon(u) { return u === 'PCS' ? 'Nº' : u; }
+  function compatible(t, it) {
+    var us = unitsOf(t.id), u = it && canon(it.unit);
+    if (!us || !u || us[u]) return true;
+    return u === 'Nº' && !!us['M²'] && sizeArea(it) > 0;
+  }
+  function matchText(d, u, it) {
+    var first = null;
     for (var i = 0; i < TEMPLATES.length; i++) {
       var t = TEMPLATES[i];
       if (t.units && t.units.indexOf(u) < 0) continue;
-      if (t.re.test(d)) return t;
+      if (t.re.test(d)) { if (!first) first = t; if (!it || compatible(t, it)) return t; }
     }
-    return null;
+    return first;
   }
   // an item's own words first; a sub-item such as "a) To footing" also takes the words of the heading above it
   function templateOf(item, head) {
     var d = String(item.desc || '').toLowerCase(), u = item.unit;
-    return matchText(d, u) || (head ? matchText(String(head).toLowerCase() + ' ' + d, u) : null);
+    var m1 = matchText(d, u, item);
+    if (m1 && compatible(m1, item)) return m1;
+    var m2 = head ? matchText(String(head).toLowerCase() + ' ' + d, u, item) : null;
+    return m2 && compatible(m2, item) ? m2 : (m1 || m2);
   }
   // heading text above each sub-item (same nesting rule as the schedule rows)
   function headsOf(p) {
@@ -737,10 +792,12 @@
   function templateById(id) { if (NORM_BY_ID[id]) return NORM_BY_ID[id]; for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return id === 'general' ? DEFAULT_TPL : null; }
   function outputOf(tpl, unit) {
     if (!tpl || !tpl.per) return DEFAULTS[unit] || 20;
-    return tpl.per[unit] != null ? tpl.per[unit] : tpl.per.def;
+    if (tpl.norm && tpl.unit && tpl.unit !== canon(unit) && DEFAULTS[unit]) return DEFAULTS[unit];   // another unit than the norm's: a general figure, flagged
+    if (tpl.per[unit] != null) return tpl.per[unit];
+    return tpl.per.def;
   }
   // an item measured in m² that states its thickness ("10 cm thick") is a volume for the work types that are rated per m³
-  var BY_VOLUME = { concrete: 1, lean: 1, hardcore: 1, backfill: 1, masonry: 1 };
+  var BY_VOLUME = { concrete: 1, hardcore: 1, backfill: 1, masonry: 1 };
   function volumeType(tpl) { return !!BY_VOLUME[tpl.trade || tpl.id]; }
   function thickness(it) {
     var m = /(\d+(?:\.\d+)?)\s*(cm|mm)\s*(?:thick|thickness|depth|deep)|(?:thick|thickness)\s*(?:of)?\s*(\d+(?:\.\d+)?)\s*(cm|mm)/i.exec(String(it.desc || ''));
@@ -977,9 +1034,10 @@
     var base = typeId ? templateById(typeId) : refine(templateOf(it, heads[String(it.id)]), it, heads[String(it.id)]), tpl;
     if (base && !typeId) base = earthMethod(p, base, it);
     tpl = base || DEFAULT_TPL;
-    var eff = effTpl(p, tpl), unit = it.unit, qty = it.qty, th = volumeType(tpl) && it.unit === 'M²' ? thickness(it) : 0;
+    var eff = effTpl(p, tpl), unit = it.unit, qty = it.qty, hd = heads[String(it.id)] || '', th = volumeType(tpl) && it.unit === 'M²' ? (thickness(it) || thickness({ desc: hd })) : 0;
     if (th) { unit = 'M³'; qty = it.qty * th; }
-    return { it: it, tpl: eff, base: tpl, per: outputOf(eff, unit) * speedOf(p), qty: qty, matched: !!base };
+    else if (tpl.norm && tpl.unit === 'M²' && canon(it.unit) === 'Nº') { var ar = sizeArea(it) || sizeArea({ desc: hd }); if (ar) { unit = 'M²'; qty = it.qty * ar; } }
+    return { it: it, tpl: eff, base: tpl, per: outputOf(eff, unit) * speedOf(p), qty: qty, matched: !!base, unitWarn: !!(base && tpl.norm && tpl.unit && unit && tpl.unit !== canon(unit)), normUnit: tpl.unit || '' };
   }
   /* change the number of gangs of one task: its duration and crew are worked out again */
   function setGangs(p, id, g) {
@@ -1074,7 +1132,7 @@
     }
     if (mult > 10) mult = 10;
     if (endDay != null && finishDay != null) fits = finishDay <= endDay;
-    return { tasks: plan.length, matched: matched, general: general, generalNames: general_names, kept: kept.length, keptList: kept, plan: plan.map(function (x) { return { id: x.it.id, type: x.base.id, label: x.base.label, per: x.per, matched: x.matched }; }), strategy: strategy, mult: mult, finish: finishDay == null ? '' : fromDays(finishDay), end: opts.end || '', fits: fits };
+    return { tasks: plan.length, matched: matched, general: general, generalNames: general_names, kept: kept.length, keptList: kept, plan: plan.map(function (x) { return { id: x.it.id, type: x.base.id, label: x.base.label, per: x.per, matched: x.matched, unitWarn: !!x.unitWarn, normUnit: x.normUnit || '' }; }), strategy: strategy, mult: mult, finish: finishDay == null ? '' : fromDays(finishDay), end: opts.end || '', fits: fits };
   }
 
   /* ---------- progress against the plan ----------
