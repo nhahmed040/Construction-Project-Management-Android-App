@@ -552,7 +552,13 @@
     { id: 'clear', label: 'Site clearing / topsoil', re: /clear(ing)? (off |away |of )?(the )?(site|shrub|bush|vegetation)|site clearing|removing of the top|shrubs|organic soil|top\s?soil|grub(bing)?|strip(ping)? (the )?(site|top)/, units: ['M²', 'M³', 'LS'], per: { def: 300, 'M³': 60 }, crew: { Surveyor: 1, Foreman: 1, 'Daily Labour': 6, 'Backhoe Loader Operator': 1, 'Pick Up Driver': 1 }, eq: { 'Backhoe Loader': 1, 'Pick Up Vehicle': 1 } },
     { id: 'mobil', label: 'Mobilization / site works', re: /mobili[sz]ation|site handover|site clearing|setting out|site office/, per: { def: 0.34 }, crew: { 'Project Manager': 1, 'Store Keeper': 1, Surveyor: 1, Foreman: 1, 'Pick Up Driver': 1 }, eq: {} },
     { id: 'sanit', label: 'Valves, taps and sanitary accessories', re: /^(?!.{0,40}(toilet (seat|suite)|turkish|\bwc\b|water closet|wash\s?basin|hand\s?wash|\bsink\b|urinal|bath ?tub)).{0,60}(\b(angle|gate|stop|ball|globe|check|float|foot|butterfly) valves?\b|\bvalves?\b|\btaps?\b|bib\s?cock|\bmixers?\b|\bmirror|soap (dish|holder|dispenser)|towel (rail|ring|rack|holder)|toilet paper|paper holder|water heater|\bgeyser|water meter|shower (rose|head)|robe hook)/, units: ['Nº', 'PCS', 'SET', 'LS'], per: { def: 10 }, crew: { Foreman: 1, 'Daily Labour': 1, Plumber: 2 }, eq: {} },
-    { id: 'carp', label: 'Carpentry and joinery', re: /^(?!.*(\bcis\b|corrugated|gauge|steel (truss|purlin)|metal (door|window|frame)|\bg-?\d\d\b|tubular|plaster|gypsum|ceiling|form\s?work|shuttering))(?=.*(eucalyptus|zigba|kerero|wanza|morale|cabinet|cupboard|wardrobe|carpent|joiner|timber|\bpurlins?\b|fascia board|barge board|(wood|wooden|flush|panel+ed)( type)? (of )?(internal |external |entrance |main )?(doors?|windows?|frames?|shutters?|handrail)|(door|window|frame)s? .{0,40}(wood|timber)|shelves|shelving))/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2 }, eq: {} },
+    { id: 'hvac', label: 'HVAC / ventilation', re: /fan coil|\bfcus?\b|\bahu\b|air handling|split unit|\bvrf\b|air[- ]?condition|ductwork|\bducts?\b|diffuser|grille|(fresh|exhaust|supply|return) air louvers?|louvre|supply air|lit\.?\/sec|refrigerant|chilled water|exhaust fan|\bchiller|noise attenuator|fan capacity|slot opening|\bralg|\bsald|\bhvac\b/, per: { def: 10 }, crew: { Foreman: 1, 'HVAC Technician': 2, 'Daily Labour': 2 }, eq: {} },
+    { id: 'fire', label: 'Fire-fighting and alarm', re: /sprinkler|fire hydrant|fire (alarm|extinguish|hose|fighting|pump|detector|cabinet|damper)|smoke detector|heat detector|manual call point|\bfm ?200\b|orifice disc/, per: { def: 10 }, crew: { Foreman: 1, 'Fire System Technician': 2, 'Daily Labour': 2 }, eq: {} },
+    { id: 'elv', label: 'CCTV, data and ELV', re: /cctv|\bcamera|smatv|\blnb\b|satellite|\bspliter|\bsplitter|\bamplifier|data (outlet|point|cable)|telephone (outlet|point|cable)|intercom|public address|access control|video monitor|\bdish\b|patch panel|structured cabling|fib(er|re) optic|cable (tray|ladder)|\btv outlet/, per: { def: 10 }, crew: { Foreman: 1, 'ELV Technician': 2, 'Daily Labour': 1 }, eq: {} },
+    { id: 'plant', label: 'Generator, transformer and lift', re: /generator|genset|transformer|\bups\b|switchgear|\blifts?\b(?! (station|slab))|elevator|escalator|control panel|main (distribution|panel)|capacitor bank|automatic transfer/, per: { def: 1 }, crew: { Foreman: 1, Electrician: 3, 'Daily Labour': 3 }, eq: {} },
+    { id: 'lightning', label: 'Lightning protection and earthing', re: /lightning|earth(ing)? (rod|resistance|electrode|bar|pit|tape|plate)|copper (tape|rod|strip)|air terminal|early streamer|\bese\b/, per: { def: 10 }, crew: { Foreman: 1, Electrician: 2, 'Daily Labour': 2 }, eq: {} },
+    { id: 'joiner', label: 'Joinery (doors, cabinets)', re: /^(?!.*(\bcis\b|corrugated|gauge|steel (truss|purlin)|metal (door|window|frame)|\bg-?\d\d\b|tubular|plaster|gypsum|ceiling|form\s?work|shuttering))(?=.*(cabinet|cupboard|wardrobe|joiner|(wood|wooden|flush|panel+ed)( type)? (of )?(internal |external |entrance |main )?(doors?|windows?|frames?|shutters?|handrail)|(door|window|frame)s? .{0,40}(wood|timber)|shelves|shelving))/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2 }, eq: {} },
+    { id: 'carp', label: 'Carpentry (roof timber)', re: /^(?!.*(\bcis\b|corrugated|gauge|steel (truss|purlin)|metal (door|window|frame)|\bg-?\d\d\b|tubular|plaster|gypsum|ceiling|form\s?work|shuttering))(?=.*(eucalyptus|zigba|kerero|wanza|morale|cabinet|cupboard|wardrobe|carpent|joiner|timber|\bpurlins?\b|fascia board|barge board|(wood|wooden|flush|panel+ed)( type)? (of )?(internal |external |entrance |main )?(doors?|windows?|frames?|shutters?|handrail)|(door|window|frame)s? .{0,40}(wood|timber)|shelves|shelving))/, per: { def: 40, M: 70 }, crew: { Foreman: 1, 'Daily Labour': 2, Carpenter: 2 }, eq: {} },
     { id: 'steel', label: 'Structural steel', re: /structural steel|steel (structure|frame|truss|column|beam|purlin|work)|fabricat|steel erection|erection of steel|\bwelding\b/, per: { def: 150 }, crew: { 'Daily Labour': 4 }, eq: {} },
     { id: 'road', label: 'Road layers and marking', re: /sub[- ]?base|base course|subgrade|gravel road|gravel wearing|crushed stone base|road marking|thermoplastic|centre ?line|zebra/, per: { def: 100 }, crew: { 'Daily Labour': 5 }, eq: {} },
     { id: 'landsc', label: 'Landscaping', re: /top\s?soil spread|spreading (of )?top\s?soil|\bgrass|\bturf|\bsod\b|\btrees?\b|shrub|landscap|planting/, per: { def: 50 }, crew: { 'Daily Labour': 4 }, eq: {} },
@@ -617,7 +623,13 @@
     tile: [['et049'], [/porcelain/, 'et050'], [/marble/, 'et051'], [/granite/, 'et052'], [/terrazzo|terrazo/, 'et053'], [/interlock|pavers?\b/, 'et113']],
     skirting: [['et054']],
     ceiling: [['et100'], [/pvc/, 'et104'], [/framework|suspended/, 'et101'], [/joint/, 'et103']],
-    carp: [['et174'], [/chord|top\s*(&|and)\s*(lower|bottom)|upper and lower/, 'et166'], [/vert|diag|web member/, 'et167'], [/purlin/, 'et168'], [/fascia|barge/, 'et169'], [/cabinet|cupboard/, 'et170', ['M²']], [/shel(f|ves|ving)|wardrobe/, 'et171', ['M²']], [/handrail/, 'et172', ['M']], [/window/, 'et173', ['Nº']], [/door/, 'et064', ['Nº']], [/frame/, 'et066', ['Nº']]],
+    carp: [['et174'], [/chord|top\s*(&|and)\s*(lower|bottom)|upper and lower/, 'et166'], [/vert|diag|web member/, 'et167'], [/purlin/, 'et168'], [/fascia|barge/, 'et169']],
+    joiner: [['et171'], [/cabinet|cupboard/, 'et170', ['M²']], [/shel(f|ves|ving)|wardrobe/, 'et171', ['M²']], [/handrail/, 'et172', ['M']], [/window/, 'et173', ['Nº']], [/door/, 'et064', ['Nº']], [/frame/, 'et066', ['Nº']]],
+    hvac: [['et186'], [/air handling|\bahu\b|chiller|\bfan\b(?! ?coil)|exhaust|attenuator|fan capacity|supply air/, 'et187', ['Nº']], [/duct/, 'et188', ['M²']], [/refrigerant|chilled|condensate|pipe|piping/, 'et190', ['M']], [/diffuser|grille|louver|louvre|damper|slot|\bralg|\bsald|register/, 'et189', ['Nº']]],
+    fire: [['et193'], [/sprinkler/, 'et191'], [/pipe|piping|riser|fittings/, 'et192', ['M']], [/alarm|detector|call point|sounder|bell/, 'et194']],
+    elv: [['et195'], [/outlet|socket|spl[ie]+tter|\bdish\b|\blnb\b|amplifier|telephone|\bdata\b|\btv\b|smatv|intercom|speaker|public address/, 'et196', ['Nº']], [/cable|wire|conduit/, 'et197', ['M']], [/tray|ladder/, 'et198', ['M']]],
+    plant: [['et199'], [/lift|elevator|escalator/, 'et200']],
+    lightning: [['et201'], [/tape|conductor|strip/, 'et202', ['M']]],
     metal: [['metal'], [/door/, 'et065', ['Nº']], [/alumin.{0,30}(window|door)|window/, 'et067', ['Nº']], [/alumin.{0,30}frame/, 'et068', ['M²']]],
     glaze: [['et069']],
     sanit: [['et178'], [/heater|meter|mirror|soap|towel|paper|shower|hook/, 'et179']],
@@ -639,8 +651,9 @@
   var NORM_BY_ID = {}, NORM_TEMPLATES = [], TRADE_OF_NORM = {};
   /* norms that no rule returns by themselves (the machine versions and the split earthwork steps) belong to a type of work too */
   var EXTRA_TRADE = { et142: 'clear', et143: 'clear', et159: 'backfill', et160: 'backfill', et161: 'backfill', et163: 'hardcore', et165: 'cart', et177: 'hcb', et175: 'masonry', et176: 'masonry',
-    et178: 'sanit', et179: 'sanit', et180: 'roof', et181: 'tile', et182: 'concrete', et183: 'fence', et185: 'carp',
-    et166: 'carp', et167: 'carp', et168: 'carp', et169: 'carp', et170: 'carp', et171: 'carp', et172: 'carp', et173: 'carp', et174: 'carp' };
+    et178: 'sanit', et179: 'sanit', et180: 'roof', et181: 'tile', et182: 'concrete', et183: 'fence', et185: 'joiner',
+    et166: 'carp', et167: 'carp', et168: 'carp', et169: 'carp', et170: 'joiner', et171: 'joiner', et172: 'joiner', et173: 'joiner', et174: 'carp',
+    et186: 'hvac', et187: 'hvac', et188: 'hvac', et189: 'hvac', et190: 'hvac', et191: 'fire', et192: 'fire', et193: 'fire', et194: 'fire', et195: 'elv', et196: 'elv', et197: 'elv', et198: 'elv', et199: 'plant', et200: 'plant', et201: 'lightning', et202: 'lightning' };
   ['et145', 'et146', 'et147', 'et148', 'et149', 'et150', 'et151', 'et152', 'et153', 'et154', 'et155', 'et156', 'et157', 'et158'].forEach(function (k) { EXTRA_TRADE[k] = 'excav'; });
   var PRESET_OF = {};
   ['et001', 'et002', 'et003', 'et004', 'et005', 'et145', 'et146', 'et147', 'et148', 'et006', 'et159', 'et161', 'et162', 'et164'].forEach(function (k) { PRESET_OF[k] = 'earth_lab'; });
@@ -689,7 +702,7 @@
   }
   var UNIT_DEFAULT = { 'plumb|Nº': [null, 'et178'], 'roof|M': [null, 'et180'], 'elec|M': [/conductor|cable|wire|earth/, 'et092'], 'elec|Nº': [null, 'et093'], 'tile|M': [/sill|threshold|step|nosing/, 'et181'],
     'concrete|M': [/gutter|channel|curb|kerb|drain|gully/, 'et182'], 'masonry|M': [/gutter|channel|curb|kerb|drain|gully/, 'et182'], 'pointing|M': [/gutter|channel|curb|kerb|drain|gully/, 'et182'],
-    'fence|Nº': [/gate/, 'et183'], 'drain|Nº': [null, 'et084'], 'formwork|M': [/curb|kerb|gutter|channel|drain/, 'et182'], 'carp|M²': [/door|shutter/, 'et185'] };
+    'fence|Nº': [/gate/, 'et183'], 'fire|M': [/cable|wire/, 'et197'], 'hvac|M²': [null, 'et188'], 'drain|Nº': [null, 'et084'], 'formwork|M': [/curb|kerb|gutter|channel|drain/, 'et182'], 'joiner|M²': [/door|shutter/, 'et185'] };
   /* the picked norm is rated in another unit than the line: look for a norm of the same type of work in the line's own unit */
   function unitPick(tpl, rules, it, own, both) {
     for (var i = rules.length - 1; i >= 1; i--) {
@@ -740,7 +753,7 @@
     var w = parseFloat(m[1].replace(',', '.')) * k(u1), h = parseFloat(m[3].replace(',', '.')) * k(u2);
     return w >= 0.1 && h >= 0.1 && w <= 20 && h <= 20 ? w * h : 0;
   }
-  function canon(u) { return u === 'PCS' || u === 'SET' || u === 'NO' ? 'Nº' : u; }
+  function canon(u) { return u === 'PCS' || u === 'SET' || u === 'NO' || u === 'LS' ? 'Nº' : u; }
   function sameFamily(a, b) { var g = { 'M': 1, 'M²': 1, 'M³': 1 }; return a === b || (g[a] && g[b]); }
   function compatible(t, it) {
     var us = unitsOf(t.id), u = it && canon(it.unit);
@@ -933,7 +946,9 @@
      duration (an SS link waits f * its duration); lag is in working days. Every link points to a type that comes earlier in
      the building order, so the links cannot loop. Items of one type are chained in BoQ order (one crew). */
   var TRADE = {
-    excav: [{ t: ['clear', 'mobil'], type: 'FS' }],
+    demol: [{ t: ['mobil'], type: 'FS' }],
+    clear: [{ t: ['demol', 'mobil'], type: 'FS' }],
+    excav: [{ t: ['clear', 'demol', 'mobil'], type: 'FS' }],
     drain: [{ t: ['excav', 'clear', 'mobil'], type: 'FS' }],
     septic: [{ t: ['excav', 'clear', 'mobil'], type: 'FS' }],
     termite: [{ t: ['backfill', 'hardcore', 'excav'], type: 'FS' }],
@@ -954,20 +969,37 @@
     rebar: [{ t: ['formwork'], type: 'SS', lag: 1 }, { t: ['lean', 'hardcore', 'backfill', 'masonry', 'excav', 'mobil'], type: 'FS' }],
     concrete: [{ t: ['formwork'], type: 'FS' }, { t: ['rebar'], type: 'FS' }],
     hcb: [{ t: ['concrete'], type: 'SS', f: 0.5 }, { t: ['concrete'], type: 'FF', lag: 1 }],
-    roof: [{ t: ['hcb', 'concrete'], type: 'SS', f: 0.7 }, { t: ['hcb', 'concrete'], type: 'FF', lag: 1 }],
-    carp: [{ t: ['roof', 'hcb', 'concrete'], type: 'FS' }],
+    roof: [{ t: ['hcb', 'concrete'], type: 'SS', f: 0.7 }, { t: ['hcb', 'concrete'], type: 'FF', lag: 1 }, { t: ['steel', 'rooftruss', 'carp'], type: 'FS', sec: true }],
+    carp: [{ t: ['hcb', 'concrete'], type: 'FS' }],
+    joiner: [{ t: ['plaster', 'hcb'], type: 'FS' }],
+    rooftruss: [{ t: ['hcb', 'concrete', 'masonry'], type: 'FS' }],
     plaster: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.5 }, { t: ['hcb', 'masonry', 'concrete'], type: 'FF', lag: 1 }],
     pointing: [{ t: ['masonry', 'hcb'], type: 'FS' }],
     plumb: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.4 }],
     elec: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.4 }],
+    hvac: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.4 }],
+    fire: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.4 }],
+    elv: [{ t: ['hcb', 'masonry', 'concrete'], type: 'SS', f: 0.4 }],
+    plant: [{ t: ['hcb', 'concrete'], type: 'FS' }],
+    lightning: [{ t: ['roof', 'concrete', 'hcb'], type: 'FS' }],
+    /* fixtures, devices and fittings go in after the finishes */
+    plumbfit: [{ t: ['tile', 'paint', 'plaster'], type: 'FS' }],
+    elecfit: [{ t: ['tile', 'paint', 'plaster'], type: 'FS' }],
+    steel: [{ t: ['concrete', 'masonry'], type: 'FS' }],
+    road: [{ t: ['hardcore', 'backfill', 'excav', 'clear'], type: 'FS' }],
+    landsc: [{ t: ['fence', 'asphalt', 'cobble', 'kerb', 'paint', 'plaster'], type: 'FS' }],
+    cleanup: [{ t: ['paint'], type: 'FS' }, { t: ['tile'], type: 'FS' }, { t: ['elecfit'], type: 'FS' }, { t: ['plumbfit'], type: 'FS' }, { t: ['landsc'], type: 'FS' }, { t: ['asphalt', 'cobble'], type: 'FS' }],
     metal: [{ t: ['plaster', 'hcb'], type: 'FS' }],
     glaze: [{ t: ['metal', 'plaster', 'hcb'], type: 'FS' }],
     tile: [{ t: ['plaster', 'hcb', 'concrete'], type: 'FS' }],
-    paint: [{ t: ['plaster', 'carp', 'roof', 'hcb'], type: 'FS' }]
+    paint: [{ t: ['plaster', 'carp', 'joiner', 'roof', 'hcb'], type: 'FS' }]
   };
 
+  var SEQ_OF = { et058: 'rooftruss', et085: 'plumbfit', et086: 'plumbfit', et087: 'plumbfit', et178: 'plumbfit', et179: 'plumbfit', et094: 'elecfit', et095: 'elecfit', et096: 'elecfit', et097: 'elecfit',
+    et186: 'elecfit', et187: 'hvac', et189: 'elecfit', et191: 'elecfit', et194: 'elecfit', et195: 'elecfit', et196: 'elecfit' };
   /* links for the items in `list` ([{ id, type, dur, g0, g1 }] in BoQ order); returns { id: [links] } */
-  function tradeLinks(list) {
+  function tradeLinks(list, opts) {
+    opts = opts || {};
     var out = {};
     function nearest(cands, k) {   // the candidate closest to position k, the earlier one when equal
       var best = null, bd = 1e9;
@@ -986,7 +1018,7 @@
         var hit = null;
         for (var i = 0; i < rule.t.length && !hit; i++) {
           var cands = list.filter(function (y) { return y.type === rule.t[i] && y.id !== x.id; });
-          var scopes = [cands.filter(function (y) { return y.g1 === x.g1; }), cands.filter(function (y) { return y.g0 === x.g0; }), cands.filter(function (y) { return y.k < k; })];
+          var scopes = rule.sec ? [cands.filter(function (y) { return y.g1 === x.g1; })] : [cands.filter(function (y) { return y.g1 === x.g1; }), cands.filter(function (y) { return y.g0 === x.g0; }), cands.filter(function (y) { return y.k < k; })];
           for (var sc = 0; sc < scopes.length && !hit; sc++) if (scopes[sc].length) hit = nearest(scopes[sc], k);
         }
         if (!hit) return;
@@ -996,7 +1028,7 @@
       });
       // the same kind of work follows the one before it (one crew)
       var prevSame = null;
-      for (var j = k - 1; j >= 0; j--) if (list[j].type === x.type) { prevSame = list[j]; break; }
+      for (var j = k - 1; j >= 0; j--) if (list[j].type === x.type && (!opts.parallel || list[j].g0 === x.g0)) { prevSame = list[j]; break; }
       add(prevSame, 'FS', 0);
       // nothing to follow: go after the item before it, except the very first
       if (!links.length && k > 0) add(list[k - 1], 'FS', 0);
@@ -1121,9 +1153,9 @@
           if (!tk || !(tk.dur > 0)) return;
           var pl = planById[key], inf = info[key];
           var bt = pl ? pl.base : (templateById(tk.tpl) || templateOf(it, heads[key]) || DEFAULT_TPL);
-          list.push({ id: key, type: bt.trade || bt.id, dur: tk.dur, k: list.length, g0: inf.g0, g1: inf.g1 });
+          list.push({ id: key, type: SEQ_OF[bt.id] || bt.trade || bt.id, dur: tk.dur, k: list.length, g0: inf.g0, g1: inf.g1 });
         });
-        var links = tradeLinks(list);
+        var links = tradeLinks(list, { parallel: !!prodOf(p).parallel });
         plan.forEach(function (x) { var key = String(x.it.id); if (links[key]) s.tasks[key].pred = links[key]; });
       }
     }

@@ -350,11 +350,13 @@
       if (base.end) chip(t('sch_target'), A.fmtDate(base.end));
       chip(t('sch_workdays'), String(pv.workDays));
       chip(t('sch_gen_mandays'), S.fmtNum(pv.manDays));
-      chip(t('sch_gen_peak'), String(pv.peak));
+      var lim = (p.sched.prod && p.sched.prod.maxPeople) || 0, over = lim && pv.peak > lim;
+      chip(t('sch_gen_peak'), String(pv.peak), over);
       chip(t('sch_gen_critical'), String(pv.critical));
       if (late) pn.appendChild(c.el('div', 'warn wide', t('sch_gen_nofit')));
       if (pv.mult > 1) pn.appendChild(c.el('div', 'muted small wide', t('sch_gen_crews', { n: pv.mult })));
       if (pv.general) pn.appendChild(c.el('div', 'warn wide', t('sch_gen_general', { n: pv.general })));
+      if (over) pn.appendChild(c.el('div', 'warn wide', t('sch_peak_warn', { n: pv.peak, m: lim })));
       var uw = pv.rows.filter(function (r) { return r.planned && r.unitWarn; }).length;
       if (uw) pn.appendChild(c.el('div', 'warn wide', t('sch_unit_check', { n: uw })));
       m.appendChild(pn);
@@ -594,6 +596,9 @@
       ew.appendChild(inputs.earth); g.appendChild(ew);
       inputs.mechMin = field(t('sch_prod_mechmin'), pr.mechMin == null ? 100 : pr.mechMin); g.appendChild(inputs.mechMin.wrap);
       g.appendChild(c.el('p', 'muted small', t('sch_prod_earth_note')));
+      var pw = c.el('label', 'colopt'), pcb = c.el('input'); pcb.type = 'checkbox'; pcb.checked = !!pr.parallel; inputs.parallel = pcb; pw.appendChild(pcb); pw.appendChild(c.el('span', null, t('sch_prod_parallel'))); g.appendChild(pw);
+      g.appendChild(c.el('p', 'muted small', t('sch_prod_parallel_note')));
+      inputs.maxPeople = field(t('sch_prod_maxpeople'), pr.maxPeople || 0); g.appendChild(inputs.maxPeople.wrap);
       g.appendChild(c.el('p', 'muted small', t('sch_prod_global_note')));
       m.appendChild(g);
       var presets = S.presetList(s.cf);
@@ -670,7 +675,7 @@
       if (!inputs.hours) return;
       pr.hours = num(inputs.hours.input.value, 8); pr.factor = num(inputs.factor.input.value, 1);
       var md = parseFloat(inputs.maxDays.input.value); pr.maxDays = isFinite(md) && md >= 0 ? md : 20;
-      pr.earth = inputs.earth ? inputs.earth.value : 'auto'; var mm = inputs.mechMin ? parseFloat(inputs.mechMin.input.value) : 100; pr.mechMin = isFinite(mm) && mm >= 0 ? mm : 100;
+      pr.earth = inputs.earth ? inputs.earth.value : 'auto'; pr.parallel = !!(inputs.parallel && inputs.parallel.checked); var mpx = inputs.maxPeople ? parseInt(inputs.maxPeople.input.value, 10) : 0; pr.maxPeople = isFinite(mpx) && mpx > 0 ? mpx : 0; var mm = inputs.mechMin ? parseFloat(inputs.mechMin.input.value) : 100; pr.mechMin = isFinite(mm) && mm >= 0 ? mm : 100;
       Object.keys(inputs.types).forEach(function (id) {
         var ctl = inputs.types[id], tp = ctl.tp, e = {}, per = {};
         Object.keys(ctl.per).forEach(function (k) { var v = num(ctl.per[k].value, tp.per[k]); if (Math.abs(v - tp.per[k]) > 1e-9) per[k] = v; });

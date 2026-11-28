@@ -398,7 +398,7 @@
   /* productivity assumptions: { hours, factor, types: { id: { per:{unit:n}, crew:{name:n}, eq:{name:n}, preset } } } */
   function sanitizeProd(pr) {
     pr = pr && typeof pr === 'object' ? pr : {};
-    var out = { hours: num(pr.hours == null ? 8 : pr.hours, 1, 16), factor: num(pr.factor == null ? 1 : pr.factor, 0.2, 3), maxDays: num(pr.maxDays == null ? 20 : pr.maxDays, 0, 365), earth: /^(auto|manual|mech)$/.test(pr.earth) ? pr.earth : 'auto', mechMin: num(pr.mechMin == null ? 100 : pr.mechMin, 0, 100000), types: {} };
+    var out = { hours: num(pr.hours == null ? 8 : pr.hours, 1, 16), factor: num(pr.factor == null ? 1 : pr.factor, 0.2, 3), maxDays: num(pr.maxDays == null ? 20 : pr.maxDays, 0, 365), earth: /^(auto|manual|mech)$/.test(pr.earth) ? pr.earth : 'auto', parallel: !!pr.parallel, maxPeople: num(pr.maxPeople == null ? 0 : pr.maxPeople, 0, 2000), mechMin: num(pr.mechMin == null ? 100 : pr.mechMin, 0, 100000), types: {} };
     function nmap(m) {
       var r = {};
       if (m && typeof m === 'object') Object.keys(m).slice(0, 12).forEach(function (k) {

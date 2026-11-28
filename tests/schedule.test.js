@@ -669,3 +669,27 @@ ok('pdf: the Gantt is drawn as vector pages with links, today line and progress'
   g.hidden = sc.rows.map(function (r, i) { return i > 5; });
   assert.ok(P.ganttHtml(g).length < h.length, 'folded rows are left out');
 });
+
+/* trade logic: MEP and special systems, sequence of timber, steel, fixtures and the last works */
+ok('trade logic: MEP norms, sequence and options', function () {
+  var rows = [['Demolition of existing block wall', 'M³', 20], ['Site clearing and removing the top 20 cm thick soil', 'M²', 300], ['Excavation for trench foundation 1.0 m deep', 'M³', 50], ['Concrete C-25 for columns', 'M³', 30],
+    ['Hollow concrete block wall 20 cm', 'M²', 300], ['Eucalyptus truss top and lower chord', 'M', 100], ['G-30 CIS roof fixed to zigba purlins', 'M²', 300], ['Plastering of internal walls', 'M²', 500],
+    ['Fan coil unit FCU-3 7.1 kW ducted', 'Nº', 6], ['Sprinkler heads UL listed recessed pendent', 'Nº', 80], ['CCTV 8MP indoor dome camera', 'Nº', 12], ['Generator 100 kVA with control panel', 'Nº', 1],
+    ['Lightning protection copper tape 25 x 3mm', 'M', 120], ['Supply and fix hand wash basins', 'Nº', 6], ['Ceramic tiles for floor', 'M²', 300], ['Painting of internal walls', 'M²', 500],
+    ['Supply and fix flush type internal wooden doors', 'Nº', 12], ['Final site cleaning', 'LS', 1]];
+  function mk(par) {
+    var q = L.sanitizeProject({ name: 'T', startDate: '2026-12-01', boqLines: 2, boq: rows.map(function (r, i) { return { id: i + 1, desc: r[0], unit: r[1], qty: r[2], rate: 10 }; }) }, 1);
+    q.sched.prod = L.sanitizeProd({ parallel: par }); S.generate(q, { strategy: 'trade' }); return q;
+  }
+  var q = mk(false), t = q.sched.tasks, h = S.headsOf(q);
+  var types = q.boq.map(function (i) { return S.planOf(q, i, h).base.id; });
+  assert.deepStrictEqual(types.slice(8, 13), ['et186', 'et191', 'et195', 'et199', 'et202']);
+  assert.strictEqual(types[16], 'et064');
+  function preds(id) { return (t[String(id)].pred || []).map(function (x) { return String(x.id); }); }
+  assert.ok(preds(7).indexOf('6') >= 0, 'roof sheets wait for the timber roof structure');
+  assert.ok(preds(14).some(function (x) { return ['15', '16', '8'].indexOf(x) >= 0; }), 'basin goes in after the finishes');
+  assert.ok(preds(18).length > 0, 'site cleaning comes last');
+  assert.strictEqual(L.sanitizeProd({ parallel: 1, maxPeople: 40 }).maxPeople, 40); assert.strictEqual(L.sanitizeProd({}).parallel, false);
+  var pv = S.preview(q, { only: 'all', strategy: 'trade' }); assert.ok(pv.finish);
+  mk(true);
+});
