@@ -740,7 +740,8 @@
     var w = parseFloat(m[1].replace(',', '.')) * k(u1), h = parseFloat(m[3].replace(',', '.')) * k(u2);
     return w >= 0.1 && h >= 0.1 && w <= 20 && h <= 20 ? w * h : 0;
   }
-  function canon(u) { return u === 'PCS' ? 'Nº' : u; }
+  function canon(u) { return u === 'PCS' || u === 'SET' || u === 'NO' ? 'Nº' : u; }
+  function sameFamily(a, b) { var g = { 'M': 1, 'M²': 1, 'M³': 1 }; return a === b || (g[a] && g[b]); }
   function compatible(t, it) {
     var us = unitsOf(t.id), u = it && canon(it.unit);
     if (!us || !u || us[u]) return true;
@@ -1033,6 +1034,8 @@
   function planOf(p, it, heads, typeId) {
     var base = typeId ? templateById(typeId) : refine(templateOf(it, heads[String(it.id)]), it, heads[String(it.id)]), tpl;
     if (base && !typeId) base = earthMethod(p, base, it);
+    /* a norm in a count unit for a line in metres or the other way round is a wrong trade, not a unit to convert: general work */
+    if (base && !typeId && base.norm && it.unit && base.unit !== canon(it.unit) && !convertible(base, it, heads[String(it.id)]) && !sameFamily(base.unit, canon(it.unit))) base = null;
     tpl = base || DEFAULT_TPL;
     var eff = effTpl(p, tpl), unit = it.unit, qty = it.qty, hd = heads[String(it.id)] || '', th = volumeType(tpl) && it.unit === 'M²' ? (thickness(it) || thickness({ desc: hd })) : 0;
     if (th) { unit = 'M³'; qty = it.qty * th; }

@@ -650,7 +650,9 @@ ok('units: norm unit follows the line unit', function () {
   assert.strictEqual(pl[5].base.id, 'et077'); assert.ok(Math.abs(pl[5].qty - 4 * 1.5 * 2.75) < 1e-9, 'a count of doors becomes m2 from the size'); assert.ok(!pl[5].unitWarn);
   assert.strictEqual(pl[6].base.id, 'et011'); assert.strictEqual(pl[6].qty, 100, 'lean concrete stays in m2'); assert.strictEqual(pl[6].base.unit, 'M²');
   assert.strictEqual(pl[7].base.id, 'et182'); assert.strictEqual(pl[8].base.id, 'et179');
-  assert.ok(pl[9].unitWarn && pl[9].normUnit === 'Nº', 'no norm in this unit: flagged'); assert.strictEqual(pl[9].per, 50, 'general output for the unit');
+  assert.ok(!pl[9].matched && !pl[9].unitWarn, 'a linear light is not a count: general work'); assert.strictEqual(pl[9].per, 50, 'general output for the unit');
+  var q2 = L.sanitizeProject({ name: 'U2', boqLines: 2, boq: [{ id: 1, desc: 'Stone masonry wall in cement mortar', unit: 'M²', qty: 20, rate: 10 }] }, 1), h2 = S.headsOf(q2), w = S.planOf(q2, q2.boq[0], h2);
+  assert.ok(w.matched && w.unitWarn && w.normUnit === 'M³', 'same kind of unit without a thickness: kept and flagged');
 });
 
 ok('pdf: the Gantt is drawn as vector pages with links, today line and progress', function () {
